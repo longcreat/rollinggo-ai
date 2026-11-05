@@ -26,6 +26,7 @@ import { runAgentTurn, type AgentStreamEvent } from './runtime';
 import type { ConversationId } from '@earendil-works/pi-durable';
 import { createTripTools } from './tools';
 import { createTripDraft } from './tripDraft';
+import { createPlacePointCache } from './placePoints';
 import { repairChangedRoutes } from '../../services/tripHistoryService';
 import { createGeoSession } from '../../generation/geoPipeline';
 import { createTrip } from '../../services/tripService';
@@ -59,7 +60,7 @@ const SUBAGENT_INSTRUCTIONS = [
   '你看不到主代理与用户的对话；任务提示里给出的范围就是你的全部上下文，需要行程事实时先调 get_trip / get_day。',
   '调研纪律：地点信息用 search_places 核实（名称、地址、营业时间），时效与口碑用 web_search，天气用 get_weather；查不到就明确说查不到，不要编。',
   '只输出与本任务有关的事实：地点名、片区、营业/预约、通勤耗时、需要避开的坑。不要寒暄，不要复述任务，不要输出 Markdown 标题。',
-  '300 字以内，要点式短句；地点名保持原样；引用链接必须是工具结果里真实出现过的。',
+  '输出格式（必须严格遵守）：最后只输出一个 JSON 对象，不要代码块、不要解释。kind=places 用 {"places":[{"name","address","lat","lng","category","reason","openTime","rating","cost","sourceUrl"}]}（lat/lng 取自 search_places，最多 6 个）；kind=notes 用 {"notes":[{"topic","detail","sourceUrl"}],"cautions":[{"topic","detail"}]}（各最多 5 条）。没有把握的地点不要放进 places。',
 ].join('\n');
 
 /** 写工具开关：默认开启（P2），设 AGENT_WRITE_TOOLS=0 可退回只读。 */
@@ -94,7 +95,8 @@ const SYSTEM_INSTRUCTIONS = [
   '用户要求改行程时，直接用写工具改，不要说“请到界面上改”：加地点用 add_activity，改内容用 update_activity，删除用 delete_activity，跨天挪动用 move_activity，当天换顺序用 reorder_day，增删天数用 add_day / delete_day，改标题日期人数预算偏好用 update_trip。',
   '改、删、挪某个已存在的活动前，先确认 activityId 来自当前行程（拿不准就调 get_day）；不要猜 id，也不要重复执行同一个修改。',
   '只改用户明确要求的范围，不顺手优化其它安排。删除活动、减少天数必须是在用户明确要求时才做。',
-  '需要同时调研多个主题（多天安排、多个片区、多组候选）时，用 spawn_subagents 并行派发；单点查询直接调 search_places / web_search，不要为一件小事开子代理。子代理返回的是调研材料，引用前自己核对是否与当前行程一致。',
+  '需要同时调研多个主题（多天安排、多个片区、多组候选）时，用 spawn_subagents 并行派发；单点查询直接调 search_places / web_search，不要为一件小事开子代理。找具体地点用 kind=places，查政策口碑用 kind=notes。',
+  '子代理 kind=places 返回的 data.places 带真实坐标：把它加进行程时直接用同一个 name 调 add_activity，系统会复用该坐标，不要自己填经纬度。返回结果是调研材料，引用前核对是否与当前行程一致。',
   '新增或改名地点前先 search_places 查一次：系统会复用查到的精确坐标；没查过就直接写模糊地名，可能被定位到同城另一个同名点。查不到就如实说没找到，不要编地名或把连锁店当成本地店。',
   '写工具返回 ok=false 时不要声称已经改好，按返回的原因说明哪里没改成、需要用户补什么。',
   '保存由系统在回答结束后自动完成，不要讲“点击保存”“正在提交”这类流程话术；也不要说自己不能改行程。',
@@ -137,8 +139,10 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
         }
       }
     : undefined;
+  // 本回合可信点位：search_places 与子代理 submit_places 都写这里，写工具优先复用
+  const points = createPlacePointCache();
   const tools = createTripTools({
-    trip, sources, signal, getWeather: getTripWeather,
+    trip, sources, signal, getWeather: getTripWeather, points,
     ...(draft ? { draft } : {}),
     ...(resolvePlace ? { resolvePlace } : {}),
   });
@@ -167,6 +171,8 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
         childTools: ['get_trip', 'get_day', 'search_places', 'web_search', 'get_weather'],
         maxTurns: 6,
         maxTasks: 3,
+        // 子代理交回的地点坐标直接进缓存：主代理 add_activity 同名时零解析复用
+        onPlaces: (places) => { for (const place of places) points.remember(place.name, place); },
       },
     } : {}),
     onConversationCreated: (id) => saveBinding(userId, conversationId, id),

@@ -51,6 +51,8 @@ export interface RunAgentTurnOptions {
     childTools: readonly string[];
     maxTurns?: number;
     maxTasks?: number;
+    /** 子代理交回结构化地点后回调：调用方把坐标写进本回合点位缓存 */
+    onPlaces?: (places: readonly { name: string; lat: number; lng: number }[]) => void;
   };
 }
 
@@ -186,6 +188,7 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
           childTools,
           maxTurns: options.subagent.maxTurns ?? 6,
           maxTasks: options.subagent.maxTasks ?? 3,
+          ...(options.subagent.onPlaces ? { onPlaces: options.subagent.onPlaces } : {}),
           ...(options.signal ? { signal: options.signal } : {}),
         })],
       }));

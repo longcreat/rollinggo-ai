@@ -13,6 +13,7 @@ import type { WebSearchHit } from '../../integrations/websearch/searchSource';
 import type { SourcedPoi } from '../../integrations/geoContracts';
 import { createTripWriteTools } from './writeTools';
 import type { TripDraft } from './tripDraft';
+import { createPlacePointCache, type PlacePointCache } from './placePoints';
 
 export interface TripToolDeps {
   trip: Trip;
@@ -26,6 +27,11 @@ export interface TripToolDeps {
   draft?: TripDraft;
   /** 新活动定位（高德）；未注入时新增活动按「位置待核实」处理 */
   resolvePlace?: (name: string) => Promise<{ lat: number; lng: number } | null>;
+  /**
+   * 本回合的可信点位缓存。不传则内部新建；子代理提交的坐标由调用方写进同一份缓存，
+   * 于是「子代理查到的地点」再 add_activity 时不需要重新解析。
+   */
+  points?: PlacePointCache;
 }
 
 const text = (value: string) => [{ type: 'text' as const, text: value }];
@@ -108,19 +114,9 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
   const { sources, signal } = deps;
   // 读工具一律读「当前草稿」：本回合的写入立即对后续读取可见。
   const view = (): Trip => deps.draft?.current() ?? deps.trip;
-  // 本回合 search_places 查到的精确坐标：写工具改名/新增时优先用它，
+  // 本回合核验过的坐标（search_places 结果 + 子代理结构化提交）：写工具改名/新增时优先用，
   // 避免把已经查准的地点再交给模糊解析（实测「人民公园东门」会被解到 30km 外的同名点）。
-  const knownPoints = new Map<string, { lat: number; lng: number }>();
-  const pointKey = (name: string) => name.replace(/\s+/g, '').toLowerCase();
-  const cachedPoint = (name: string) => {
-    const key = pointKey(name);
-    const exact = knownPoints.get(key);
-    if (exact) return exact;
-    for (const [known, point] of knownPoints) {
-      if (known.length >= 2 && (known.includes(key) || key.includes(known))) return point;
-    }
-    return null;
-  };
+  const points = deps.points ?? createPlacePointCache();
 
   const getTrip = defineTool({
     name: 'get_trip',
@@ -154,7 +150,7 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
       const category = normalizeCategory(args.category);
       const hits = await sources.poi.searchPois(category, args.keyword, view().destination, signal);
       if (!hits.length) return { output: text(`未查到「${args.keyword}」相关地点`) };
-      for (const hit of hits) if (hit.location) knownPoints.set(pointKey(hit.name), hit.location);
+      for (const hit of hits) if (hit.location) points.remember(hit.name, hit.location);
       return { output: text(JSON.stringify(searchPlacesPayload(hits))) };
     },
   });
@@ -186,6 +182,6 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
   const readTools = [getTrip, getDay, searchPlaces, webSearch, getWeather];
   // 没有草稿 = 只读模式（P1 行为不变）；有草稿才装配写工具。
   return deps.draft
-    ? [...readTools, ...createTripWriteTools({ draft: deps.draft, signal, resolvePlace: deps.resolvePlace, cachedPoint })]
+    ? [...readTools, ...createTripWriteTools({ draft: deps.draft, signal, resolvePlace: deps.resolvePlace, cachedPoint: (name) => points.find(name) })]
     : readTools;
 }

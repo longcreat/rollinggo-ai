@@ -171,3 +171,76 @@ it('runtime 装配：主代理派发 → 子代理回答 → 主代理收尾', a
   assert.equal(result.text, '主代理最终答案：已确认人民公园开放时间');
   assert.ok(events.some((event) => event.type === 'tool_start' && event.name === 'spawn_subagents'), '主代理应当调用派发工具');
 });
+
+it('kind=places：子代理输出约定 JSON，服务端校验后变成结构化地点并回写点位缓存', async () => {
+  resetSubagentCache();
+  const path = await storage();
+  const { faux, models } = fauxModels();
+  const runtime = await getAgentRuntime(path);
+  runtime.holder.current = models;
+
+  const parent = await runtime.harness.createConversation({
+    ownership: { kind: 'ownerless' },
+    agent: { instructions: '主代理', model: { provider: 'faux', modelId: 'faux-1' }, maxTurns: 3 },
+  }, BACKGROUND_CONTEXT);
+  runtime.registry.install({ name: 'trip-tools', tools: [readTool, writeTool] } as never);
+
+  const captured: { name: string; lat: number; lng: number }[] = [];
+  const tool = createSubagentTool({
+    harness: runtime.harness, context: BACKGROUND_CONTEXT, parentId: String(parent.id),
+    model: { provider: 'faux', modelId: 'faux-1' }, instructions: '子代理',
+    childTools: [readTool], maxTurns: 3, maxTasks: 2,
+    onPlaces: (places) => { captured.push(...places.map((place) => ({ name: place.name, lat: place.lat, lng: place.lng }))); },
+  });
+
+  faux.setResponses([fauxAssistantMessage(JSON.stringify({
+    places: [{ name: '陈麻婆豆腐(旗舰店)', lat: 30.6648, lng: 104.0332, category: '美食', rating: '4.7', cost: 71, openTime: '11:00-21:00' }],
+  }))]);
+
+  const payload = JSON.parse((await run(tool, {
+    tasks: [{ id: 'day2', kind: 'places', prompt: '第 2 天四川博物院附近午饭' }],
+  })).output[0]!.text) as {
+    results: { id: string; ok: boolean; kind: string; data?: { kind: string; places: { name: string; lat: number; lng: number }[] } }[];
+  };
+
+  const result = payload.results[0]!;
+  assert.equal(result.kind, 'places');
+  assert.equal(result.data?.kind, 'places');
+  assert.equal(result.data?.places[0]?.name, '陈麻婆豆腐(旗舰店)');
+  assert.deepEqual([result.data?.places[0]?.lat, result.data?.places[0]?.lng], [30.6648, 104.0332]);
+  assert.deepEqual(captured, [{ name: '陈麻婆豆腐(旗舰店)', lat: 30.6648, lng: 104.0332 }], '坐标要回写给主代理的点位缓存');
+});
+
+it('坐标非法或缺失的地点被丢弃；没有可解析内容时回退为文本', async () => {
+  resetSubagentCache();
+  const path = await storage();
+  const { faux, models } = fauxModels();
+  const runtime = await getAgentRuntime(path);
+  runtime.holder.current = models;
+  const parent = await runtime.harness.createConversation({
+    ownership: { kind: 'ownerless' },
+    agent: { instructions: '主代理', model: { provider: 'faux', modelId: 'faux-1' }, maxTurns: 3 },
+  }, BACKGROUND_CONTEXT);
+  runtime.registry.install({ name: 'trip-tools', tools: [readTool] } as never);
+
+  const tool = createSubagentTool({
+    harness: runtime.harness, context: BACKGROUND_CONTEXT, parentId: String(parent.id),
+    model: { provider: 'faux', modelId: 'faux-1' }, instructions: '子代理',
+    childTools: [readTool], maxTurns: 3, maxTasks: 2,
+  });
+
+  faux.setResponses([
+    fauxAssistantMessage('```json\n{"places":[{"name":"乱填的","lat":0,"lng":0},{"name":"正常的","lat":30.66,"lng":104.06}]}\n```'),
+    fauxAssistantMessage('没有 JSON，只是一段话'),
+  ]);
+  const first = JSON.parse((await run(tool, { tasks: [{ id: 'a', kind: 'places', prompt: 'A' }] })).output[0]!.text) as {
+    results: { data?: { places: { name: string }[] } }[];
+  };
+  assert.deepEqual(first.results[0]!.data?.places.map((place) => place.name), ['正常的']);
+
+  const second = JSON.parse((await run(tool, { tasks: [{ id: 'b', kind: 'notes', prompt: 'B' }] })).output[0]!.text) as {
+    results: { ok: boolean; text: string; data?: unknown }[];
+  };
+  assert.equal(second.results[0]!.data, undefined);
+  assert.match(second.results[0]!.text, /一段话/);
+});

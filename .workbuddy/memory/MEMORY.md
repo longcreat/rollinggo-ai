@@ -3,8 +3,10 @@
 ## 密钥与启动：Doppler 统一管理
 
 - 所有密钥与环境变量由 Doppler 管理（project=`trip`，config=`dev`），本机 CLI 已登录。查：`doppler secrets`；改：`doppler secrets set KEY=VALUE`。
-- 启动一律走 Doppler：`npm run dev:doppler`；单跑脚本用 `doppler run -- node --import tsx <file>`。
-- `.env` 只是 Doppler 的导出物：`npm run secrets:sync`（`doppler secrets download` → `.env` + `apps/server/.env`）刷新。不要手改 `.env` 当密钥源，也不要只改 `.env` 不改 Doppler。
+- 启动一律走 Doppler：`npm run dev:doppler`；单跑脚本/测试用 `doppler run -- <cmd>`（如 `doppler run -- node --import tsx <file>`）。
+- **本地不使用 `.env`**：`.env` 与 `apps/server/.env` 已删除，不要再生成。`env.ts` 的 `dotenv` 导入在没有 `.env` 时是空操作，真正的值是 `doppler run` 注入的进程环境。
+- 少数脚本会显式 `dotenv.config({ path: 'apps/server/.env' })`（如 `verify-trip-weather.mts`）：没有 `.env` 时必须用 `doppler run --` 执行。
+- `npm run secrets:sync` 会写出 `.env` 文件，只保留给 compose 的 `env_file` 部署场景；本地不要用它。
 - `AGENT_DETAIL_CHAT`（详情页 P1 Agent 开关，只有值 `1` 开启）已在 Doppler dev 设为 1。
 
 ## 工程原则：能复用开源实现就直接复用，不造轮子

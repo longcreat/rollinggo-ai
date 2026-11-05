@@ -57,6 +57,27 @@
   而不是在工具层丢数据。参考 opencode `tool-output.ts`（2000 行 / 50KiB，超限时**保存全文**再给文件引用）与
   pi `truncate.ts`（同样上限、不切断半行）：两者都是「有损展示、无损存储」。我们没有文件读取工具，
   所以选择「不截断 + 压缩」而不是「截断 + 落盘」。上游 `searchSource` 也不再对 summary 做字符裁剪。
+- 详情页 Agent 写工具（2026-11-05 P2，`AGENT_WRITE_TOOLS !== '0'` 时开启）：9 个工具
+  `add_activity` / `update_activity` / `delete_activity` / `move_activity` / `reorder_day` /
+  `add_day` / `update_day` / `delete_day` / `update_trip`，落在 `chat/agent/tripDraft.ts` 的内存草稿上，
+  **不在工具调用时写库**。读工具（`get_trip` / `get_day`）一律读草稿，保证本回合的修改立刻可见，
+  否则模型会重复添加同一地点。
+- 提交时机：`runAgentAnswer` 在回答生成后判断 `draft.changed()`，有改动则
+  `repairChangedRoutes(previous, next)` 重算受影响当天的通勤段（地图标记与折线由此更新），
+  然后在 `commitOperation` 事务内 `assertLatestTrip` → `createTrip`（新版本）→ 写 `changeSummary`
+  → 落消息，并返回 `editResult {tripId, version, outcomes}`。**一轮对话只产生一个版本**，
+  中途失败不落半成品；版本与消息同事务，避免「页面说改了、库里没改」。
+- 冲突：`assertLatestTrip` 校验 `updatedAt`，用户在其它标签页改过行程时整轮 409，草稿丢弃，
+  不覆盖别人的修改（与确定性编辑链同一策略）。
+- 改名即换地点：`update_activity` 改 `name` 时会重新解析坐标（`createGeoSession.resolvePlace`），
+  解析不到就落 `estimated + 0,0` 并清空当天 legs；**绝不沿用原名地点的坐标**冒充已定位——
+  2026-11-05 真机冒烟里「四川博物院→成都博物馆」曾因此在地图上指向博物院。
+- 地点去重：新增时按归一化名称查全行程，命中即拒绝并提示「如确需重访请说明」；
+  模型传 `allowRevisit` 才允许重复。每天活动数上限 12、总天数上限 15，与确定性编辑链共用常量。
+- 写工具不负责「保存」的话术：系统提示词要求模型不出现「点击保存/正在提交」，
+  保存结果由服务端在回答末尾追加「已保存为 vN，…」。
+- 分支路由：`shouldUseAgent` 在 `writes=true` 时接管 `modify_itinerary`；`writes=false`（只读模式）
+  时修改意图仍走确定性编辑链。美食卡片、建议按钮、需要澄清的请求始终不进 Agent。
 - `suggestions` 兼容旧枚举和 `ChatFollowUp {label,text,kind}`，新回答只产生结构化建议。
   `label` 1～30 字，`text` 1～300 字且不能全空白，`kind` 来自 `CHAT_SUGGESTION_KINDS`，
   新增 `follow_up` 表示只读追问，所有建议类型都绕过编辑/生成判断。没有数据库结构变更。

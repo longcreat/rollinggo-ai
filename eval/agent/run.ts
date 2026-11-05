@@ -12,6 +12,7 @@ import { parseArgs } from 'node:util';
 import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
 import { fakeSources, fauxModels, fixtureTrip, gateOf, gatedTool } from './fixtures';
 import { AgentBusyError, closeAgentRuntime, runAgentTurn } from '../../apps/server/src/chat/agent/runtime';
+import { createTripDraft } from '../../apps/server/src/chat/agent/tripDraft';
 import { createTripTools, tripSnapshot, webSearchPayload } from '../../apps/server/src/chat/agent/tools';
 import { shouldUseAgent } from '../../apps/server/src/chat/agent/routing';
 
@@ -43,25 +44,52 @@ export async function runDeterministic(): Promise<CaseResult[]> {
   };
 
   try {
-    await record('route', '分流：只有咨询类问答进 Agent', () => {
-      assert.equal(shouldUseAgent({ enabled: true, isSuggestion: false, food: false, intent: 'travel_qa' }), true);
-      assert.equal(shouldUseAgent({ enabled: true, isSuggestion: false, food: false, intent: 'unclear' }), true);
-      assert.equal(shouldUseAgent({ enabled: true, isSuggestion: false, food: false, intent: null }), true);
-      assert.equal(shouldUseAgent({ enabled: true, isSuggestion: false, food: false, intent: 'modify_itinerary' }), false);
-      assert.equal(shouldUseAgent({ enabled: true, isSuggestion: false, food: false, intent: 'confirm' }), false);
-      assert.equal(shouldUseAgent({ enabled: true, isSuggestion: true, food: false, intent: 'travel_qa' }), false);
-      assert.equal(shouldUseAgent({ enabled: true, isSuggestion: false, food: true, intent: 'travel_qa' }), false);
-      assert.equal(shouldUseAgent({ enabled: true, isSuggestion: false, food: false, clarification: true, intent: 'travel_qa' }), false);
-      assert.equal(shouldUseAgent({ enabled: false, isSuggestion: false, food: false, intent: 'travel_qa' }), false);
-      return '9 种组合符合预期';
+    await record('route', '分流：咨询与（写模式下的）修改进 Agent', () => {
+      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: false, food: false, intent: 'travel_qa' }), true);
+      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: false, food: false, intent: 'unclear' }), true);
+      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: false, food: false, intent: null }), true);
+      // 写工具关闭时修改意图仍走确定性编辑链（P1 只读边界）
+      assert.equal(shouldUseAgent({ enabled: true, writes: false, isSuggestion: false, food: false, intent: 'modify_itinerary' }), false);
+      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: false, food: false, intent: 'modify_itinerary' }), true);
+      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: false, food: false, intent: 'confirm' }), false);
+      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: true, food: false, intent: 'travel_qa' }), false);
+      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: false, food: true, intent: 'travel_qa' }), false);
+      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: false, food: false, clarification: true, intent: 'travel_qa' }), false);
+      assert.equal(shouldUseAgent({ enabled: false, writes: true, isSuggestion: false, food: false, intent: 'travel_qa' }), false);
+      return '10 种组合符合预期';
     });
 
-    await record('tool-inventory', '工具集只读且完整', () => {
-      const names = createTripTools({ trip: fixtureTrip, sources: fakeSources().sources, signal: AbortSignal.timeout(5_000) })
+    await record('tool-inventory', '工具集：只读 5 个，写模式追加 9 个写工具', () => {
+      const signal = AbortSignal.timeout(5_000);
+      const readOnly = createTripTools({ trip: fixtureTrip, sources: fakeSources().sources, signal })
         .map((tool) => tool.name).sort();
-      assert.deepEqual(names, ['get_day', 'get_trip', 'get_weather', 'search_places', 'web_search']);
-      assert.equal(names.some((name) => /update|modify|delete|write|commit/i.test(name)), false, 'P1 不允许出现写工具');
-      return names.join(',');
+      assert.deepEqual(readOnly, ['get_day', 'get_trip', 'get_weather', 'search_places', 'web_search']);
+
+      const draft = createTripDraft(fixtureTrip);
+      const writable = createTripTools({ trip: fixtureTrip, sources: fakeSources().sources, signal, draft })
+        .map((tool) => tool.name).sort();
+      assert.deepEqual(writable, [
+        'add_activity', 'add_day', 'delete_activity', 'delete_day', 'get_day', 'get_trip', 'get_weather',
+        'move_activity', 'reorder_day', 'search_places', 'update_activity', 'update_day', 'update_trip', 'web_search',
+      ]);
+      return `${readOnly.length} 只读 / ${writable.length} 含写`;
+    });
+
+    await record('write-draft', '写工具改草稿，读工具立即看到，不落库', async () => {
+      const draft = createTripDraft(fixtureTrip);
+      const tools = createTripTools({
+        trip: fixtureTrip, sources: fakeSources().sources, signal: AbortSignal.timeout(5_000), draft,
+        resolvePlace: async () => ({ lat: 31.24, lng: 121.49 }),
+      });
+      const add = tools.find((tool) => tool.name === 'add_activity')!;
+      const result = await (add.execute as unknown as (input: unknown) => Promise<{ output: { text: string }[] }>)({ dayIndex: 1, name: '外滩', category: '自然' });
+      const payload = JSON.parse(result.output[0]!.text) as { ok: boolean; summary: string; day: { activities: { located: boolean }[] } };
+      assert.equal(payload.ok, true);
+      assert.equal(payload.day.activities.at(-1)!.located, true);
+      assert.ok(JSON.stringify(tripSnapshot(draft.current())).includes('外滩'), '读工具必须看到草稿里的新增');
+      assert.equal(draft.changed(), true);
+      assert.equal(JSON.stringify(fixtureTrip).includes('外滩'), false, '草稿不得改动调用方对象');
+      return payload.summary;
     });
 
     await record('no-truncation', '工具输出不截断摘要与条数', () => {

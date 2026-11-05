@@ -16,7 +16,7 @@ import { renderRetrievedPlaces } from '../generation/researchContext';
 import { generateFollowUpSuggestions } from '../chat/followUpSuggestions';
 import { buildModel } from '../generation/model';
 import { runPhaseAgent } from '../generation/agents/runner';
-import { isAgentChatEnabled, runAgentAnswer } from '../chat/agent/turn';
+import { isAgentChatEnabled, isAgentWriteEnabled, runAgentAnswer } from '../chat/agent/turn';
 import { shouldUseAgent } from '../chat/agent/routing';
 import { createGeoSession } from '../generation/geoPipeline';
 import { trips } from '../db/schema';
@@ -67,9 +67,10 @@ export async function runDetailChat(userId: string, conversationId: string, inpu
   const food = foodRequested && outcome?.intent !== 'modify_itinerary' && outcome?.intent !== 'confirm';
   signal.throwIfAborted();
   if (outcome?.clarification) progress(`需要先明确：${outcome.clarification.question}`);
-  // Agent 通道（P1）：只读问答走多轮工具；修改行程与美食卡片继续走下面的确定性链路。
+  // Agent 通道：咨询问答 + （写工具开启时）修改行程走多轮工具；
+  // 美食卡片、建议按钮、需要澄清的请求继续走下面的确定性链路。
   if (shouldUseAgent({
-    enabled: isAgentChatEnabled(), isSuggestion, food,
+    enabled: isAgentChatEnabled(), writes: isAgentWriteEnabled(), isSuggestion, food,
     clarification: Boolean(outcome?.clarification), intent: outcome?.intent ?? null,
   })) {
     return runAgentAnswer({

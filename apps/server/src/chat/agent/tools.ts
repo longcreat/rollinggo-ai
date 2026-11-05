@@ -11,12 +11,21 @@ import { POI_CATEGORIES, type PoiCategory } from '@tripweaver/shared';
 import type { DetailSources } from '../detailSources';
 import type { WebSearchHit } from '../../integrations/websearch/searchSource';
 import type { SourcedPoi } from '../../integrations/geoContracts';
+import { createTripWriteTools } from './writeTools';
+import type { TripDraft } from './tripDraft';
 
 export interface TripToolDeps {
   trip: Trip;
   sources: DetailSources;
   signal: AbortSignal;
   getWeather?: (trip: Trip) => Promise<unknown>;
+  /**
+   * 本回合的行程草稿。给了它就意味着开启写工具：读工具也统一读草稿，
+   * 保证模型能立刻看到自己刚做的修改（否则会重复改同一处）。
+   */
+  draft?: TripDraft;
+  /** 新活动定位（高德）；未注入时新增活动按「位置待核实」处理 */
+  resolvePlace?: (name: string) => Promise<{ lat: number; lng: number } | null>;
 }
 
 const text = (value: string) => [{ type: 'text' as const, text: value }];
@@ -96,13 +105,15 @@ function normalizeCategory(value: string | undefined): PoiCategory {
 }
 
 export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
-  const { trip, sources, signal } = deps;
+  const { sources, signal } = deps;
+  // 读工具一律读「当前草稿」：本回合的写入立即对后续读取可见。
+  const view = (): Trip => deps.draft?.current() ?? deps.trip;
 
   const getTrip = defineTool({
     name: 'get_trip',
     description: '读取当前行程的完整结构：每天的标题与活动（含活动 id、时间、类目、简介）。回答行程安排类问题前先调用。',
     parameters: obj({}),
-    execute: async () => ({ output: text(JSON.stringify(tripSnapshot(trip))) }),
+    execute: async () => ({ output: text(JSON.stringify(tripSnapshot(view()))) }),
   });
 
   const getDay = defineTool({
@@ -110,6 +121,7 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     description: '只读取某一天的安排，行程较长、只需要看一天时用。',
     parameters: obj({ dayIndex: str({ description: '第几天，从 1 开始' }) }),
     execute: async (args) => {
+      const trip = view();
       const dayIndex = Number.parseInt(args.dayIndex, 10);
       const day = trip.days.find((item) => item.dayIndex === dayIndex);
       if (!day) return { output: text(`没有第 ${args.dayIndex} 天；当前行程共 ${trip.days.length} 天`) };
@@ -127,7 +139,7 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     execute: async (args) => {
       signal.throwIfAborted();
       const category = normalizeCategory(args.category);
-      const hits = await sources.poi.searchPois(category, args.keyword, trip.destination, signal);
+      const hits = await sources.poi.searchPois(category, args.keyword, view().destination, signal);
       if (!hits.length) return { output: text(`未查到「${args.keyword}」相关地点`) };
       return { output: text(JSON.stringify(searchPlacesPayload(hits))) };
     },
@@ -153,9 +165,11 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     parameters: obj({}),
     execute: async () => {
       if (!deps.getWeather) return { output: text('天气服务不可用') };
-      return { output: text(JSON.stringify(await deps.getWeather(trip))) };
+      return { output: text(JSON.stringify(await deps.getWeather(view()))) };
     },
   });
 
-  return [getTrip, getDay, searchPlaces, webSearch, getWeather];
+  const readTools = [getTrip, getDay, searchPlaces, webSearch, getWeather];
+  // 没有草稿 = 只读模式（P1 行为不变）；有草稿才装配写工具。
+  return deps.draft ? [...readTools, ...createTripWriteTools({ draft: deps.draft, signal, resolvePlace: deps.resolvePlace })] : readTools;
 }

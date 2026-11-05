@@ -122,8 +122,15 @@ export const CHAT_INTENTS = ['update_brief', 'travel_qa', 'confirm', 'modify_iti
 /** 单次生成的类型：全新生成 vs 基于已有行程的修订 */
 export const GENERATION_KINDS = ['generation', 'revision'] as const;
 
-/** 对话内按需编辑：活动修改与整组追加日期，排序由服务端确定性处理。 */
-export const EDIT_OP_KINDS = ['replace_activity', 'delete_activity', 'add_activity', 'add_days'] as const;
+/**
+ * 对话内按需编辑的操作类型。
+ * 前四个来自确定性编辑链（09-24）；后六个来自详情 Agent 写工具（2026-11-05），
+ * 共用同一份 outcome 契约，前端只读 `summary` 展示，不按 kind 分支。
+ */
+export const EDIT_OP_KINDS = [
+  'replace_activity', 'delete_activity', 'add_activity', 'add_days',
+  'update_activity', 'move_activity', 'reorder_day', 'add_day', 'update_day', 'delete_day', 'update_trip',
+] as const;
 /** 单轮对话最多接受的编辑操作数（超出截断，防模型刷操作） */
 export const MAX_EDIT_OPS_PER_TURN = 5;
 export const MAX_EDIT_ACTIVITIES_PER_DAY = 12;

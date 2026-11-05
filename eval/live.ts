@@ -22,10 +22,14 @@ export function loadLiveCredentials(): void {
 }
 export function sanitizeError(error: unknown): string {
   let message = error instanceof Error ? error.message : '未知评估错误';
+  // 先抹端点，再按环境变量值替换。顺序不能反：数据库口令常是 `postgres` 这种短词，
+  // 先替换会把 `postgres://user:password@host` 打成 `[redacted]://user:password@host`，
+  // URL 规则就再也匹配不上，密码反而留在结果里（2026-11 由 POSTGRES_PASSWORD=postgres 触发）。
+  message = message.replace(/(?:postgres(?:ql)?|https?):\/\/[^\s"'<>]+/g, '[endpoint]');
   for (const [key, value] of Object.entries(process.env)) {
     if (value && /KEY|TOKEN|SECRET|PASSWORD|DATABASE_URL|PG_ADMIN_URL/.test(key)) message = message.split(value).join('[redacted]');
   }
-  return message.replace(/(?:postgres(?:ql)?|https?):\/\/[^\s"'<>]+/g, '[endpoint]').slice(0, 1200);
+  return message.slice(0, 1200);
 }
 export function liveConfiguration(allowNoGeo: boolean, timeoutMs: number): Manifest['configuration'] {
   // 只记录主机与路径；禁止 userinfo、query、fragment 中的密钥进入产物。

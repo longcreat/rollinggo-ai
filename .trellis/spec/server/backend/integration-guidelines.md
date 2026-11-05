@@ -1,38 +1,36 @@
 # External Integration Guidelines
 
-> 2026-10-02：正式新行程采用[人工选图、视觉审核图库与后台补图](./preference-photo-pipeline.md)。北京先读明确授权的人工快照，无图才读视觉审核结果并异步补图。以下来源顺序属于保留的旧adapter/采集接口；不能再作为新行程的未审核兜底。
+> 2026-11-05：图片链路已收敛为「只用高德 POI 图片」。Pexels / Pixabay / Unsplash / Wikimedia 适配器、
+> 人工选片、视觉审核队列、photoStore 与 Openverse 采集脚本均已删除。取图顺序与配额见下方
+> [Attraction Cover Sources](#attraction-cover-sources-amap-poi-photos-only-2026-11-05)，
+> 选片/署名口径见 [preference-photo-pipeline](./preference-photo-pipeline.md)。
+> 重新接入外部图库必须先改本节，否则 `amapOnlyImages.test.ts` 会失败。
 
-## Scenario: Unsplash and Pixabay automatic fallback photos
+## Scenario: Amap POI 2.0 business fields (v5, 2026-11-05)
 
-- User-requested trip generation first uses reviewed curated photography, then persisted external selections in Pexels → Pixabay → Unsplash → Wikimedia order. New search order is Pexels → Pixabay → Unsplash → Wikimedia, followed by the independently imported XHS gallery/legacy cover, then Amap. XHS is supplemental and must not short-circuit external photography in new generation. A winning provider supplies at most three photos including the cover; no extra searches just to fill a gallery. Existing trip viewing never invokes these adapters or changes saved covers.
-- `UNSPLASH_ACCESS_KEY` and `PIXABAY_API_KEY` are optional server-only `env.ts` fields, configured in `apps/server/.env`. Never expose keys to frontend, log requests with Pixabay's query-string key, or save arbitrary API response fields. Missing credentials disable new requests; local Pixabay selections remain usable. Missing Unsplash credentials disable new adoption, not display of existing snapshots.
-- Unsplash API images must use exact `photo.urls.regular` hotlinks (including `ixid`), never local image copies. Public URLs over the existing300-character contract are rejected, never truncated. Persistent `unsplash-places` stores only validated selection metadata and private download endpoints. `cachedPhotosFor` is read-only; call `photosFor` when this source actually wins to report each selected photo's exact `links.download_location`. Same-task duplicate calls coalesce; a later task reports a new adoption without repeating the search. Failed reports exclude those images for that adoption and permit retries in a later task. Do not put download endpoints in public snapshots or fetch the event response's image URL.
-- Unsplash credits link the photographer profile and work, and all Unsplash links (including license) carry `utm_source=tripweaver&utm_medium=referral`. Shared attribution adds `photographerUrl` and explicit source literals. The curated local catalog still accepts only Pexels/Commons; extending the shared enum must not implicitly allow another provider through its Commons branch.
-- Pixabay query responses, including confirmed empty results, are cached on disk for24h. Cache keys contain place/city, never keys. Selected images must be downloaded via `photoStore`, saved in `media/remote-photos`, and indexed in `pixabay-places` without a positive TTL; never return a persistent Pixabay image hotlink. Allow only `cdn.pixabay.com` or `pixabay.com/get/` downloads. Try at most six candidates to obtain three valid unique images; download failures retry from the24h query cache. Runtime validation still applies on cache reads.
-- Both providers require city and specific place evidence in metadata. Preserve distinct Great Wall sections and reject Old Summer Palace/圆明园 for颐和园 even in hyphenated URL slugs. Landscape and atmospheric words rank candidates; this is metadata-based selection, not visual review or a guarantee of photographic quality.
-- Requests have8s timeout, no redirects,1MiB actual JSON body cap, task budgets (Unsplash12 including adoption events; Pixabay6 searches), process limits (45/hour and90/minute), and429 backoff. Pixabay coalesces same-query work across instances. These budgets are single-process and do not coordinate replicas. No background city crawl or bulk download is scheduled.
-- Official references: [Unsplash API guidelines](https://help.unsplash.com/en/articles/2511245-unsplash-api-guidelines), [download events](https://help.unsplash.com/en/articles/2511258-guideline-triggering-a-download), [Pixabay API](https://pixabay.com/api/docs/). API rules supersede ordinary download-license assumptions.
-- Verification: `stockPhotos.test.ts`, `placeLookup.test.ts`, `curatedPhotos.test.ts`, `photoStore.test.ts`; `photo-layout-browser.mjs` tests profile/source links on gallery switch. `node --import tsx apps/server/scripts/verify-stock-photos.mts` makes one query per configured provider for故宫/北京 without generating an itinerary; missing keys must be reported as unverified live coverage, not zero source coverage.
-
-## Scenario: Offline curated place photography
-
-- `createCuratedCoverLookup(city)` reads the checked-in photography catalog before the external-first fallback above. It performs no network calls.
-- Default catalogs currently cover Hangzhou and the bounded Beijing sample. Keep per-city catalogs and provenance separate; adding a city requires a routing test and a media verification pass (`install-curated-photos.py --city beijing`). Never alias distinct Great Wall sections or other nearby attractions to improve coverage.
-- Match the city and exact primary name or explicit alias; a single trailing display annotation may be removed. Reject ambiguous aliases, combined places and inferred neighboring attractions.
-- Require approved review, verified place identity, valid source/license pairing and matching WebP SHA-256. Check images in catalog order; missing, unreadable or mismatched files skip to the next. No usable entry means normal fallback, never a generation error.
-- Identity/license eligibility is separate from photographic quality. Preserve withdrawn entries as `rejected`; they must not return from the lookup or be restored by the installer. Replay/build scripts apply the recorded quality feedback too. Prefer landscape and atmospheric photography while retaining outstanding portraits; ordinary tourist photos do not qualify merely by orientation. Use long-edge/short-edge size thresholds and separate search caches when orientation filters change.
-- Keep reviewer provenance (`agent-reviewed` is not human approval), source/derivative hashes, work title, author, work URL, license and resizing/cropping notice. Optional `ResearchPoi.photos` contains one to three valid local photos in stable order, including the cover; each photo retains its own attribution. `coverUrl`/`coverAttribution` mirror the first photo and remain compatible with old snapshots. Invalid files do not consume gallery slots.
-- `data/media/photography` is a deployable media volume, not a Git asset. `install-curated-photos.py` verifies by default; explicit `--download` restores approved files only, with HTTPS host allowlisting, no redirects, 20s timeout, 8MiB source limit and both hashes checked. Changed source bytes require review, not automatic hash replacement.
-- Tests: `curatedPhotos.test.ts` (identity/alias conflicts, review, license pairing and file fallback), `placeLookup.test.ts` (source priority, attribution and optional failure). Verify actual media HTTP responses, browser decode and the visible credit row in the enlarged photo modal; cards no longer render one (2026-10-02).
-
-## Scenario: Persist selected external photos and expand the review pool
-
-- `photoStore.ts` keeps Pexels image bytes in `data/media/remote-photos`, URL-to-content hashes in `data/photo-store/sources`, and place selections in `data/photo-store/places`. Wikimedia selections use `wiki-places` and existing `data/media/wikimedia` files. Deploy the media and selection indices together.
-- Positive selections do not expire. Adapters expose read-only `cachedPhotosFor`; check all persisted selections before searching any provider. Pexels reads remain available without an API key or request budget. Wikimedia identity also includes coordinates; a same-name location at a different point cannot reuse that conclusion. A missing selected file produces remaining local photos or no photo, not an automatic cross-provider search.
-- New Pexels queries retain the place-text gate, prefer landscape and atmosphere metadata, download up to six candidates to obtain at most three valid unique photos, and keep work/photographer/license attribution. Metadata ranking is a heuristic, not visual review. Failed downloads remain retryable; confirmed empty search results may use a short-lived negative cache.
-- Remote storage permits fixed Pexels/Wikimedia/Pixabay HTTPS image hosts only; Unsplash is excluded: no credentials, ports or redirects, full 200 response, raster MIME/magic validation, 8s timeout and 8MiB actual-stream cap. Use atomic writes, pending-download coalescing, content hashes, durable URL deduplication and a 256MiB cap without evicting referenced media. Generic Wikimedia fallback retains its own 4MiB downloader and one-photo selection. Amap retains its existing external-URL provider contract.
-- `collect-openverse-pilot.mts` expands the offline pool via the Openverse index of Flickr works; it is not a production search adapter. Query four named places with CC BY/BY-SA/CC0 and landscape filters, at most20 records and six local previews per place. Cached previews count toward that cap on rerun. Preserve original source/author/license and pending status; verify place identity and composition before promoting to the curated catalog.
-- Tests: `photoStore.test.ts`, `pexelsCover.test.ts`, `wikimediaCover.test.ts`, `placeLookup.test.ts`; the task's `verify-openverse-review.mjs` verifies zero-request cached replay and local browser previews.
+- **v5 的商业信息字段组叫 `business`，不是 `biz_ext`。** `biz_ext` 是 v3（`extensions=all`）的字段名；
+  `v5/place/text` 收到 `show_fields=biz_ext` 会**静默忽略**，pois 里既没有 `biz_ext` 也没有 `business`
+  （实测 2026-11-05，infocode=10000，status=1，看起来一切正常）。因此字段「缺失」时先看
+  `show_fields`，不要先怀疑账号权限。
+- **个人认证 Key 同样能拿到 `rating` / `cost` / `opentime_week` / `tel` / `alias` / `keytag` / `rectag`。**
+  高德文档没有对这些字段设认证门槛；实测同一把个人 Key 对故宫返回 `rating=4.9`、`tel=4009501925`、
+  完整旺季/淡季/周一闭馆说明，对餐厅返回 `cost=133.00`。历史的「个人认证不返回」注释是错的，已改正。
+- `rating` / `cost` **只有餐饮、酒店、景点、影院类 POI 返回**（文档明示）；其他类目空串是正常结果，
+  不是解析失败。`tag`（特色菜）目前只在美食 POI 返回。
+- 营业时间按 `opentime_week` → `opentime_today` → v3 `open_time` 依次回退，保留原始文本不做格式化——
+  景区的一条 `opentime_week` 可能包含旺季/淡季/停止检票/节假日说明，压成 `08:30-17:00` 会丢信息。
+- 图片 URL 高德 http/https 混用：适配器统一改写为 https 并去重（页面是 https，非安全 URL 会被
+  mixed content 拦掉）。`photos[].url` 里有 `aos-comment.amap.com` 的点评图，仍是高德域、可热链。
+- **CUQPS：个人 Key 每秒并发有限。** 实测 1 秒内第 6 次 `place/text` 返回
+  `status=0 / infocode=10021 / CUQPS_HAS_EXCEEDED_THE_LIMIT`。两条纪律：(1) 所有 Web 服务调用
+  （place/geocode/route/图片）共用 `geocoder.ts` 的 350ms 串行队列，**不要给某个适配器单独开更快的队列**；
+  (2) `amapRequest` 对 10021 退避 800ms 重试一次并重新预扣配额（账实一致），其他 infocode 直接抛出。
+- 生成侧消费：`search_pois` 把 `评分/人均/营业/电话` 一并写进工具结果，`openTimeByName` 仍按同名回填
+  活动 `openTime`；`人均` 用 `¥133` 形式（去掉高德返回的 `.00` 尾零）。Agent 的 `search_places`
+  输出 `rating/cost/tel`，让「人均多少、要不要预约、电话多少」可以直接答。
+- Tests: `amapPoiSource.test.ts`（business 解析、opentime 回退、http→https 去重、请求参数断言、
+  10021 重试一次且二次失败抛出）、`amapRequest.test.ts`（额度、日志脱敏、跨天预扣）、
+  `agentToolPayloads.test.ts`（人均/电话传给模型）。
 
 ## Scenario: AI trip sharing images
 

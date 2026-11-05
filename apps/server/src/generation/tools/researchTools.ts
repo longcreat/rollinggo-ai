@@ -71,6 +71,16 @@ function isHttpUrl(u: string): boolean {
 }
 
 /**
+ * 人均消费展示：高德返回「133.00」这种两位小数，去掉无意义的尾零。
+ * 解析不出来就原样保留，不吞掉上游信息。
+ */
+function formatCost(raw: string): string {
+  const value = Number(raw);
+  if (!Number.isFinite(value) || value <= 0) return raw;
+  return `¥${Number.isInteger(value) ? value : value.toFixed(2)}`;
+}
+
+/**
  * 封面 URL 归一：只接受可热链的 https 外链。
  * 图片来源已收敛为高德 POI（全部是外链热链），不再接受站内相对路径；
  * 高德返回值 http/https 混用，统一改写成 https，否则 https 页面会被 mixed content 拦掉。
@@ -213,8 +223,10 @@ export function buildResearchTools(deps: ResearchToolDeps): AgentTool[] {
           `${i + 1}. ${p.name}`,
           p.type,
           p.address,
-          category !== 'food' && p.rating ? `评分 ${p.rating}` : '',
-          category !== 'food' && p.opentime ? `营业 ${p.opentime}` : '',
+          p.rating ? `评分 ${p.rating}` : '',
+          p.cost ? `人均 ${formatCost(p.cost)}` : '',
+          p.opentime ? `营业 ${p.opentime}` : '',
+          p.tel ? `电话 ${p.tel}` : '',
           p.photoUrls[0] ? `图片=${p.photoUrls[0]}` : '',
         ];
         return bits.filter(Boolean).join('｜');

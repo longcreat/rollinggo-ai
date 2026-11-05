@@ -32,7 +32,7 @@ export function webSearchPayload(hits: readonly WebSearchHit[]) {
   }));
 }
 
-/** 地点结果不做条数裁剪：一次搜索最多 10 条，交给模型自己挑。 */
+/** 地点结果不做条数裁剪：一次搜索最多 10 条，交给模型自己挑。商业信息原样带上（v5 business）。 */
 export function searchPlacesPayload(hits: readonly SourcedPoi[]) {
   return hits.map((hit) => ({
     name: hit.name,
@@ -42,6 +42,8 @@ export function searchPlacesPayload(hits: readonly SourcedPoi[]) {
     lng: hit.location?.lng,
     opentime: hit.opentime,
     rating: hit.rating,
+    cost: hit.cost,
+    tel: hit.tel,
   }));
 }
 

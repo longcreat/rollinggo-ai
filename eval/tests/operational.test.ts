@@ -160,10 +160,17 @@ test('知识库种子可重现且显式空库与默认种子不混淆', () => {
 
 test('错误信息隐藏凭据与连接串', (t) => {
   const previous = process.env.EVAL_TEST_TOKEN;
+  const previousPg = process.env.POSTGRES_PASSWORD;
   process.env.EVAL_TEST_TOKEN = 'secret-test-value';
-  t.after(() => { if (previous === undefined) delete process.env.EVAL_TEST_TOKEN; else process.env.EVAL_TEST_TOKEN = previous; });
+  // 真实环境里数据库口令常与 URL scheme 同名（compose 默认 postgres），先替换会打坏 URL 再漏出密码。
+  process.env.POSTGRES_PASSWORD = 'postgres';
+  t.after(() => {
+    if (previous === undefined) delete process.env.EVAL_TEST_TOKEN; else process.env.EVAL_TEST_TOKEN = previous;
+    if (previousPg === undefined) delete process.env.POSTGRES_PASSWORD; else process.env.POSTGRES_PASSWORD = previousPg;
+  });
   const result = sanitizeError(new Error('bad secret-test-value postgres://user:password@localhost/app https://service/?key=value'));
   assert.ok(!result.includes('secret-test-value') && !result.includes('password') && !result.includes('key=value'));
+  assert.ok(result.includes('[endpoint]'), '端点整体替换，不残留 URL 片段');
 });
 
 test('CLI smoke 保存 3 例与独立运行目录', (t) => {

@@ -58,9 +58,10 @@ export interface SourcedPoi {
   name: string;
   type: string;         // 最细一级分类，如「云南菜」
   address: string;
-  rating: string;       // 评分（个人认证 Key 不返回 → 空串）
-  cost: string;         // 人均消费（个人认证 Key 不返回 → 空串）
-  opentime: string;     // 营业时间描述
+  rating: string;       // 评分：来自 v5 business，仅餐饮/酒店/景点/影院类返回（其余空串）
+  cost: string;         // 人均消费：同上
+  opentime: string;     // 营业时间描述（优先周维度，含分时段/节假日）
+  tel?: string;         // 联系电话：景区/餐厅预约常用
   photoUrls: string[];  // 官方图片热链 ≤3
   location: GeoPoint | null;   // 坐标（GCJ-02；解析失败为 null）
   adcode: string;       // 行政区划码

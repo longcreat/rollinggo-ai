@@ -25,14 +25,15 @@ test('web_search：长摘要原样保留，6 条结果一条不少', () => {
   assert.equal(payload[0]!.date, '2026-11-01', '时效信息保留给模型判断新鲜度');
 });
 
-test('search_places：结果条数不裁剪', () => {
+test('search_places：结果条数不裁剪，商业信息（人均/电话）一并给模型', () => {
   const hits: SourcedPoi[] = Array.from({ length: 10 }, (_, i) => ({
     name: `测试地点 ${i}`,
     type: '川菜',
     address: '青羊区',
     rating: '4.6',
-    cost: '',
-    opentime: '',
+    cost: '133.00',
+    opentime: '周一至周日 11:00-14:00,17:00-20:30',
+    tel: '028-64231923',
     photoUrls: [],
     location: { lat: 30.67, lng: 104.05 },
     adcode: '510105',
@@ -42,7 +43,8 @@ test('search_places：结果条数不裁剪', () => {
   assert.equal(payload.length, 10);
   assert.deepEqual(payload[9], {
     name: '测试地点 9', type: '川菜', address: '青羊区',
-    lat: 30.67, lng: 104.05, opentime: '', rating: '4.6',
+    lat: 30.67, lng: 104.05, opentime: '周一至周日 11:00-14:00,17:00-20:30',
+    rating: '4.6', cost: '133.00', tel: '028-64231923',
   });
 });
 

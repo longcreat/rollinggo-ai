@@ -18,6 +18,25 @@ npm run eval -- --case shanghai-3d-transit
 - 输出：`eval/runs/<时间-随机ID>/`，终端会给出完整路径。可用 `--out <目录>` 更换运行根目录。
 - 离线模式不调用模型、不连接数据库，只检查历史最终行程。当前功能流程用 `eval:flow` 实际执行，真实模型/知识质量用 frozen live 验证，两者分别记录结果。
 
+## 详情页 Agent 回归（eval/agent）
+
+确定性层——不调模型、不连库，已随 `npm run eval:test` 进 CI：
+
+```powershell
+npm run eval:agent
+```
+
+覆盖 6 项：分流矩阵（咨询走 Agent；修改/建议/美食/澄清/开关关闭都不走）、工具集只读且完整、工具输出不截断、行程快照全量、同用户并发 409、停止后释放锁。
+
+真实层——真模型 + 高德/搜索，会产生调用费用：
+
+```powershell
+doppler run -- npm run eval:agent:live
+doppler run -- npm run eval:agent:live -- --only facts,day-scope
+```
+
+覆盖 5 项：行程事实、单日范围、地点检索、时效检索、只读边界（行程对象不被改动）。缺 `AMAP_KEY` / `SEARCH_API_KEY` 时对应场景自动跳过。
+
 ## 根据现有功能验证完整流程
 
 ```powershell

@@ -17,6 +17,7 @@ import { generateFollowUpSuggestions } from '../chat/followUpSuggestions';
 import { buildModel } from '../generation/model';
 import { runPhaseAgent } from '../generation/agents/runner';
 import { isAgentChatEnabled, runAgentAnswer } from '../chat/agent/turn';
+import { shouldUseAgent } from '../chat/agent/routing';
 import { createGeoSession } from '../generation/geoPipeline';
 import { trips } from '../db/schema';
 import { appendMessages, findConversationForTrip, getConversationDetail, saveBrief } from './conversationService';
@@ -67,8 +68,10 @@ export async function runDetailChat(userId: string, conversationId: string, inpu
   signal.throwIfAborted();
   if (outcome?.clarification) progress(`需要先明确：${outcome.clarification.question}`);
   // Agent 通道（P1）：只读问答走多轮工具；修改行程与美食卡片继续走下面的确定性链路。
-  if (isAgentChatEnabled() && !isSuggestion && !food && !outcome?.clarification
-    && (outcome === null || outcome.intent === 'travel_qa' || outcome.intent === 'unclear')) {
+  if (shouldUseAgent({
+    enabled: isAgentChatEnabled(), isSuggestion, food,
+    clarification: Boolean(outcome?.clarification), intent: outcome?.intent ?? null,
+  })) {
     return runAgentAnswer({
       userId, conversationId, detail, trip, input, cfg, fingerprint, signal,
       intent: outcome?.intent ?? 'travel_qa',

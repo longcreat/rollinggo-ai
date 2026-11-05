@@ -1,0 +1,310 @@
+{
+  "caseId": "guangzhou-1d-walk",
+  "generatedAt": 1784375333314,
+  "model": "deepseek-v4-flash",
+  "form": {
+    "startDate": "",
+    "totalBudget": 0,
+    "extraNotes": "",
+    "destination": "广州",
+    "days": 1,
+    "budgetLevel": "经济",
+    "preferences": [
+      "美食"
+    ],
+    "partySize": 2,
+    "transportMode": "walk"
+  },
+  "trip": {
+    "id": "f7f43543-3054-410b-9171-0bec3e71b2aa",
+    "title": "老城拾味·广州一日美食文化漫游",
+    "destination": "广州",
+    "startDate": "",
+    "budgetLevel": "经济",
+    "totalBudget": 0,
+    "preferences": [
+      "美食"
+    ],
+    "partySize": 2,
+    "extraNotes": "",
+    "transportMode": "walk",
+    "lodging": {
+      "name": "北京路/公园前地铁站附近区域"
+    },
+    "days": [
+      {
+        "id": "1ef2422d-28b4-4d9a-8f1f-489083c08771",
+        "dayIndex": 1,
+        "title": "荔湾越秀：从岭南建筑到地道风味",
+        "activities": [
+          {
+            "id": "1cab1f44-ef00-4368-ac54-166ac393c4ed",
+            "name": "陈家祠",
+            "startTime": "09:00",
+            "endTime": "10:00",
+            "description": "岭南建筑艺术的明珠，欣赏精美木雕、石雕、砖雕与灰塑，感受广府文化底蕴。门票亲民，建议早到避开旅行团。",
+            "lat": 23.127149276625328,
+            "lng": 113.2454575025545,
+            "coordSource": "geocoded",
+            "cost": 10,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "16f62a78-a81b-4bf1-b5f0-c709eebde25b",
+            "name": "永庆坊",
+            "startTime": "10:30",
+            "endTime": "11:45",
+            "description": "老街区改造典范，粤剧艺术博物馆、文创小店与咖啡馆云集。可免费参观粤博外围建筑，感受新旧融合的文艺气息。",
+            "lat": 23.114822692072917,
+            "lng": 113.23822798555244,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": []
+          },
+          {
+            "id": "0af7d151-ae7a-45eb-81be-e7f154285e88",
+            "name": "沙面岛",
+            "startTime": "12:05",
+            "endTime": "13:05",
+            "description": "前英法租界欧式建筑群，环境优雅静谧，绿树成荫、适合散步拍照。免费开放，是闹市中难得的天然氧吧。",
+            "lat": 23.107019687934933,
+            "lng": 113.24260603904214,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "自然",
+            "sourceNotes": []
+          },
+          {
+            "id": "a32dfc9b-95d6-41c2-8a77-ee2b0cbafa0c",
+            "name": "上下九步行街",
+            "startTime": "13:20",
+            "endTime": "14:50",
+            "description": "广府骑楼风情街，老字号小吃密集。午餐可集中打卡宝华面店（云吞面）、银记肠粉、南信双皮奶、陈添记鱼皮，人均实惠。",
+            "lat": 23.113218734209102,
+            "lng": 113.24369773970675,
+            "coordSource": "geocoded",
+            "cost": 40,
+            "category": "美食",
+            "sourceNotes": []
+          },
+          {
+            "id": "f32ae7bc-080e-47ce-af43-6670697f1d6b",
+            "name": "北京路步行街",
+            "startTime": "15:45",
+            "endTime": "18:00",
+            "description": "千年古道遗址就在脚下，商场与美食店林立。晚餐可选点都德或陶陶居体验广式点心，也可逛逛书店和文创店，夜晚灯光更美。",
+            "lat": 23.121152681251154,
+            "lng": 113.26948517675646,
+            "coordSource": "geocoded",
+            "cost": 60,
+            "category": "购物",
+            "sourceNotes": []
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "1cab1f44-ef00-4368-ac54-166ac393c4ed",
+            "toActivityId": "16f62a78-a81b-4bf1-b5f0-c709eebde25b",
+            "mode": "walk",
+            "durationMin": 29,
+            "distanceM": 2180,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "16f62a78-a81b-4bf1-b5f0-c709eebde25b",
+            "toActivityId": "0af7d151-ae7a-45eb-81be-e7f154285e88",
+            "mode": "walk",
+            "durationMin": 18,
+            "distanceM": 1367,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "0af7d151-ae7a-45eb-81be-e7f154285e88",
+            "toActivityId": "a32dfc9b-95d6-41c2-8a77-ee2b0cbafa0c",
+            "mode": "walk",
+            "durationMin": 13,
+            "distanceM": 978,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "a32dfc9b-95d6-41c2-8a77-ee2b0cbafa0c",
+            "toActivityId": "f32ae7bc-080e-47ce-af43-6670697f1d6b",
+            "mode": "walk",
+            "durationMin": 52,
+            "distanceM": 3893,
+            "source": "heuristic"
+          }
+        ]
+      }
+    ],
+    "overview": [
+      {
+        "id": "c9297ccf-b8b0-471d-a15c-71602f9d3acb",
+        "name": "广州塔",
+        "category": "attraction",
+        "intro": "广州地标，又称\"小蛮腰\"，可登塔俯瞰珠江夜景，塔顶有摩天轮和空中漫步，是广州必打卡的现代建筑。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "40da84ae-e286-4e5a-97d2-d18d3d1c2570",
+        "name": "陈家祠",
+        "category": "attraction",
+        "intro": "岭南建筑艺术的明珠，能看到精美的木雕、石雕、砖雕和灰塑，了解广府文化，门票亲民。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "434c789e-5466-44e9-9e0c-88e684a48e77",
+        "name": "沙面岛",
+        "category": "attraction",
+        "intro": "前英法租界，保留大量欧式建筑，适合散步拍照，环境优雅，免费开放，是闹市中的静谧之地。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "310a04ba-b54c-4590-95da-d6cad399deb3",
+        "name": "北京路步行街",
+        "category": "attraction",
+        "intro": "广州最古老的城市中轴线，脚下是千年古道遗址，两旁商场与美食店林立，适合逛街觅食。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "0283332c-ef17-4496-9968-8682825cd86d",
+        "name": "上下九步行街",
+        "category": "attraction",
+        "intro": "最具广府风情的骑楼商业街，老字号小吃密集，可以边逛边吃，感受广州市井烟火气。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "dc7f49ef-3168-4c95-a823-32269754e58a",
+        "name": "永庆坊",
+        "category": "attraction",
+        "intro": "改造后的老街区，融合了粤剧艺术博物馆、文创小店和咖啡馆，是年轻人和文艺爱好者的新地标。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "eb009631-ab94-4817-a243-e6fa61ad2900",
+        "name": "越秀公园",
+        "category": "attraction",
+        "intro": "广州最大的综合性公园，内有五羊石像、镇海楼等历史遗迹，免费开放，适合晨间散步。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "db180bff-4327-4f40-a46b-19ea06851b33",
+        "name": "石室圣心大教堂",
+        "category": "attraction",
+        "intro": "全球四座全石构哥特式教堂之一，彩色玻璃窗精美，免费参观，是广州最壮观的宗教建筑。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "d01126ae-1d4f-4116-a989-f5855ed8088f",
+        "name": "点都德",
+        "category": "food",
+        "intro": "广州知名连锁茶楼，全天供应传统点心，虾饺、红米肠、凤爪口碑极佳，性价比高，是体验广式早茶的首选。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "3b64211a-c599-40e4-b337-86a6a8ed0eb4",
+        "name": "陶陶居",
+        "category": "food",
+        "intro": "百年老字号茶楼，装修古色古香，招牌烧鹅、叉烧、榴莲酥深受欢迎，可以感受传统粤式茶楼文化。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "162b09c8-0dfc-4e45-8ec0-9cbfbaee1b39",
+        "name": "银记肠粉",
+        "category": "food",
+        "intro": "广州肠粉老字号，以\"粉薄、味鲜、爽滑\"著称，鲜虾肠粉和牛肉肠粉是招牌，价格亲民，适合早餐。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "120c25e4-6a90-4008-83f9-086fa97433c0",
+        "name": "宝华面店",
+        "category": "food",
+        "intro": "老牌云吞面店，汤底用大地鱼熬制，云吞皮薄馅靓，面条爽弹，是地道广式竹升面的代表。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "2800f436-83f3-43b7-bec3-0f0f16afd9ad",
+        "name": "南信牛奶甜品专家",
+        "category": "food",
+        "intro": "广州老字号甜品店，招牌双皮奶和姜撞奶香滑浓郁，还有杨枝甘露等经典糖水，是饭后甜点好去处。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "d69b3585-6c43-4572-bcd7-f0fd6a7a6ec6",
+        "name": "陈添记",
+        "category": "food",
+        "intro": "以爽鱼皮闻名的小吃店，鱼皮爽脆无腥味，搭配花生和酱汁，是广州地道凉菜，适合尝鲜。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "255ce331-5a77-4985-b5ec-557238a57631",
+        "name": "达扬原味炖品",
+        "category": "food",
+        "intro": "广州知名炖品店，原只椰子炖竹丝鸡是招牌，汤清味甜，滋补养生，性价比高，适合午餐加餐。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "7f3e6c4c-3a70-407c-bdc1-c8c912ebcedf",
+        "name": "吴财记面家",
+        "category": "food",
+        "intro": "西关老字号面家，主打猪油捞面和云吞面，面质爽滑，价格实惠，充满老广街坊味道。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "4b0a481b-57ca-4d29-9933-1e7a1e2c6274",
+        "name": "如家酒店（广州北京路步行街店）",
+        "category": "hotel",
+        "intro": "位于北京路步行街商圈，出门即逛千年古道和美食街，交通便利，经济型连锁品牌，性价比高。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "1b91e465-d307-4e2b-aa11-7e9830cda868",
+        "name": "汉庭酒店（广州公园前地铁站店）",
+        "category": "hotel",
+        "intro": "靠近公园前地铁站（1号线和2号线换乘），前往各景点方便，周边有北京路、文明路等美食聚集地。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "d377636f-173d-4300-b9fa-1d59933e6e4b",
+        "name": "7天连锁酒店（广州上下九步行街店）",
+        "category": "hotel",
+        "intro": "坐落上下九步行街内，骑楼风情浓厚，附近老字号小吃林立，适合喜欢市井烟火气的旅客。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      }
+    ],
+    "meta": {
+      "usedXhs": false,
+      "reviewNotes": [
+        "日程排得较满（缓冲仅约1%），建议当天保持行动节奏，尽量准时衔接每个点。",
+        "上下九和北京路步行街是广州地道美食集中地，可多留意沿途小吃摊和老字号。",
+        "住宿推荐北京路/公园前地铁站附近，方便覆盖荔湾越秀老城区的步行路线。",
+        "建议优化：第1天当日时间窗缓冲仅约 1%，低于 10%，几乎排满无弹性",
+        "建议优化：第1天住宿锚点「北京路/公园前地铁站附近区域」未解析出坐标，无法计算住宿↔活动通勤（降级跳过，不影响其他判定）"
+      ]
+    },
+    "createdAt": 1784375333313,
+    "updatedAt": 1784375333313
+  }
+}

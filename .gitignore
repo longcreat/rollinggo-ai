@@ -1,0 +1,28 @@
+node_modules/
+dist/
+data/
+# 例外：预约种子表是随仓库维护的源码资产（勿被运行时 data/ 规则误伤）
+!apps/server/src/data/
+*.db
+*.db-journal
+.env
+.env.local
+*.log
+.DS_Store
+verify-shots/
+geo-test.temp.*
+eval/reports/
+eval/runs/
+eval/knowledge-snapshots/
+eval/data/
+.env.tmp
+
+# 小红书地点库导入中间文件（由 xhs-travel-pipeline 的 export_to_tripweaver.py 生成）
+import/
+
+# 本地 agent（pi）运行时目标状态
+.pi/goals/
+.pi/.goals-pool-snapshot.json
+
+# Playwright MCP 的临时截图/会话产物
+.playwright-mcp/

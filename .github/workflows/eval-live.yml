@@ -1,0 +1,62 @@
+name: Live evaluation
+
+on:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: '评估范围（消耗真实模型与地图额度）'
+        type: choice
+        options: [smoke, full]
+        default: smoke
+      knowledge:
+        description: '固定历史地点种子或空库降级场景'
+        type: choice
+        options: [golden, empty]
+        default: golden
+
+permissions:
+  contents: read
+concurrency:
+  group: eval-live
+  cancel-in-progress: false
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Run current generation pipeline
+        run: npm run eval:live -- --suite "$EVAL_SUITE" --knowledge "$EVAL_KNOWLEDGE"
+        env:
+          EVAL_SUITE: ${{ inputs.suite }}
+          EVAL_KNOWLEDGE: ${{ inputs.knowledge }}
+          EVAL_PG_ADMIN_URL: postgres://postgres:postgres@127.0.0.1:5432/postgres
+          SITE_LLM_BASE_URL: ${{ secrets.EVAL_LLM_BASE_URL }}
+          SITE_LLM_API_KEY: ${{ secrets.EVAL_LLM_API_KEY }}
+          SITE_LLM_MODEL: ${{ vars.EVAL_LLM_MODEL }}
+          AMAP_KEY: ${{ secrets.EVAL_AMAP_KEY }}
+          TIANDITU_KEY: ${{ secrets.EVAL_TIANDITU_KEY }}
+          SEARCH_API_KEY: ${{ secrets.EVAL_SEARCH_API_KEY }}
+      - name: Save run for review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-eval-${{ github.run_id }}
+          path: eval/runs/
+          if-no-files-found: warn
+          retention-days: 30

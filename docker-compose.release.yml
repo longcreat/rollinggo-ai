@@ -1,0 +1,78 @@
+# 纯镜像发布版 —— 无需 clone 仓库，只需要这一个文件 + .env
+# 用法：
+#   curl -fsSL https://raw.githubusercontent.com/aimer-rhythm/trip-weaver/master/docker-compose.release.yml -o docker-compose.yml
+#   cp 环境变量模板后编辑（见 README 部署章节）
+#   docker compose up -d
+# 本地构建开发请改用仓库根的 docker-compose.yml。
+name: tripweaver
+
+services:
+  app:
+    image: ${TRIPWEAVER_IMAGE:-ghcr.io/aimer-rhythm/trip-weaver:latest}
+    pull_policy: always
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/tripweaver
+    expose:
+      - "3001"
+    # 库内景点封面：纯镜像部署需先把 data/media 同步到宿主机该目录（容器内 /app/data/media）
+    volumes:
+      - ./data/media:/app/data/media:ro
+    depends_on:
+      - db
+
+  db:
+    # pgvector 镜像：向量扩展随库可用（CREATE EXTENSION vector 在启动迁移中幂等执行）
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+      - POSTGRES_DB=tripweaver
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    expose:
+      - "5432"
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - SITE_DOMAIN=${SITE_DOMAIN:-_}
+    # nginx 配置内联进 compose configs，免去对仓库文件的依赖
+    configs:
+      - source: nginx_conf
+        target: /etc/nginx/templates/default.conf.template
+    volumes:
+      - nginx_certs:/etc/nginx/certs
+    depends_on:
+      - app
+
+# nginx:alpine 启动时用 envsubst 替换 ${SITE_DOMAIN} 生成最终配置
+configs:
+  nginx_conf:
+    content: |
+      server {
+          listen 80;
+          server_name ${SITE_DOMAIN};
+          location / {
+              proxy_pass http://app:3001;
+              proxy_http_version 1.1;
+              proxy_set_header Host $host;
+              proxy_set_header X-Real-IP $remote_addr;
+              proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+              proxy_set_header X-Forwarded-Proto $scheme;
+              proxy_buffering off;
+              proxy_cache off;
+              gzip off;
+              proxy_read_timeout 1h;
+          }
+      }
+
+volumes:
+  nginx_certs:
+  pg_data:

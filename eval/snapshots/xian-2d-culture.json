@@ -1,0 +1,439 @@
+{
+  "caseId": "xian-2d-culture",
+  "generatedAt": 1784368249626,
+  "model": "deepseek-v4-flash",
+  "form": {
+    "startDate": "",
+    "totalBudget": 0,
+    "extraNotes": "",
+    "destination": "西安",
+    "days": 2,
+    "budgetLevel": "经济",
+    "preferences": [
+      "文化"
+    ],
+    "partySize": 1,
+    "transportMode": "transit"
+  },
+  "trip": {
+    "id": "c21d156d-43fc-4c3b-bbbf-0cbf7970104b",
+    "title": "西安两日文化探访：秦唐遗风与古城掠影",
+    "destination": "西安",
+    "startDate": "",
+    "budgetLevel": "经济",
+    "totalBudget": 0,
+    "preferences": [
+      "文化"
+    ],
+    "partySize": 1,
+    "extraNotes": "",
+    "transportMode": "transit",
+    "lodging": {
+      "name": "钟楼/鼓楼周边（地铁2号线枢纽，步行可达回民街、钟鼓楼）"
+    },
+    "days": [
+      {
+        "id": "040fa71b-84cf-4810-af52-8e0904a58efa",
+        "dayIndex": 1,
+        "title": "东线·秦唐遗踪",
+        "activities": [
+          {
+            "id": "b557436e-dd42-46ac-90bc-2b519148a93b",
+            "name": "秦始皇兵马俑博物馆",
+            "startTime": "08:00",
+            "endTime": "11:00",
+            "description": "世界第八大奇迹，秦朝地下军阵震撼实景。需提前在官网预约门票，建议8:30前到避开旅游团高峰。",
+            "lat": 34.386004551180854,
+            "lng": 109.28275421632561,
+            "coordSource": "geocoded",
+            "cost": 120,
+            "category": "文化",
+            "sourceNotes": [
+              {
+                "title": "秦始皇帝陵博物院（官方渠道）",
+                "url": "https://www.bmy.com.cn/"
+              }
+            ]
+          },
+          {
+            "id": "69005a50-5e40-4179-bfe8-8b961277a227",
+            "name": "华清宫",
+            "startTime": "12:00",
+            "endTime": "14:00",
+            "description": "唐代皇家温泉行宫，\"春寒赐浴华清池\"所在地，也是西安事变发生地。与兵马俑同在东线，顺路游览。",
+            "lat": 34.36359246774475,
+            "lng": 109.2125975071808,
+            "coordSource": "geocoded",
+            "cost": 120,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "70e78226-e424-4c25-ac81-8233e2041d75",
+            "name": "西安鼓楼",
+            "startTime": "16:00",
+            "endTime": "16:30",
+            "description": "与钟楼相邻的明代建筑，内有巨鼓陈列。鼓楼后就是回民街，可一并感受古城市井气息。",
+            "lat": 34.26017313848859,
+            "lng": 108.94348853986145,
+            "coordSource": "geocoded",
+            "cost": 30,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "b557436e-dd42-46ac-90bc-2b519148a93b",
+            "toActivityId": "69005a50-5e40-4179-bfe8-8b961277a227",
+            "mode": "transit",
+            "durationMin": 39,
+            "distanceM": 9666,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "69005a50-5e40-4179-bfe8-8b961277a227",
+            "toActivityId": "70e78226-e424-4c25-ac81-8233e2041d75",
+            "mode": "transit",
+            "durationMin": 94,
+            "distanceM": 38165,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "70e78226-e424-4c25-ac81-8233e2041d75",
+            "toActivityId": "95b88284-0aeb-4cdb-9da6-6ead20b87953",
+            "mode": "transit",
+            "durationMin": 664,
+            "distanceM": 465468,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "94635f53-19f9-41c5-9c01-f64df1afe33a",
+        "dayIndex": 2,
+        "title": "古城·博物之旅",
+        "activities": [
+          {
+            "id": "ed7080c8-a626-4f7c-9924-d498fd3ba675",
+            "name": "陕西历史博物馆",
+            "startTime": "09:00",
+            "endTime": "12:00",
+            "description": "\"古都明珠，华夏宝库\"，馆藏周秦汉唐文物17万件。务必提前7天在官方公众号抢免费票，约最早时段。",
+            "lat": 34.22432451340228,
+            "lng": 108.95501359679338,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": [
+              {
+                "title": "陕西历史博物馆（官方渠道）",
+                "url": "https://www.sxhm.com/"
+              }
+            ],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "c6b020df-ec3d-45ac-925e-2feef47b745e",
+            "name": "子午路张记肉夹馍",
+            "startTime": "12:30",
+            "endTime": "13:00",
+            "description": "西安肉夹馍标杆，馍酥肉烂、肥而不腻，腊汁肉汤汁饱满。本地人也常去的老字号，经济实惠又地道。",
+            "lat": 34.25967092796732,
+            "lng": 108.9402253938548,
+            "coordSource": "geocoded",
+            "cost": 30,
+            "category": "美食",
+            "sourceNotes": []
+          },
+          {
+            "id": "3e1c850d-a55e-4865-8d2e-d589542cd4b8",
+            "name": "大雁塔",
+            "startTime": "14:00",
+            "endTime": "15:30",
+            "description": "唐代高僧玄奘为保存佛经而建的七层宝塔，西安标志建筑。北广场有亚洲最大音乐喷泉，夜晚灯光秀很精彩。",
+            "lat": 34.21823013457347,
+            "lng": 108.96413244666797,
+            "coordSource": "geocoded",
+            "cost": 40,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "4d6c0d51-2bfd-4d93-9bca-57505fc341ca",
+            "name": "西安城墙",
+            "startTime": "16:30",
+            "endTime": "18:30",
+            "description": "中国现存最完整的古代城垣，推荐从永宁门登城，租自行车骑行一圈约2小时，傍晚登城看日落超美。",
+            "lat": 34.26350872768553,
+            "lng": 108.92536600644401,
+            "coordSource": "geocoded",
+            "cost": 54,
+            "category": "文化",
+            "sourceNotes": []
+          },
+          {
+            "id": "00a84d38-9c30-44d6-8d4b-eee31bf964f9",
+            "name": "大唐不夜城",
+            "startTime": "19:30",
+            "endTime": "21:00",
+            "description": "以大雁塔为背景的唐风步行街，灯光璀璨，有行为艺术表演。边逛边品尝小吃，适合作为一天的美好收尾。",
+            "lat": 34.213920939755724,
+            "lng": 108.96469105443072,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "其他",
+            "sourceNotes": []
+          },
+          {
+            "id": "065b1fe3-ea7c-4a63-8a07-88c288c1d450",
+            "name": "西安钟楼",
+            "startTime": "21:36",
+            "endTime": "22:36",
+            "description": "西安中心地标明代建筑，登楼可眺望东南西北四条大街。与鼓楼有联票更省钱，夜景尤为璀璨。",
+            "lat": 34.26071476161403,
+            "lng": 108.9498589983549,
+            "coordSource": "geocoded",
+            "cost": 30,
+            "category": "文化",
+            "sourceNotes": []
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "ed7080c8-a626-4f7c-9924-d498fd3ba675",
+            "toActivityId": "c6b020df-ec3d-45ac-925e-2feef47b745e",
+            "mode": "transit",
+            "durationMin": 27,
+            "distanceM": 5822,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "c6b020df-ec3d-45ac-925e-2feef47b745e",
+            "toActivityId": "3e1c850d-a55e-4865-8d2e-d589542cd4b8",
+            "mode": "transit",
+            "durationMin": 31,
+            "distanceM": 7147,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "3e1c850d-a55e-4865-8d2e-d589542cd4b8",
+            "toActivityId": "4d6c0d51-2bfd-4d93-9bca-57505fc341ca",
+            "mode": "transit",
+            "durationMin": 36,
+            "distanceM": 8636,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "4d6c0d51-2bfd-4d93-9bca-57505fc341ca",
+            "toActivityId": "00a84d38-9c30-44d6-8d4b-eee31bf964f9",
+            "mode": "transit",
+            "durationMin": 38,
+            "distanceM": 9231,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "00a84d38-9c30-44d6-8d4b-eee31bf964f9",
+            "toActivityId": "065b1fe3-ea7c-4a63-8a07-88c288c1d450",
+            "mode": "transit",
+            "durationMin": 33,
+            "distanceM": 7530,
+            "source": "heuristic"
+          }
+        ]
+      }
+    ],
+    "overview": [
+      {
+        "id": "ef1ee192-be2f-41f4-8551-e3f6ec6c30ed",
+        "name": "秦始皇兵马俑博物馆",
+        "category": "attraction",
+        "intro": "世界第八大奇迹，秦朝地下军阵的震撼实景。来西安必看的文化地标，距离市区约1小时车程，建议安排半日行程。",
+        "reservation": "required",
+        "sourceLinks": [
+          {
+            "title": "秦始皇帝陵博物院（官方渠道）",
+            "url": "https://www.bmy.com.cn/"
+          }
+        ],
+        "reservationNote": "需官网或官方公众号实名购票（预约制），旺季建议提前数日"
+      },
+      {
+        "id": "20bff1eb-df3b-4e16-9f64-92deeb685bdf",
+        "name": "陕西历史博物馆",
+        "category": "attraction",
+        "intro": "中国第一座大型现代化国家级博物馆，馆藏周、秦、汉、唐文物17万余件，被誉为\"古都明珠，华夏宝库\"。",
+        "reservation": "required",
+        "sourceLinks": [
+          {
+            "title": "陕西历史博物馆（官方渠道）",
+            "url": "https://www.sxhm.com/"
+          }
+        ],
+        "reservationNote": "免费不免票，需官网/官方公众号提前实名预约，一票难求；大唐遗宝展需另购票"
+      },
+      {
+        "id": "1db2e6ab-b195-400e-8494-ff3c049ef006",
+        "name": "西安城墙",
+        "category": "attraction",
+        "intro": "中国现存规模最大、保存最完整的古代城垣，可骑行或徒步环游，从高处俯瞰古都风貌，尤其推荐傍晚登城看日落。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "250815a4-088d-4ca3-8c4d-07655f08b1bb",
+        "name": "大雁塔",
+        "category": "attraction",
+        "intro": "唐代高僧玄奘为保存佛经而建的七层宝塔，西安标志性建筑。北广场有亚洲最大音乐喷泉，夜晚灯光秀很精彩。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "8d641b4f-d916-411b-abe0-3242a85306a2",
+        "name": "小雁塔",
+        "category": "attraction",
+        "intro": "与大雁塔东西相向的唐代密檐砖塔，环境清幽，游客较少。所在的荐福寺内古木参天，适合安静感受历史气息。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "e583b45f-54a6-4cb1-9d99-0cce938ac2d4",
+        "name": "西安钟楼",
+        "category": "attraction",
+        "intro": "位于西安市中心的地标建筑，明代建筑，与鼓楼遥相呼应。登楼可眺望东西南北四条大街，夜景尤为璀璨。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "514db6ad-7d7b-40ed-bf76-8131a37520a7",
+        "name": "西安鼓楼",
+        "category": "attraction",
+        "intro": "与钟楼相邻的明代建筑，内有巨鼓陈列。鼓楼后面就是回民街，可一并游览，感受古城的市井气息。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "1f29607d-5579-4341-a53c-8fc918ce26af",
+        "name": "西安碑林博物馆",
+        "category": "attraction",
+        "intro": "集碑石、石刻艺术于一体的专题博物馆，收藏汉代至清代碑刻4000余方，书法爱好者的天堂，文化底蕴极深。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "af21d3ca-2964-450d-90cd-36fb99c5b41b",
+        "name": "大明宫国家遗址公园",
+        "category": "attraction",
+        "intro": "唐代皇宫遗址，面积是北京故宫的4.5倍。可在遗址上感受大唐盛世的恢弘气度，其中含元殿遗址非常震撼。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "f116872a-4b77-4ed7-9e73-9b181d0a8147",
+        "name": "华清宫",
+        "category": "attraction",
+        "intro": "唐代皇家温泉行宫，\\\"春寒赐浴华清池\\\"的所在地，也是西安事变发生地。与兵马俑在同一条线上，适合安排同一天游览。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "4a9eaa85-4ae1-44b9-94d3-bfea73b4ea0e",
+        "name": "永兴坊",
+        "category": "attraction",
+        "intro": "唐代宰相魏征府邸旧址改造的民俗文化街区，集中展示陕西非遗美食和传统手工艺，比回民街更规整，摔碗酒也在此。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "7e2df64b-ce6f-44da-a79f-09af734fe705",
+        "name": "子午路张记肉夹馍",
+        "category": "food",
+        "intro": "西安肉夹馍标杆，馍酥肉烂、肥而不腻，腊汁肉汤汁饱满。是本地人也常去的老字号，经济实惠又地道。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "29ba6b5f-18f3-487f-8200-0b1e0337f12d",
+        "name": "老孙家饭庄",
+        "category": "food",
+        "intro": "百年老字号羊肉泡馍馆，牛羊肉泡馍汤鲜肉嫩，自己掰馍的体验很有仪式感。位于东大街，交通方便。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "bba2ae4e-5e21-4791-93c8-2c3efa500b7c",
+        "name": "魏家凉皮",
+        "category": "food",
+        "intro": "西安本土连锁凉皮品牌，秘制凉皮酸辣爽口、筋道弹牙，价格亲民。分店遍布全城，适合快速解决一餐。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "be97cab3-ef0f-47a8-918f-78185abca62b",
+        "name": "贾三灌汤包子",
+        "category": "food",
+        "intro": "回民街上的明星店铺，灌汤包皮薄馅大、汤汁鲜美，蘸上醋和辣子一口入魂。推荐牛肉灌汤包和八宝粥。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "757ccaf3-5005-46d7-8552-d1c8f4206d4d",
+        "name": "东南亚甑糕",
+        "category": "food",
+        "intro": "回民街必买的甜食小吃，糯米与红枣层层蒸制，软糯香甜。价格便宜，适合逛街时随手来一份当零嘴。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "aecd8175-2d47-40bb-88f2-cfffb69c23e5",
+        "name": "德发长饺子馆",
+        "category": "food",
+        "intro": "中华老字号，以饺子宴闻名，各种造型和馅料的饺子精美如艺术品。想体验西安特色宴席可以来此，价位适中。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "2a3d24ba-f741-4fa8-8206-73ad71e282f4",
+        "name": "汉庭酒店（西安钟楼店）",
+        "category": "hotel",
+        "intro": "位于钟楼东大街核心地段，步行可至钟鼓楼、回民街。经济连锁品牌，干净卫生，地铁口近在咫尺，交通极为便利。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "8be90dbf-eb2e-4606-997f-915f022bc2f7",
+        "name": "西安湘子门国际青年旅舍",
+        "category": "hotel",
+        "intro": "坐落于南门内湘子庙街，仿古建筑风格，青旅氛围浓厚。价格实惠，靠近城墙和碑林，适合独自出行的文化爱好者。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "cd89268d-1e0c-49fb-b9b7-619533d2aac1",
+        "name": "如家酒店（西安大雁塔店）",
+        "category": "hotel",
+        "intro": "大雁塔附近的经济连锁，步行即可游览大雁塔、大唐不夜城。周边餐饮丰富，晚上看喷泉和夜景非常方便。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      }
+    ],
+    "meta": {
+      "usedXhs": false,
+      "reviewNotes": [
+        "系统自动调整：「西安钟楼」自第 1 天移至第 2 天，以解决「华清宫」的远郊通勤冲突",
+        "第1天删除了老孙家饭庄（系统无法正确解析其坐标），建议在钟楼/回民街区域补充晚餐安排",
+        "第2天路线存在多处回折（陕历博→子午路→大雁塔→城墙→不夜城→钟楼来回折返），建议优化顺序，例如城墙放在最后或调整为大雁塔→不夜城→城墙→钟楼的单线",
+        "两天时间窗均接近满排（缓冲约9-10%），实际游玩时注意时间弹性，留有余地",
+        "建议优化：第1天当日时间窗缓冲仅约 9%，低于 10%，几乎排满无弹性",
+        "建议优化：第1天住宿锚点「钟楼/鼓楼周边（地铁2号线枢纽，步行可达回民街、钟鼓楼）」未解析出坐标，无法计算住宿↔活动通勤（降级跳过，不影响其他判定）",
+        "建议优化：第2天当日时间窗缓冲仅约 10%，低于 10%，几乎排满无弹性",
+        "建议优化：第2天「陕西历史博物馆」→「子午路张记肉夹馍」→「大雁塔」方向明显回折（回跳约 5.1 km），顺路性差"
+      ]
+    },
+    "createdAt": 1784368249624,
+    "updatedAt": 1784368249624
+  }
+}

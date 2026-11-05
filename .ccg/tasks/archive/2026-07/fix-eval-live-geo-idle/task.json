@@ -1,0 +1,12 @@
+{
+  "id": "fix-eval-live-geo-idle",
+  "title": "修复 eval:live geoPipeline 空转与 gate 空心通过",
+  "status": "archived",
+  "strategy": "debug-investigate",
+  "currentPhase": "5-fix",
+  "nextAction": "完成：9f807e0 门槛做实 + 756ee7b 首批 9 快照（8/9 PASS，beijing hard×3 为 M0-C 前质量目标）",
+  "gate": null,
+  "branch": "master",
+  "scope": "fix-eval-live-geo-idle",
+  "createdAt": "2026-07-16T22:08:38+08:00"
+}

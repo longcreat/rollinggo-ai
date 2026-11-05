@@ -1,0 +1,5 @@
+[
+  { "label": "off", "vector": "off" },
+  { "label": "auto", "vector": "auto" },
+  { "label": "force", "vector": "force" }
+]

@@ -1,0 +1,562 @@
+{
+  "caseId": "chengdu-3d-food",
+  "generatedAt": 1784372756673,
+  "model": "deepseek-v4-flash",
+  "form": {
+    "startDate": "",
+    "totalBudget": 0,
+    "extraNotes": "",
+    "destination": "成都",
+    "days": 3,
+    "budgetLevel": "经济",
+    "preferences": [
+      "美食",
+      "小众"
+    ],
+    "partySize": 2,
+    "transportMode": "transit",
+    "lodging": "春熙路"
+  },
+  "trip": {
+    "id": "2a7b45f2-abb0-4601-8805-da490b638f91",
+    "title": "成都三日·美食小众漫游记",
+    "destination": "成都",
+    "startDate": "",
+    "budgetLevel": "经济",
+    "totalBudget": 0,
+    "preferences": [
+      "美食",
+      "小众"
+    ],
+    "partySize": 2,
+    "extraNotes": "",
+    "transportMode": "transit",
+    "lodging": {
+      "name": "春熙路",
+      "lat": 30.65677829218045,
+      "lng": 104.07782153197127,
+      "coordSystem": "gcj02"
+    },
+    "days": [
+      {
+        "id": "5af49338-578d-445f-8680-40c7aacc7b43",
+        "dayIndex": 1,
+        "title": "老成都慢生活与武侯文化",
+        "activities": [
+          {
+            "id": "073ab16c-9ec2-40dd-b752-b16580423987",
+            "name": "人民公园",
+            "startTime": "09:00",
+            "endTime": "10:30",
+            "description": "成都慢生活的缩影，鹤鸣茶社喝盖碗茶、体验掏耳朵，感受最地道的市井闲适。公交地铁皆可到达。",
+            "lat": 30.657279986809705,
+            "lng": 104.05730500654873,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "其他",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "9f557763-77be-4ed3-b00a-35f9459ac206",
+            "name": "宽窄巷子",
+            "startTime": "10:51",
+            "endTime": "12:06",
+            "description": "青砖黛瓦的清末巷子，宽窄两巷格局不同，适合拍照逛街。正餐建议去旁边的奎星楼街，性价比更高。",
+            "lat": 30.665322838341897,
+            "lng": 104.05038402350007,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": []
+          },
+          {
+            "id": "f0808c51-ff93-4c3d-ac26-ae0a05b3557f",
+            "name": "陈麻婆豆腐",
+            "startTime": "12:31",
+            "endTime": "13:45",
+            "description": "中华老字号川菜馆，麻婆豆腐创始店，麻辣鲜香烫酥，人均约60元，体验正宗川菜的首选。",
+            "lat": 30.679407757413422,
+            "lng": 104.01791358089127,
+            "coordSource": "geocoded",
+            "cost": 60,
+            "category": "美食",
+            "sourceNotes": []
+          },
+          {
+            "id": "bce140e6-c5eb-4f71-90ad-838ca3f57ddd",
+            "name": "武侯祠",
+            "startTime": "14:15",
+            "endTime": "16:15",
+            "description": "纪念诸葛亮的祠庙，中国唯一的君臣合祀祠，红墙竹影非常适合拍照，旁边就是锦里古街。",
+            "lat": 30.64537852127948,
+            "lng": 104.04811528281337,
+            "coordSource": "geocoded",
+            "cost": 50,
+            "category": "文化",
+            "sourceNotes": []
+          },
+          {
+            "id": "9ebc415b-79fb-4654-8efb-b3ebf7ac822b",
+            "name": "锦里",
+            "startTime": "16:20",
+            "endTime": "18:30",
+            "description": "紧邻武侯祠的古街，黄昏亮灯后氛围极佳，边走边尝各类小吃。不建议在此吃正餐，适合逛拍。",
+            "lat": 30.64625058663111,
+            "lng": 104.04985524958458,
+            "coordSource": "geocoded",
+            "cost": 30,
+            "category": "美食",
+            "sourceNotes": []
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "lodging",
+            "toActivityId": "073ab16c-9ec2-40dd-b752-b16580423987",
+            "mode": "transit",
+            "durationMin": 18,
+            "distanceM": 2749,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "073ab16c-9ec2-40dd-b752-b16580423987",
+            "toActivityId": "9f557763-77be-4ed3-b00a-35f9459ac206",
+            "mode": "walk",
+            "durationMin": 21,
+            "distanceM": 1558,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "9f557763-77be-4ed3-b00a-35f9459ac206",
+            "toActivityId": "f0808c51-ff93-4c3d-ac26-ae0a05b3557f",
+            "mode": "transit",
+            "durationMin": 25,
+            "distanceM": 4869,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "f0808c51-ff93-4c3d-ac26-ae0a05b3557f",
+            "toActivityId": "bce140e6-c5eb-4f71-90ad-838ca3f57ddd",
+            "mode": "transit",
+            "durationMin": 30,
+            "distanceM": 6665,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "bce140e6-c5eb-4f71-90ad-838ca3f57ddd",
+            "toActivityId": "9ebc415b-79fb-4654-8efb-b3ebf7ac822b",
+            "mode": "walk",
+            "durationMin": 4,
+            "distanceM": 270,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "9ebc415b-79fb-4654-8efb-b3ebf7ac822b",
+            "toActivityId": "lodging",
+            "mode": "transit",
+            "durationMin": 22,
+            "distanceM": 4088,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "8b099fbc-c074-4319-8b9e-5cb841369cfc",
+        "dayIndex": 2,
+        "title": "熊猫萌宠与文艺工业风",
+        "activities": [
+          {
+            "id": "835c385c-19fe-438f-8276-4ff6b095fa4e",
+            "name": "大熊猫繁育研究基地",
+            "startTime": "08:00",
+            "endTime": "11:30",
+            "description": "全球最大熊猫繁育机构，建议7:00前出发，8点前到园熊猫最活跃。9点后旅行团涌入且熊猫睡觉。地铁3号线熊猫大道站转接驳车。",
+            "lat": 30.740845942245326,
+            "lng": 104.1354572114243,
+            "coordSource": "geocoded",
+            "cost": 55,
+            "category": "自然",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "56d10861-cc1b-4860-9740-e95ab07d2f32",
+            "name": "文殊院",
+            "startTime": "12:30",
+            "endTime": "14:00",
+            "description": "成都保存最完整的佛教寺院，免费领香，院内清幽。逛完后去旁边吃洞子口张老二凉粉（步行2分钟）。",
+            "lat": 30.67549361741814,
+            "lng": 104.07272210521143,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "9b7be2e2-90ce-49e3-9ea8-c063d7d270bf",
+            "name": "洞子口张老二凉粉",
+            "startTime": "14:03",
+            "endTime": "14:33",
+            "description": "文殊院旁的老字号凉粉店，招牌黄凉粉和甜水面一绝，价格实惠，本地人从小吃到大。排队很快。",
+            "lat": 30.674199405847887,
+            "lng": 104.07262117889044,
+            "coordSource": "geocoded",
+            "cost": 15,
+            "category": "美食",
+            "sourceNotes": []
+          },
+          {
+            "id": "24a737c2-b7f1-479b-9be3-20ee80c35bf5",
+            "name": "东郊记忆",
+            "startTime": "15:06",
+            "endTime": "17:36",
+            "description": "旧工厂改造的创意园区，遍布工业遗迹涂鸦、设计店铺，文艺拍照打卡胜地。地铁8号线可达。",
+            "lat": 30.668421743902094,
+            "lng": 104.12887101720413,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "娱乐",
+            "sourceNotes": []
+          },
+          {
+            "id": "93c36b73-8dd5-477f-82cc-3ff3afeb01bb",
+            "name": "明婷饭店",
+            "startTime": "18:06",
+            "endTime": "19:36",
+            "description": "成都苍蝇馆子鼻祖，脑花豆腐、荷叶酱肉串等独创菜品让人惊艳，环境简陋但味道顶级，人均约50元。",
+            "lat": 30.67339786303382,
+            "lng": 104.08691910544812,
+            "coordSource": "geocoded",
+            "cost": 50,
+            "category": "美食",
+            "sourceNotes": []
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "lodging",
+            "toActivityId": "835c385c-19fe-438f-8276-4ff6b095fa4e",
+            "mode": "transit",
+            "durationMin": 56,
+            "distanceM": 15192,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "835c385c-19fe-438f-8276-4ff6b095fa4e",
+            "toActivityId": "56d10861-cc1b-4860-9740-e95ab07d2f32",
+            "mode": "transit",
+            "durationMin": 50,
+            "distanceM": 13191,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "56d10861-cc1b-4860-9740-e95ab07d2f32",
+            "toActivityId": "9b7be2e2-90ce-49e3-9ea8-c063d7d270bf",
+            "mode": "walk",
+            "durationMin": 3,
+            "distanceM": 202,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "9b7be2e2-90ce-49e3-9ea8-c063d7d270bf",
+            "toActivityId": "24a737c2-b7f1-479b-9be3-20ee80c35bf5",
+            "mode": "transit",
+            "durationMin": 33,
+            "distanceM": 7585,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "24a737c2-b7f1-479b-9be3-20ee80c35bf5",
+            "toActivityId": "93c36b73-8dd5-477f-82cc-3ff3afeb01bb",
+            "mode": "transit",
+            "durationMin": 27,
+            "distanceM": 5670,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "93c36b73-8dd5-477f-82cc-3ff3afeb01bb",
+            "toActivityId": "lodging",
+            "mode": "transit",
+            "durationMin": 19,
+            "distanceM": 2860,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "9bc72252-6cd0-43f0-a1ec-4d7696d9e20f",
+        "dayIndex": 3,
+        "title": "古蜀秘境与市井烟火",
+        "activities": [
+          {
+            "id": "8da59b57-7394-48f3-bd94-11ae14f7b977",
+            "name": "成都博物馆",
+            "startTime": "09:00",
+            "endTime": "11:00",
+            "description": "了解成都历史的最佳窗口，从先秦到近代完整脉络，常设展与特展都很精彩，且免费开放。位于天府广场地铁站旁。",
+            "lat": 30.657241272543057,
+            "lng": 104.06362502278839,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "f4ea8d9c-f65e-4300-bcfb-dd26860bfe3a",
+            "name": "望江楼公园",
+            "startTime": "11:30",
+            "endTime": "12:30",
+            "description": "纪念女诗人薛涛的幽静园林，遍植竹子品种繁多，望江楼俯瞰锦江。游客少且免费，适合静心漫步。",
+            "lat": 30.62964230323523,
+            "lng": 104.09252471720022,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "自然",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "3622dee5-01a4-486f-8f77-7a5d7cca2773",
+            "name": "龙抄手",
+            "startTime": "13:00",
+            "endTime": "14:00",
+            "description": "成都名小吃代表，皮薄馅嫩的抄手配上红油或清汤，总店在春熙路附近，人均约20元，游客必尝。",
+            "lat": 30.654423371374794,
+            "lng": 104.07802340532666,
+            "coordSource": "geocoded",
+            "cost": 20,
+            "category": "美食",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "9c45597b-1a28-42f5-84ef-a6647f0142d9",
+            "name": "彭镇老茶馆",
+            "startTime": "15:30",
+            "endTime": "17:30",
+            "description": "百年老茶馆，保留文革痕迹和老虎灶，极具川西烟火气。从春熙路坐公交约40分钟可达，点茶约10元/杯不限时，摄影天堂。",
+            "lat": 30.582921022914366,
+            "lng": 103.87112488425136,
+            "coordSource": "geocoded",
+            "cost": 10,
+            "category": "文化",
+            "sourceNotes": []
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "lodging",
+            "toActivityId": "8da59b57-7394-48f3-bd94-11ae14f7b977",
+            "mode": "walk",
+            "durationMin": 25,
+            "distanceM": 1902,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "8da59b57-7394-48f3-bd94-11ae14f7b977",
+            "toActivityId": "f4ea8d9c-f65e-4300-bcfb-dd26860bfe3a",
+            "mode": "transit",
+            "durationMin": 27,
+            "distanceM": 5783,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "f4ea8d9c-f65e-4300-bcfb-dd26860bfe3a",
+            "toActivityId": "3622dee5-01a4-486f-8f77-7a5d7cca2773",
+            "mode": "transit",
+            "durationMin": 23,
+            "distanceM": 4319,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "3622dee5-01a4-486f-8f77-7a5d7cca2773",
+            "toActivityId": "9c45597b-1a28-42f5-84ef-a6647f0142d9",
+            "mode": "transit",
+            "durationMin": 83,
+            "distanceM": 29869,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "9c45597b-1a28-42f5-84ef-a6647f0142d9",
+            "toActivityId": "lodging",
+            "mode": "transit",
+            "durationMin": 83,
+            "distanceM": 29983,
+            "source": "heuristic"
+          }
+        ]
+      }
+    ],
+    "overview": [
+      {
+        "id": "19f2ddc8-ef2e-4937-9708-337b6187a5e1",
+        "name": "大熊猫繁育研究基地",
+        "category": "attraction",
+        "intro": "全球最大熊猫繁育机构，近距离观察国宝大熊猫的幼崽和成年个体，建议早上7:30开门就入园，熊猫最活跃。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "a483d77f-682f-460b-9f6e-94ec537a6065",
+        "name": "武侯祠",
+        "category": "attraction",
+        "intro": "纪念诸葛亮的祠庙，也是中国唯一的君臣合祀祠，红墙竹影非常适合拍照，旁边就是锦里古街。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "0f27ea3e-b505-483d-8a8d-a9083ff3ace0",
+        "name": "杜甫草堂",
+        "category": "attraction",
+        "intro": "诗圣杜甫流寓成都时的故居，园林清幽，茅屋、红墙、竹林充满诗意，适合静心漫步。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "10879d9b-f1d1-409a-9c40-87074e09ebd5",
+        "name": "金沙遗址博物馆",
+        "category": "attraction",
+        "intro": "古蜀文明的重要考古发现地，馆藏太阳神鸟金饰等国宝级文物，建筑与园林设计也很震撼。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "ce969f24-9cb9-4420-ad20-a6836e888d00",
+        "name": "成都博物馆",
+        "category": "attraction",
+        "intro": "了解成都历史的最佳窗口，从先秦到近代的完整脉络，常设展和特展都很精彩，且免费开放。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "fc076afb-8459-45ea-9159-7631ac784564",
+        "name": "人民公园",
+        "category": "attraction",
+        "intro": "成都慢生活的缩影，喝盖碗茶、掏耳朵、划船，体验最地道的市井闲适，鹤鸣茶社必坐。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "7480d309-de4f-4dd0-982d-542df1e9feb2",
+        "name": "东郊记忆",
+        "category": "attraction",
+        "intro": "由旧工厂改造的创意园区，遍布工业遗迹涂鸦、音乐酒吧和设计店铺，适合拍照打卡的小众文艺地。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "1bcb4bd9-d404-46e0-9bdb-ce97df887da4",
+        "name": "文殊院",
+        "category": "attraction",
+        "intro": "成都保存最完整的佛教寺院，香火鼎旺却不喧闹，可免费领香、吃素斋、在院内茶馆坐一下午。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "a828cd1f-08c2-4cda-acf4-faaec607a904",
+        "name": "望江楼公园",
+        "category": "attraction",
+        "intro": "纪念女诗人薛涛的幽静园林，园内遍植竹子品种繁多，望江楼俯瞰锦江，游客少且免费。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "bef535d3-b714-4630-b084-422a7b0eb238",
+        "name": "彭镇老茶馆",
+        "category": "attraction",
+        "intro": "百年老茶馆，保留着文革痕迹和老虎灶，摄影爱好者的天堂，距市区约40分钟公交，极具川西烟火气。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "5995a483-c70e-4988-b89e-db3fed2accae",
+        "name": "洞子口张老二凉粉",
+        "category": "food",
+        "intro": "文殊院旁的老字号凉粉店，招牌黄凉粉和甜水面一绝，价格实惠，本地人从小吃到大。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "5b22f82b-f611-431d-81d3-30b1c5dd6ba5",
+        "name": "陈麻婆豆腐",
+        "category": "food",
+        "intro": "中华老字号川菜馆，麻婆豆腐创始店，麻辣鲜香烫酥，是体验正宗川菜的首选地。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "4cac8b3c-1cda-4a68-8043-f931dfcb25ea",
+        "name": "明婷饭店",
+        "category": "food",
+        "intro": "成都苍蝇馆子的鼻祖，脑花豆腐、荷叶酱肉串等独创菜品让人惊艳，环境简陋但味道顶级。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "40c8ba33-0d4c-4ca6-817a-0281832596f2",
+        "name": "甘记肥肠粉",
+        "category": "food",
+        "intro": "马鞍北路的老牌肥肠粉店，红汤肥肠粉配现烤锅盔，麻辣鲜香，是成都早餐的灵魂之一。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "f8cf823b-b286-4f33-9ceb-63cd8a4ed105",
+        "name": "王记锅盔",
+        "category": "food",
+        "intro": "在成都开了几十年的锅盔店，外酥里嫩，肉馅饱满，尤其牛肉锅盔趁热吃满口香。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "11918da3-4f80-43b6-8d5b-79e71621d475",
+        "name": "龙抄手",
+        "category": "food",
+        "intro": "成都名小吃代表，皮薄馅嫩的抄手配上红油或清汤，总店在春熙路附近，游客必尝。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "c8da8b1f-13fa-4f3e-985a-146d82b4f87f",
+        "name": "汉庭酒店（成都春熙路步行街店）",
+        "category": "hotel",
+        "intro": "位于春熙路商圈核心，交通便利，经济型连锁品牌，干净卫生，适合预算有限的旅行者。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "bb8ff4fd-6744-429d-af63-43539061a593",
+        "name": "如家酒店（成都春熙路太古里店）",
+        "category": "hotel",
+        "intro": "毗邻太古里和IFS，步行可达地铁口，性价比高，适合以春熙路为中心出行的游客。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "b4edbb6f-f00c-4029-9a87-e594e7810521",
+        "name": "成都拖板鞋青年旅舍",
+        "category": "hotel",
+        "intro": "春熙路附近的人气青旅，氛围活泼，有公共区域和社交活动，适合背包客和年轻旅行者。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      }
+    ],
+    "meta": {
+      "usedXhs": false,
+      "reviewNotes": [
+        "行程时间已调整，解决了所有通勤冲突。但每天行程偏满（缓冲不足 10%），建议适当留白或减少活动数量。",
+        "第1天路线有回折（宽窄巷子→陈麻婆豆腐→武侯祠方向折返约4.8km），若想更顺路可考虑将陈麻婆豆腐换成武侯祠/锦里附近的川菜馆。",
+        "第2天洞子口张老二凉粉→东郊记忆→明婷饭店也存在回折，建议优化活动顺序以节省通勤时间。",
+        "建议优化：第1天当日时间窗缓冲仅约 -7%，低于 10%，几乎排满无弹性",
+        "建议优化：第1天「宽窄巷子」→「陈麻婆豆腐」→「武侯祠」方向明显回折（回跳约 4.8 km），顺路性差",
+        "建议优化：第2天当日时间窗缓冲仅约 -9%，低于 10%，几乎排满无弹性",
+        "建议优化：第2天「洞子口张老二凉粉」→「东郊记忆」→「明婷饭店」方向明显回折（回跳约 4.1 km），顺路性差"
+      ]
+    },
+    "createdAt": 1784372756670,
+    "updatedAt": 1784372756670
+  }
+}

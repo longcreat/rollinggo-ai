@@ -1,0 +1,107 @@
+[
+  {
+    "city": "北京",
+    "place": "天坛公园",
+    "file": "北京.webp",
+    "catalog": "data/photo-store/reviewed/68c77e155132565e1cbbace574552fedbb9e769c147d0e9e5ed64701f0cdf82d/2f083892520e44992508bee5b1ea120e11d98a96bb811ba3e483534c29037ff5.json",
+    "reviewVersion": "place-preference-v1",
+    "photo": {
+      "url": "/media/photography/pexels-7759763.webp",
+      "attribution": {
+        "source": "pexels",
+        "photographer": "zhang kaiyv",
+        "sourceUrl": "https://www.pexels.com/photo/cars-on-the-road-near-a-tower-7759763/",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "changes": "已等比缩放并转为WebP，未裁切"
+      }
+    },
+    "evidence": "北京 天坛公园；既有图库来源，必须重新核对实际主体；https://www.pexels.com/photo/cars-on-the-road-near-a-tower-7759763/",
+    "model": "agnes-2.5-flash",
+    "reviewedAt": "2026-10-01T14:29:51.290Z",
+    "sha256": "1d5927687be1074a5cdbf5b201000254130fc462d6c04ba3c10ca05d81433d45",
+    "review": {
+      "identity": "match",
+      "evidence": "图中可见天坛祈年殿标志性三重檐圆形蓝瓦建筑，前景道路有蓝色路牌显示'天坛'字样，确认拍摄地点为北京天坛公园附近。",
+      "singlePhoto": true,
+      "clear": true,
+      "representative": "strong",
+      "composition": "strong",
+      "light": "strong",
+      "obstruction": false,
+      "unrelatedPortrait": false,
+      "view": "正面远景-日落橙光",
+      "reason": "主体为祈年殿全景，日落暖光层次分明，道路车流引导视线指向建筑，远处山峦作背景，构成有序的前中后景。"
+    }
+  },
+  {
+    "city": "杭州",
+    "place": "雷峰塔",
+    "file": "杭州.webp",
+    "catalog": "data/photo-store/reviewed/a8027f71a8e38bcb912f7c24ae1415cd151af10b84f30d5f2429a532b2be3a5c/25b4c2cf6bb277056cd979638efbdc8136f9320bedd09344edcd19f5d7f19c9b.json",
+    "reviewVersion": "place-preference-v1",
+    "photo": {
+      "url": "/media/photography/pexels-17787255.webp",
+      "attribution": {
+        "source": "pexels",
+        "photographer": "bin bin",
+        "sourceUrl": "https://www.pexels.com/photo/leifeng-pagoda-in-hangzhou-17787255/",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "changes": "已调整尺寸与裁切"
+      }
+    },
+    "evidence": "杭州 雷峰塔；既有图库来源，必须重新核对实际主体；https://www.pexels.com/photo/leifeng-pagoda-in-hangzhou-17787255/",
+    "model": "agnes-2.5-flash",
+    "reviewedAt": "2026-10-03T16:40:27.880Z",
+    "sha256": "8715d596c2086a35d85c73455fffa6894078707fa71e1d6f731d0c05676fc898",
+    "review": {
+      "identity": "match",
+      "evidence": "照片主体为杭州雷峰塔，夜景灯光照明，前景有垂柳枝条形成框景，塔身七层结构清晰可辨，拍摄机位为西湖对面远眺视角，符合雷峰塔标志性观景点特征",
+      "singlePhoto": true,
+      "clear": true,
+      "representative": "strong",
+      "composition": "strong",
+      "light": "strong",
+      "obstruction": false,
+      "unrelatedPortrait": false,
+      "view": "夜景远眺-柳枝框景",
+      "reason": "主体为杭州西湖雷峰塔夜景，灯光明亮，前景垂柳形成框景层次，构图经典，代表性强的地标照片"
+    }
+  },
+  {
+    "city": "厦门",
+    "place": "鼓浪屿",
+    "file": "厦门.webp",
+    "catalog": "data/photo-store/reviewed/606a45e0a989094cd00f73abb2171e4e0c677ac99126f33b6d4ffe06c922b4af/f2b38bc1fbc1e53bf297ea55f7c9300f1862131460b395fbb95bb8f57b381f69.json",
+    "reviewVersion": "place-preference-v1",
+    "photo": {
+      "url": "/media/remote-photos/9c0c49b6739b24e84b2f38309b77e578c41fb0c92b95ab09672af81224868ff4.webp",
+      "attribution": {
+        "source": "pexels",
+        "photographer": "toter yau",
+        "sourceUrl": "https://www.pexels.com/photo/scenic-view-of-gulangyu-island-china-coastline-37714926/",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "changes": "图源尺寸版本"
+      }
+    },
+    "evidence": "Aerial view of Gulangyu Island's coastline with ferries on a sunny day, showcasing its unique architecture.",
+    "model": "agnes-2.5-flash",
+    "reviewedAt": "2026-10-03T17:02:41.001Z",
+    "sha256": "9c0c49b6739b24e84b2f38309b77e578c41fb0c92b95ab09672af81224868ff4",
+    "review": {
+      "identity": "match",
+      "evidence": "照片为鼓浪屿海岸线航拍全景，可见标志性航标塔、轮渡船只、沿岸西式建筑群及远处的日光岩轮廓，与鼓浪屿北岸特征吻合；Pexels链接标题亦标注Gulangyu Island。",
+      "singlePhoto": true,
+      "clear": true,
+      "representative": "adequate",
+      "composition": "strong",
+      "light": "adequate",
+      "obstruction": false,
+      "unrelatedPortrait": false,
+      "view": "航拍海岸线全景-日景-微雾",
+      "reason": "航拍视角展现鼓浪屿北岸整体风貌，含航标塔、轮渡、沿岸建筑群，虽未拍摄日光岩等最典型地标，但主体可识别为鼓浪屿。"
+    }
+  }
+]

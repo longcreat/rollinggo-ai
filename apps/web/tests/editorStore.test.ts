@@ -1,0 +1,113 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { makeSampleTrip } from '../../../packages/shared/src/sample.ts';
+import { useEditorStore } from '../src/store/editorStore.ts';
+import { routePairKey } from '../src/lib/routePair.ts';
+import { collectDayLines } from '../src/lib/mapData.ts';
+
+test('moves schedule only new pairs, preserve unaffected choices, and reject obsolete jobs', () => {
+  const trip = makeSampleTrip();
+  const day = trip.days[0]!;
+  const store = () => useEditorStore.getState();
+  store().load(trip);
+  assert.deepEqual(store().routeReplans, {});
+  const untouched = structuredClone(trip.days[1]);
+  const first = day.activities[0]!;
+  store().moveActivity(day.id, first.id, 'down');
+  const jobs = Object.values(store().routeReplans);
+  assert.ok(jobs.length > 0);
+  assert.deepEqual(store().trip!.days[1], untouched);
+  const old = jobs[0]!;
+  store().moveActivity(day.id, first.id, 'up');
+  store().moveActivity(day.id, first.id, 'down');
+  assert.notEqual(store().routeReplans[old.key]?.id, old.id);
+  const revision = store().revision;
+  store().finishRouteReplan(old.id, undefined, 'obsolete');
+  assert.equal(store().revision, revision);
+  assert.ok(Object.values(store().routeReplans).every((j) => j.status === 'pending'));
+  const current = Object.values(store().routeReplans)[0]!;
+  store().finishRouteReplan(current.id, undefined, 'failed');
+  assert.equal(store().routeReplans[current.key]?.status, 'error');
+  store().retryRouteReplan(current.key);
+  assert.notEqual(store().routeReplans[current.key]?.id, current.id);
+  store().cancelRouteReplan(current.key);
+  store().finishRouteReplan(current.id, undefined, 'late');
+  assert.equal(store().routeReplans[current.key], undefined);
+  const pending = Object.values(store().routeReplans)[0]!;
+  const pendingDay = store().trip!.days.find((d) => d.id === pending.dayId)!;
+  const index = pendingDay.activities.findIndex((a) => a.id === pending.fromId);
+  const manual = { fromActivityId: pending.fromId, toActivityId: pendingDay.activities[index + 1]!.id, mode: 'drive' as const, source: 'amap' as const, durationMin: 5, distanceM: 1200 };
+  assert.equal(store().selectRoute(pending.dayId, pending.key, manual), true);
+  store().finishRouteReplan(pending.id, { ...manual, mode: 'walk' });
+  assert.equal(store().trip!.days.find((d) => d.id === pending.dayId)!.legs!.find((l) => l.fromActivityId === pending.fromId)!.mode, 'drive');
+  store().clear();
+  assert.deepEqual(store().routeReplans, {});
+});
+
+test('cross-day moves schedule hidden source and destination', () => {
+  const trip = makeSampleTrip();
+  const store = () => useEditorStore.getState();
+  store().load(trip);
+  const source = trip.days[0]!;
+  const target = trip.days[1]!;
+  store().moveActivityToDay(source.id, source.activities[1]!.id, target.id);
+  const jobs = Object.values(store().routeReplans);
+  assert.ok(jobs.some((j) => j.dayId === source.id));
+  assert.ok(jobs.some((j) => j.dayId === target.id));
+  store().clear();
+});
+
+test('route selection updates one pair and map, rejects stale endpoints and cleared trips', () => {
+  const trip = makeSampleTrip();
+  const day = trip.days[0]!;
+  const from = day.activities[0]!;
+  const to = day.activities[1]!;
+  const route = { fromActivityId: from.id, toActivityId: to.id, mode: 'drive' as const, source: 'amap' as const, durationMin: 5, distanceM: 1000, polyline: '116,39;116.1,39.1' };
+  const key = routePairKey(trip, day.id, from.id)!;
+  const store = () => useEditorStore.getState();
+  store().load(trip);
+  assert.equal(store().selectRoute(day.id, key, route), true);
+  assert.equal(store().revision, 1);
+  assert.deepEqual(store().trip!.days.slice(1), trip.days.slice(1));
+  assert.deepEqual(collectDayLines(store().trip!.days)[0]!.segments[0]!.positions, [{ lng: 116, lat: 39 }, { lng: 116.1, lat: 39.1 }]);
+  store().moveActivity(day.id, from.id, 'down');
+  const rev = store().revision;
+  assert.equal(store().selectRoute(day.id, key, route), false);
+  assert.equal(store().revision, rev);
+  store().load(trip);
+  store().selectRoute(day.id, key, route);
+  store().clear();
+  assert.equal(store().selectRoute(day.id, key, route), false);
+});
+
+test('day navigation never increments revision, deletion preserves selected day identity', () => {
+  const trip = makeSampleTrip();
+  useEditorStore.getState().load(trip);
+  assert.equal(useEditorStore.getState().dayFilter, null);
+  useEditorStore.getState().setDayFilter(3);
+  assert.equal(useEditorStore.getState().revision, 0);
+  useEditorStore.getState().deleteDay(trip.days[0]!.id);
+  assert.equal(useEditorStore.getState().dayFilter, 2);
+  assert.equal(useEditorStore.getState().trip?.days[1]?.id, trip.days[2]!.id);
+  assert.equal(useEditorStore.getState().revision, 1);
+  assert.equal(trip.days.length, 3);
+  useEditorStore.getState().deleteDay(trip.days[2]!.id);
+  assert.equal(useEditorStore.getState().dayFilter, 1);
+  useEditorStore.getState().deleteDay(trip.days[1]!.id);
+  assert.equal(useEditorStore.getState().dayFilter, null);
+  assert.equal(useEditorStore.getState().trip?.days.length, 0);
+});
+
+test('overview remains selected after mutations and empty trips load safely', () => {
+  const trip = makeSampleTrip();
+  useEditorStore.getState().load(trip);
+  useEditorStore.getState().setDayFilter(null);
+  useEditorStore.getState().deleteDay(trip.days[0]!.id);
+  assert.equal(useEditorStore.getState().dayFilter, null);
+  useEditorStore.getState().addDay();
+  assert.equal(useEditorStore.getState().dayFilter, null);
+  useEditorStore.getState().load({ ...trip, days: [] });
+  assert.equal(useEditorStore.getState().dayFilter, null);
+  assert.equal(useEditorStore.getState().revision, 0);
+  useEditorStore.getState().clear();
+});

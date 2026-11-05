@@ -1,0 +1,30 @@
+# 依赖（构建阶段由 npm ci 重新安装）
+node_modules
+**/node_modules
+
+# 版本控制与 Agent 工作区：体积大，且运行时完全不需要
+.git
+.github
+.trellis
+.agents
+.claude
+.codex
+.cursor
+.ccg
+
+# 评估、本地数据与截图产物
+eval
+data
+verify-shots
+import
+
+# 密钥：绝不进镜像
+.env
+.env.*
+!.env.example
+
+# 日志与系统临时文件
+*.log
+*.tmp
+.DS_Store
+Thumbs.db

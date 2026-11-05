@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__grok-search__plan_intent",
+      "mcp__grok-search__plan_complexity",
+      "mcp__grok-search__plan_sub_query",
+      "mcp__grok-search__plan_search_term",
+      "mcp__grok-search__plan_tool_mapping",
+      "mcp__grok-search__web_search",
+      "WebSearch",
+      "Bash(cd:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(mv:*)",
+      "Bash(cp:*)",
+      "Bash(node:*)",
+      "Bash(npm install:*)",
+      "Bash(npm i:*)",
+      "Bash(npm ci:*)",
+      "Bash(npm run:*)",
+      "Bash(npm ls:*)",
+      "Bash(npm --version)",
+      "Bash(npx tsc:*)",
+      "Bash(git init:*)",
+      "Bash(git status:*)",
+      "Bash(curl -s http://localhost:*)",
+      "Bash(curl http://localhost:*)"
+    ]
+  }
+}

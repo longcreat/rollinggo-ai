@@ -1,0 +1,516 @@
+{
+  "caseId": "shanghai-3d-transit",
+  "generatedAt": 1784375071937,
+  "model": "deepseek-v4-flash",
+  "form": {
+    "startDate": "",
+    "totalBudget": 0,
+    "extraNotes": "",
+    "destination": "上海",
+    "days": 3,
+    "budgetLevel": "舒适",
+    "preferences": [
+      "美食",
+      "文化"
+    ],
+    "partySize": 2,
+    "transportMode": "transit"
+  },
+  "trip": {
+    "id": "dfeedabb-a190-408f-a876-e9aaabfa7642",
+    "title": "上海三日·海派文化美食深度游",
+    "destination": "上海",
+    "startDate": "",
+    "budgetLevel": "舒适",
+    "totalBudget": 0,
+    "preferences": [
+      "美食",
+      "文化"
+    ],
+    "partySize": 2,
+    "extraNotes": "",
+    "transportMode": "transit",
+    "lodging": {
+      "name": "黄浦区人民广场/南京东路一带"
+    },
+    "days": [
+      {
+        "id": "d5d430f7-3955-494d-80e7-cff65b7914e4",
+        "dayIndex": 1,
+        "title": "浦西经典·百年风华巡礼",
+        "activities": [
+          {
+            "id": "b66649e6-e271-4eb8-9a01-2c7f113b4a01",
+            "name": "上海博物馆",
+            "startTime": "09:00",
+            "endTime": "11:30",
+            "description": "中国顶级古代艺术博物馆，青铜器、陶瓷、书画馆藏极为丰富。需提前在官方公众号实名预约，建议提前1-3天操作。",
+            "lat": 31.228222602398738,
+            "lng": 121.47553154202149,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": [
+              {
+                "title": "上海博物馆（官方渠道）",
+                "url": "https://www.shanghaimuseum.net/"
+              }
+            ],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "b11a2b26-48fd-4a4d-9c79-face731a7720",
+            "name": "大壶春",
+            "startTime": "12:15",
+            "endTime": "13:00",
+            "description": "上海生煎鼻祖（始于1932年），独创无汤生煎风格，底板酥脆肉馅紧实，配牛肉粉丝汤最地道。从博物馆步行可达。",
+            "lat": 31.234732244746397,
+            "lng": 121.4892586450601,
+            "coordSource": "geocoded",
+            "cost": 50,
+            "category": "美食",
+            "sourceNotes": []
+          },
+          {
+            "id": "35be7c97-e38f-4e4c-8073-d9a9accf20a1",
+            "name": "南京路步行街",
+            "startTime": "13:20",
+            "endTime": "14:35",
+            "description": "中华第一商业街，老字号与新潮店铺林立，从大壶春沿路逛至外滩，感受上海商业百年变迁。",
+            "lat": 31.235740789710608,
+            "lng": 121.47982003311527,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "购物",
+            "sourceNotes": []
+          },
+          {
+            "id": "bb12b3f0-d47a-4c63-b60c-d9ff642bc08c",
+            "name": "外滩",
+            "startTime": "15:05",
+            "endTime": "18:05",
+            "description": "上海地标名片，万国建筑博览群与陆家嘴天际线交相辉映。下午+傍晚游览可同时欣赏白天壮阔与璀璨夜景。",
+            "lat": 31.233355946914777,
+            "lng": 121.49210799383063,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": []
+          },
+          {
+            "id": "cdc60dba-7e12-4df4-b8f0-008d57542a2c",
+            "name": "耳光馄饨",
+            "startTime": "18:35",
+            "endTime": "19:35",
+            "description": "上海传奇馄饨铺，荠菜肉馄饨个头饱满、汤头清鲜，拌上辣油和醋堪称一绝。深夜一碗暖胃又暖心。",
+            "lat": 0,
+            "lng": 0,
+            "coordSource": "estimated",
+            "cost": 40,
+            "category": "美食",
+            "sourceNotes": []
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "b66649e6-e271-4eb8-9a01-2c7f113b4a01",
+            "toActivityId": "b11a2b26-48fd-4a4d-9c79-face731a7720",
+            "mode": "walk",
+            "durationMin": 28,
+            "distanceM": 2089,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "b11a2b26-48fd-4a4d-9c79-face731a7720",
+            "toActivityId": "35be7c97-e38f-4e4c-8073-d9a9accf20a1",
+            "mode": "walk",
+            "durationMin": 17,
+            "distanceM": 1266,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "35be7c97-e38f-4e4c-8073-d9a9accf20a1",
+            "toActivityId": "bb12b3f0-d47a-4c63-b60c-d9ff642bc08c",
+            "mode": "walk",
+            "durationMin": 22,
+            "distanceM": 1677,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "72363210-1e92-40ae-964c-f0a10c1f3660",
+        "dayIndex": 2,
+        "title": "老城拾韵·风情漫步之旅",
+        "activities": [
+          {
+            "id": "fb112e9f-714b-4ecb-90ce-14c7d1738643",
+            "name": "豫园",
+            "startTime": "09:00",
+            "endTime": "11:00",
+            "description": "明代江南私家园林瑰宝，亭台楼阁、假山流水尽显古典造园美学。毗邻城隍庙商圈，可一并感受老上海民俗风情。",
+            "lat": 31.226943784559193,
+            "lng": 121.49244943456085,
+            "coordSource": "geocoded",
+            "cost": 40,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "19482298-ef96-4501-9924-0443e139c91d",
+            "name": "南翔馒头店",
+            "startTime": "11:15",
+            "endTime": "12:00",
+            "description": "豫园九曲桥畔百年老店，皮薄汤多的蟹粉小笼包闻名天下，现包现蒸一口爆汁。高峰期排队较长，建议错峰。",
+            "lat": 31.226552872817248,
+            "lng": 121.49157898215049,
+            "coordSource": "geocoded",
+            "cost": 80,
+            "category": "美食",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "8d94a0e4-dae4-4dfe-9e7e-6b68526dd040",
+            "name": "新天地",
+            "startTime": "12:30",
+            "endTime": "14:30",
+            "description": "石库门老建筑改造的时尚文化街区，中西合璧的弄堂里藏着精品店、画廊与咖啡馆。适合餐后漫步小酌。",
+            "lat": 31.21999366404008,
+            "lng": 121.47496992319026,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "1aaff7bd-e924-4836-ac2c-6f57fa6d47aa",
+            "name": "思南公馆",
+            "startTime": "15:00",
+            "endTime": "16:30",
+            "description": "成片花园洋房历史风貌区，梅兰芳、柳亚子等名人故居所在地，融合高端餐饮与文化沙龙，品味老上海优雅生活。",
+            "lat": 31.214136968459542,
+            "lng": 121.46898191961574,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "9e98f5cb-090b-457a-9004-9e9a3ed2ead4",
+            "name": "武康路",
+            "startTime": "17:00",
+            "endTime": "18:30",
+            "description": "「上海第一历史文化名街」，法式、西班牙式老洋房林立，武康大楼等打卡点密集。路边老吉士等本帮小馆可作晚餐选择。",
+            "lat": 31.206093790631556,
+            "lng": 121.43920378324765,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "fb112e9f-714b-4ecb-90ce-14c7d1738643",
+            "toActivityId": "19482298-ef96-4501-9924-0443e139c91d",
+            "mode": "walk",
+            "durationMin": 2,
+            "distanceM": 131,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "19482298-ef96-4501-9924-0443e139c91d",
+            "toActivityId": "8d94a0e4-dae4-4dfe-9e7e-6b68526dd040",
+            "mode": "transit",
+            "durationMin": 17,
+            "distanceM": 2435,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "8d94a0e4-dae4-4dfe-9e7e-6b68526dd040",
+            "toActivityId": "1aaff7bd-e924-4836-ac2c-6f57fa6d47aa",
+            "mode": "walk",
+            "durationMin": 16,
+            "distanceM": 1211,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "1aaff7bd-e924-4836-ac2c-6f57fa6d47aa",
+            "toActivityId": "9e98f5cb-090b-457a-9004-9e9a3ed2ead4",
+            "mode": "transit",
+            "durationMin": 22,
+            "distanceM": 4158,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "52084654-74ab-4d8f-9bad-2dd2e843bd4c",
+        "dayIndex": 3,
+        "title": "艺术探索·创意无边体验",
+        "activities": [
+          {
+            "id": "e045a5ae-d97a-41cc-8af2-3a80831b4280",
+            "name": "中华艺术宫",
+            "startTime": "09:00",
+            "endTime": "12:00",
+            "description": "由世博会中国馆改建的国家级艺术博物馆，红色斗拱建筑本身即是艺术品。顶楼可俯瞰浦江两岸，常设近现代艺术精品展。需提前预约。",
+            "lat": 31.18447436223572,
+            "lng": 121.49439009874908,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "30f6def5-bd4b-49b2-b74d-e24a67f327fc",
+            "name": "上海当代艺术博物馆",
+            "startTime": "13:00",
+            "endTime": "15:00",
+            "description": "由原南市发电厂改造的公立当代艺术馆，展览前卫多元，烟囱地标醒目。顶楼露台可免费欣赏黄浦江景，文艺青年必访。",
+            "lat": 31.20104520070221,
+            "lng": 121.49834742327282,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "ecbf5833-332a-4aeb-b930-1f99b774f5b8",
+            "name": "田子坊",
+            "startTime": "15:30",
+            "endTime": "17:30",
+            "description": "老弄堂改造的创意文化街区，蜿蜒巷弄间遍布设计师工作室、手工艺品店与异国料理，充满市井烟火气与艺术张力。",
+            "lat": 31.2084133537142,
+            "lng": 121.46865490262489,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "679eb738-1cc0-4048-937b-e15c36c043c8",
+            "name": "光明邨大酒家",
+            "startTime": "18:30",
+            "endTime": "19:30",
+            "description": "淮海路上海老字号，鲜肉月饼是招牌中的招牌，外皮酥脆肉馅多汁；酱鸭、蟹粉豆腐也极受欢迎。可晚餐+外带，建议错峰。",
+            "lat": 31.174470886395955,
+            "lng": 121.43402203129584,
+            "coordSource": "geocoded",
+            "cost": 100,
+            "category": "美食",
+            "sourceNotes": []
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "e045a5ae-d97a-41cc-8af2-3a80831b4280",
+            "toActivityId": "30f6def5-bd4b-49b2-b74d-e24a67f327fc",
+            "mode": "transit",
+            "durationMin": 18,
+            "distanceM": 2633,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "30f6def5-bd4b-49b2-b74d-e24a67f327fc",
+            "toActivityId": "ecbf5833-332a-4aeb-b930-1f99b774f5b8",
+            "mode": "transit",
+            "durationMin": 22,
+            "distanceM": 4117,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "ecbf5833-332a-4aeb-b930-1f99b774f5b8",
+            "toActivityId": "679eb738-1cc0-4048-937b-e15c36c043c8",
+            "mode": "transit",
+            "durationMin": 31,
+            "distanceM": 7014,
+            "source": "heuristic"
+          }
+        ]
+      }
+    ],
+    "overview": [
+      {
+        "id": "2efa5df3-75d3-4092-8732-5fd82bae510d",
+        "name": "上海博物馆",
+        "category": "attraction",
+        "intro": "中国顶级古代艺术博物馆，馆藏百万余件珍贵文物，青铜器、陶瓷、书画尤为精彩，文化爱好者的必到之地。位于人民广场，交通极便。",
+        "reservation": "required",
+        "sourceLinks": [
+          {
+            "title": "上海博物馆（官方渠道）",
+            "url": "https://www.shanghaimuseum.net/"
+          }
+        ],
+        "reservationNote": "免费不免票，人民广场馆与东馆均需官网/小程序提前实名预约"
+      },
+      {
+        "id": "5261c62c-50b7-493c-bb96-8b47c61eff8d",
+        "name": "外滩",
+        "category": "attraction",
+        "intro": "上海地标名片，沿江漫步可欣赏万国建筑博览群与陆家嘴天际线交相辉映，日夜景色各异，是感受上海百年风云的最佳起点。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "367debc1-4cfb-4fa2-82ff-61458661fc5c",
+        "name": "豫园",
+        "category": "attraction",
+        "intro": "明代江南私家园林瑰宝，亭台楼阁、假山流水尽显古典造园美学，毗邻城隍庙商圈，可一并感受老上海民俗风情与美食小吃。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "836acac2-4b9c-4aeb-ae25-7c1cb2ed08c2",
+        "name": "新天地",
+        "category": "attraction",
+        "intro": "以石库门老建筑改造而成的时尚文化街区，中西合璧的弄堂里藏着精品店、画廊与咖啡馆，是体验上海海派文化兼小资生活的绝佳去处。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "2a374774-e23d-4036-b50f-025c92094db3",
+        "name": "武康路",
+        "category": "attraction",
+        "intro": "被誉为「上海第一历史文化名街」，沿途保留大量法式、西班牙式老洋房，网红武康大楼、老房子艺术中心等打卡点密集，适合悠闲漫步。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "3f573d95-4277-4672-8710-3343fc47d691",
+        "name": "田子坊",
+        "category": "attraction",
+        "intro": "由上海老弄堂改造的创意文化街区，蜿蜒巷弄间遍布设计师工作室、手工艺品店、异国料理和小酒馆，充满市井烟火气与艺术张力。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "622fb788-4647-40f2-a73e-db00dd81b42c",
+        "name": "中华艺术宫",
+        "category": "attraction",
+        "intro": "由2010年世博会中国馆改建而成的国家级艺术博物馆，常年展出近现代艺术精品，标志性红色斗拱建筑本身即是艺术，顶楼还可俯瞰浦江两岸。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "44f25056-0821-41ce-838f-68a77be45661",
+        "name": "思南公馆",
+        "category": "attraction",
+        "intro": "成片保留的花园洋房历史风貌区，曾是梅兰芳、柳亚子等名人故居，如今融合了高端餐饮、艺术展览与文化沙龙，是品味老上海优雅生活的窗口。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "04ac991e-b4de-4b8a-ae8d-f3fdf41c4433",
+        "name": "上海自然博物馆",
+        "category": "attraction",
+        "intro": "国内最大的自然博物馆之一，以「自然·人·和谐」为主题，恐龙骨架、动物标本和互动展项令人震撼，尤其适合对古生物和自然科学感兴趣的朋友。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "0114a3b4-7c7b-495a-8837-cf0f89e7d7ca",
+        "name": "上海当代艺术博物馆",
+        "category": "attraction",
+        "intro": "由原南市发电厂改造的大陆首家公立当代艺术馆，烟囱成为城市地标，展览前卫多元，顶楼露台可免费欣赏黄浦江景，文艺青年必访。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "edd5caa1-b0ea-47ff-aa83-df40ba5e50a9",
+        "name": "上海老饭店",
+        "category": "food",
+        "intro": "创始于1875年的本帮菜金字招牌，位于豫园附近，红烧肉、八宝鸭、油爆虾等经典菜肴底蕴深厚，是老上海味道的代表之一。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "13406aaa-df61-489f-9323-a7e5e32ccca7",
+        "name": "南翔馒头店",
+        "category": "food",
+        "intro": "豫园九曲桥畔百年老店，以皮薄汤多的蟹粉小笼包闻名天下，现包现蒸，一口爆汁，是上海美食打卡清单上的常驻元老。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "4755f9db-1cd7-4ad7-bb38-5d3c755c2e2f",
+        "name": "大壶春",
+        "category": "food",
+        "intro": "上海生煎界的鼻祖，始于1932年，独创「无汤生煎」风格，底板酥脆、肉馅紧实，配一碗牛肉粉丝汤，是最地道的上海早餐体验。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "c20190f3-d451-467e-ac3c-e741f91d74ba",
+        "name": "光明邨大酒家",
+        "category": "food",
+        "intro": "淮海路上常年排队的上海老字号，鲜肉月饼是招牌中的招牌，外皮酥脆层次分明，肉馅鲜美多汁，此外酱鸭、蟹粉豆腐也极受欢迎。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "04746bae-1b26-46a3-9ab2-a481f394685f",
+        "name": "耳光馄饨",
+        "category": "food",
+        "intro": "上海滩传奇馄饨铺，从弄堂起家做到明星打卡，荠菜肉馄饨个头饱满、汤头清鲜，拌上辣油和醋堪称一绝，深夜一碗暖胃又暖心。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "aa64cfff-2c41-4b88-bdac-4f0d116da314",
+        "name": "老吉士",
+        "category": "food",
+        "intro": "天平路上人气爆棚的本帮小馆，店面虽小却门庭若市，红烧肉炖蛋、蟹粉炒年糕、酒香草头等家常菜做得地道入味，性价比很高。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "94caeadb-bccf-4f03-8fbd-644db1c382f8",
+        "name": "上海国际饭店",
+        "category": "hotel",
+        "intro": "人民广场地标性历史建筑，Art Deco风格浓郁，曾是「远东第一高楼」，地理位置绝佳，步行可达南京路、外滩、博物馆，兼具历史底蕴与交通便利。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "5a57654b-d09d-4af1-949d-d3c3962a3611",
+        "name": "上海新天地朗廷酒店",
+        "category": "hotel",
+        "intro": "坐落于新天地核心地带，融合时尚设计与老上海风情，步行即达石库门街区，地铁1/10/13号线交汇，去豫园、外滩、淮海路均十分便捷。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "d007e5a8-d0de-475f-b9cc-a18544912a27",
+        "name": "上海静安香格里拉大酒店",
+        "category": "hotel",
+        "intro": "位于静安嘉里中心，地铁2/7号线静安寺站上盖，交通四通八达。酒店配套完善，周边久光百货、静安公园环绕，是闹中取静的舒适之选。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      }
+    ],
+    "meta": {
+      "usedXhs": false,
+      "reviewNotes": [
+        "第1天和第2天行程几乎排满（缓冲仅8-9%），现场可能较赶，建议视实际情况灵活跳过或延长间隔。",
+        "住宿推荐黄浦区人民广场/南京东路一带，该区域未自动解析坐标，请手动确认酒店位置以确保通勤计算准确。",
+        "第3天田子坊与光明邨大酒家距离较远（通勤约31分钟），已调整时间间隔，如想更轻松可考虑田子坊周边替代餐厅。",
+        "建议优化：第1天当日时间窗缓冲仅约 9%，低于 10%，几乎排满无弹性",
+        "建议优化：第1天住宿锚点「黄浦区人民广场/南京东路一带」未解析出坐标，无法计算住宿↔活动通勤（降级跳过，不影响其他判定）",
+        "建议优化：第2天当日时间窗缓冲仅约 8%，低于 10%，几乎排满无弹性",
+        "建议优化：第2天住宿锚点「黄浦区人民广场/南京东路一带」未解析出坐标，无法计算住宿↔活动通勤（降级跳过，不影响其他判定）"
+      ]
+    },
+    "createdAt": 1784375071922,
+    "updatedAt": 1784375071922
+  }
+}

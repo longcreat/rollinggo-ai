@@ -1,0 +1,723 @@
+{
+  "caseId": "qingdao-7d-slow",
+  "generatedAt": 1784369422461,
+  "model": "deepseek-v4-flash",
+  "form": {
+    "startDate": "",
+    "totalBudget": 0,
+    "extraNotes": "",
+    "destination": "青岛",
+    "days": 7,
+    "budgetLevel": "舒适",
+    "preferences": [
+      "自然",
+      "美食"
+    ],
+    "partySize": 2,
+    "transportMode": "transit"
+  },
+  "trip": {
+    "id": "23458377-4456-4ee9-90a9-a0099b997dfb",
+    "title": "青岛七日山海美食之旅",
+    "destination": "青岛",
+    "startDate": "",
+    "budgetLevel": "舒适",
+    "totalBudget": 0,
+    "preferences": [
+      "自然",
+      "美食"
+    ],
+    "partySize": 2,
+    "extraNotes": "",
+    "transportMode": "transit",
+    "lodging": {
+      "name": "市南区沿海一线（五四广场/八大关/中山路）"
+    },
+    "days": [
+      {
+        "id": "9accc9b6-fa4b-4376-864c-5ddb4f9dfd36",
+        "dayIndex": 1,
+        "title": "老城经典·红瓦绿树初印象",
+        "activities": [
+          {
+            "id": "98a16fa7-fd4c-48d6-b531-5602860ce465",
+            "name": "栈桥",
+            "startTime": "09:00",
+            "endTime": "10:00",
+            "description": "青岛百年象征，回澜阁与海鸥相映。早晨人少景美，适合漫步拍照。",
+            "lat": 36.06213855177393,
+            "lng": 120.31942403744102,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "其他",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "dc16cb54-4b76-4795-a357-9c28d90e0e19",
+            "name": "信号山公园",
+            "startTime": "10:30",
+            "endTime": "11:30",
+            "description": "山顶旋转观景台360°俯瞰老城红瓦绿树碧海蓝天，拍摄青岛全景的最佳机位。",
+            "lat": 36.066520228900146,
+            "lng": 120.33150274138858,
+            "coordSource": "geocoded",
+            "cost": 15,
+            "category": "自然",
+            "sourceNotes": []
+          },
+          {
+            "id": "537ffb48-4e68-423e-aebd-13340c98a42f",
+            "name": "九龙餐厅",
+            "startTime": "12:00",
+            "endTime": "13:30",
+            "description": "大沽路老字号家常菜馆，招牌香辣鱿鱼条、蚝油扇贝，人均70元吃地道青岛味，饭点必排队建议早到。",
+            "lat": 36.069393136306175,
+            "lng": 120.31626106799216,
+            "coordSource": "geocoded",
+            "cost": 70,
+            "category": "美食",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "ff5cced6-7afa-46c1-83f9-12b97261861e",
+            "name": "小鱼山公园",
+            "startTime": "15:00",
+            "endTime": "16:30",
+            "description": "览潮阁远眺栈桥、小青岛与汇泉湾，落日时分绝美，比信号山更小巧精致。",
+            "lat": 36.05886364943353,
+            "lng": 120.3363452672643,
+            "coordSource": "geocoded",
+            "cost": 15,
+            "category": "自然",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "9a2f08c6-68b9-4115-8917-d8ca470047d4",
+            "name": "石老人海水浴场",
+            "startTime": "18:00",
+            "endTime": "19:00",
+            "description": "崂山区著名海滨浴场，沙滩平缓、水质清澈，是崂山回程途中顺路的海滨休闲好去处。",
+            "lat": 36.090859284891096,
+            "lng": 120.4683992550385,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "自然",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "98a16fa7-fd4c-48d6-b531-5602860ce465",
+            "toActivityId": "dc16cb54-4b76-4795-a357-9c28d90e0e19",
+            "mode": "walk",
+            "durationMin": 22,
+            "distanceM": 1666,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "dc16cb54-4b76-4795-a357-9c28d90e0e19",
+            "toActivityId": "537ffb48-4e68-423e-aebd-13340c98a42f",
+            "mode": "walk",
+            "durationMin": 26,
+            "distanceM": 1969,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "537ffb48-4e68-423e-aebd-13340c98a42f",
+            "toActivityId": "ff5cced6-7afa-46c1-83f9-12b97261861e",
+            "mode": "transit",
+            "durationMin": 19,
+            "distanceM": 3012,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "ff5cced6-7afa-46c1-83f9-12b97261861e",
+            "toActivityId": "9a2f08c6-68b9-4115-8917-d8ca470047d4",
+            "mode": "transit",
+            "durationMin": 62,
+            "distanceM": 17346,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "ca087c6e-a90a-4358-a970-8a11335b8c2f",
+        "dayIndex": 2,
+        "title": "海滨漫步·万国建筑与海岸线",
+        "activities": [
+          {
+            "id": "28df655e-1557-4d47-a17a-9270e6143632",
+            "name": "八大关",
+            "startTime": "09:00",
+            "endTime": "10:45",
+            "description": "\"万国建筑博览馆\"，20余国风格别墅掩映梧桐之间。临海散步道直通第二海水浴场，浪漫徒步路线。",
+            "lat": 36.05401509724756,
+            "lng": 120.3507427438081,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "21cbac32-3e52-4e42-88d8-ef199f9414f3",
+            "name": "鲁迅公园",
+            "startTime": "11:05",
+            "endTime": "11:45",
+            "description": "临海开放式公园，红礁石与青松相映，海岸线曲折优美，连接海底世界与第一海水浴场，免费惬意的海滨散步道。",
+            "lat": 36.05543636244006,
+            "lng": 120.33357031865418,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "自然",
+            "sourceNotes": []
+          },
+          {
+            "id": "7dcd6868-1505-40c8-8a3a-b147763bba4e",
+            "name": "船歌鱼水饺",
+            "startTime": "12:30",
+            "endTime": "13:30",
+            "description": "青岛最具代表性的海鲜水饺专门店，墨鱼、鲅鱼、黄花鱼水饺皮薄馅鲜，一口一个\"鲜\"字。",
+            "lat": 36.07077172145042,
+            "lng": 120.3992509591251,
+            "coordSource": "geocoded",
+            "cost": 80,
+            "category": "美食",
+            "sourceNotes": []
+          },
+          {
+            "id": "5bf8ef19-f2b8-4aa2-9097-294c5cf021c4",
+            "name": "青岛海底世界",
+            "startTime": "14:10",
+            "endTime": "16:10",
+            "description": "中国首座水族馆，拥有82.6米海底隧道可观鲨鱼、鳐鱼。建议提前预约购票，雨天备选科普性强。",
+            "lat": 36.057110691534156,
+            "lng": 120.33589574235086,
+            "coordSource": "geocoded",
+            "cost": 120,
+            "category": "文化",
+            "sourceNotes": []
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "28df655e-1557-4d47-a17a-9270e6143632",
+            "toActivityId": "21cbac32-3e52-4e42-88d8-ef199f9414f3",
+            "mode": "transit",
+            "durationMin": 17,
+            "distanceM": 2173,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "21cbac32-3e52-4e42-88d8-ef199f9414f3",
+            "toActivityId": "7dcd6868-1505-40c8-8a3a-b147763bba4e",
+            "mode": "transit",
+            "durationMin": 36,
+            "distanceM": 8603,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "7dcd6868-1505-40c8-8a3a-b147763bba4e",
+            "toActivityId": "5bf8ef19-f2b8-4aa2-9097-294c5cf021c4",
+            "mode": "transit",
+            "durationMin": 35,
+            "distanceM": 8251,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "86725a08-2d9d-4a02-b8de-f67d54586754",
+        "dayIndex": 3,
+        "title": "崂山问道·山海奇观一日游",
+        "activities": [
+          {
+            "id": "4634030d-c76c-4565-a479-a08ae79e1380",
+            "name": "崂山风景区",
+            "startTime": "08:30",
+            "endTime": "16:00",
+            "description": "青岛唯一5A级山海奇观，推荐南线太清-仰口。登山观海访道观，早出晚归自带饮食，公交旅游专线可达。",
+            "lat": 36.1967767240437,
+            "lng": 120.63430683098586,
+            "coordSource": "geocoded",
+            "cost": 120,
+            "category": "自然",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          }
+        ]
+      },
+      {
+        "id": "2113bd3d-a33a-445d-ab89-7deb0975067c",
+        "dayIndex": 4,
+        "title": "黄岛踏浪·金沙滩与跨海风情",
+        "activities": [
+          {
+            "id": "6d31ceee-abb8-482f-9c0b-2653a73f95d2",
+            "name": "金沙滩",
+            "startTime": "09:00",
+            "endTime": "11:20",
+            "description": "青岛沙质最细腻的沙滩，被誉为\"亚洲第一滩\"。适合赤脚漫步、赶海拾贝，黄岛一日游核心，隧道公交可达。",
+            "lat": 35.95858014585355,
+            "lng": 120.24523029927046,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "自然",
+            "sourceNotes": []
+          },
+          {
+            "id": "c605f0c2-601c-4bf7-a0d5-90dbe6393f9e",
+            "name": "唐岛湾公园",
+            "startTime": "12:00",
+            "endTime": "14:00",
+            "description": "滨海湿地公园，骑行散步赏海景，人少安静适合放松。与金沙滩同在黄岛，顺路游玩。",
+            "lat": 35.940955545208084,
+            "lng": 120.18515453768423,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "自然",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "0996cfe9-0147-4917-a387-1f39cdc66690",
+            "name": "琴岛之眼摩天轮",
+            "startTime": "14:30",
+            "endTime": "16:00",
+            "description": "黄岛地标摩天轮，海景视角俯瞰唐岛湾，浪漫出片，适合拍照留念。",
+            "lat": 0,
+            "lng": 0,
+            "coordSource": "estimated",
+            "cost": 50,
+            "category": "娱乐",
+            "sourceNotes": []
+          },
+          {
+            "id": "64c8bef9-b158-4ef6-873d-4e598d5c2704",
+            "name": "营口路啤酒街 & 海鲜市场",
+            "startTime": "18:00",
+            "endTime": "20:00",
+            "description": "本地人最爱——去营口路市场自选活海鲜到附近啤酒屋加工，再打一扎当日鲜啤。注意选明码标价店，两人一扎足够尝鲜。",
+            "lat": 0,
+            "lng": 0,
+            "coordSource": "estimated",
+            "cost": 100,
+            "category": "美食",
+            "sourceNotes": []
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "6d31ceee-abb8-482f-9c0b-2653a73f95d2",
+            "toActivityId": "c605f0c2-601c-4bf7-a0d5-90dbe6393f9e",
+            "mode": "transit",
+            "durationMin": 34,
+            "distanceM": 8053,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "0970a5f3-8372-451d-83cb-46a16783f508",
+        "dayIndex": 5,
+        "title": "啤酒文脉·博物馆与市井烟火",
+        "activities": [
+          {
+            "id": "84356e4a-8dd1-438d-92e9-be831c781880",
+            "name": "青岛啤酒博物馆",
+            "startTime": "09:00",
+            "endTime": "11:00",
+            "description": "设于百年德式老厂房内，沉浸式了解青岛啤酒历史，还能喝到最新鲜的原浆啤酒。文化爱好者和啤酒控必去，建议提前预约。",
+            "lat": 36.07919392850681,
+            "lng": 120.34765475005558,
+            "coordSource": "geocoded",
+            "cost": 80,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "80f15608-c635-479b-8eb0-f21d6f2af783",
+            "name": "西镇电烤肉",
+            "startTime": "11:30",
+            "endTime": "12:30",
+            "description": "汶上路开了几十年的电烤串店，大肉筋、烤鸡心、烤火烧是经典。炭火味足、价格亲民，老西镇人的深夜食堂。",
+            "lat": 36.061953513176974,
+            "lng": 120.3079806799499,
+            "coordSource": "geocoded",
+            "cost": 40,
+            "category": "美食",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "7aaf33be-5db0-4e68-9570-ac60540993a8",
+            "name": "台东步行街",
+            "startTime": "13:00",
+            "endTime": "15:00",
+            "description": "青岛最热闹的商业步行街，各类小吃与店铺琳琅满目，逛吃购物感受市井活力。",
+            "lat": 36.082650739999345,
+            "lng": 120.35541939021218,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "购物",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "602c2f7e-ab61-4331-a519-c95bf1e9c67f",
+            "name": "春和楼",
+            "startTime": "15:30",
+            "endTime": "17:00",
+            "description": "始建于1891年的中华老字号鲁菜馆，香酥鸡、葱烧海参是招牌。百年老建筑里吃正宗鲁菜，文化味十足。",
+            "lat": 36.07084302804584,
+            "lng": 120.31844121966019,
+            "coordSource": "geocoded",
+            "cost": 100,
+            "category": "美食",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "84356e4a-8dd1-438d-92e9-be831c781880",
+            "toActivityId": "80f15608-c635-479b-8eb0-f21d6f2af783",
+            "mode": "transit",
+            "durationMin": 27,
+            "distanceM": 5668,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "80f15608-c635-479b-8eb0-f21d6f2af783",
+            "toActivityId": "7aaf33be-5db0-4e68-9570-ac60540993a8",
+            "mode": "transit",
+            "durationMin": 30,
+            "distanceM": 6783,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "7aaf33be-5db0-4e68-9570-ac60540993a8",
+            "toActivityId": "602c2f7e-ab61-4331-a519-c95bf1e9c67f",
+            "mode": "transit",
+            "durationMin": 25,
+            "distanceM": 5003,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "dfe1ad1d-d59b-49eb-ae3a-bfc997959491",
+        "dayIndex": 6,
+        "title": "新城地标·五四广场与日落橘子海",
+        "activities": [
+          {
+            "id": "8aaa8380-2db3-4f96-944e-e089c83a6e06",
+            "name": "五四广场 & 奥帆中心",
+            "startTime": "09:00",
+            "endTime": "11:00",
+            "description": "青岛现代地标，\"五月的风\"雕塑与奥运帆船基地相连。沿海岸线可步行至情人坝，夜景灯光秀很震撼。",
+            "lat": 36.06039631200635,
+            "lng": 120.39086753108849,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "845ff328-cd2a-4334-bd61-8749dcc2b1ae",
+            "name": "小麦岛公园",
+            "startTime": "14:00",
+            "endTime": "16:30",
+            "description": "新晋网红海岛公园，草坪与礁石海岸相连，360°环海步道。日落时分的橘子海与灯塔剪影，出片率极高。",
+            "lat": 36.05447464122351,
+            "lng": 120.43102972658485,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "自然",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "769c4e5b-8b38-422a-9196-5216df6507c6",
+            "name": "开海红岛海鲜虾水饺",
+            "startTime": "18:00",
+            "endTime": "19:30",
+            "description": "主打时令海鲜的精致鲁菜馆，环境比普通餐厅更讲究。招牌虾水饺、铁锅蛤蜊鸡，适合想吃得舒服又地道的你。",
+            "lat": 0,
+            "lng": 0,
+            "coordSource": "estimated",
+            "cost": 150,
+            "category": "美食",
+            "sourceNotes": []
+          },
+          {
+            "id": "65713703-8491-4c76-9ae8-83e93ea6d572",
+            "name": "中山公园",
+            "startTime": "11:30",
+            "endTime": "12:30",
+            "description": "青岛最大的综合性公园，春季樱花大道闻名全国。园内有动物园、植物园，是本地人休闲踏青的好去处。",
+            "lat": 36.059185992069196,
+            "lng": 120.35136713229032,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "自然",
+            "sourceNotes": []
+          },
+          {
+            "id": "f7a3c2bb-18be-49e6-9fed-23d977ef8dbb",
+            "name": "王姐烧烤",
+            "startTime": "20:00",
+            "endTime": "21:00",
+            "description": "中山路老牌烧烤摊，烤鱿鱼、烤海肠、烤大虾是招牌。街头一把串、一袋散啤，就是最青岛的烟火气。",
+            "lat": 36.08688464655215,
+            "lng": 120.37690458837012,
+            "coordSource": "geocoded",
+            "cost": 50,
+            "category": "美食",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "8aaa8380-2db3-4f96-944e-e089c83a6e06",
+            "toActivityId": "845ff328-cd2a-4334-bd61-8749dcc2b1ae",
+            "mode": "transit",
+            "durationMin": 25,
+            "distanceM": 5138,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "65713703-8491-4c76-9ae8-83e93ea6d572",
+            "toActivityId": "f7a3c2bb-18be-49e6-9fed-23d977ef8dbb",
+            "mode": "transit",
+            "durationMin": 26,
+            "distanceM": 5378,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "3a7c73bd-a870-4f2e-b346-c16f82ef73af",
+        "dayIndex": 7,
+        "title": "自由拾光·补漏或二刷心仪之地",
+        "activities": [
+          {
+            "id": "5d3826b4-98c3-4b09-b4de-081f70e9447a",
+            "name": "大学路网红墙",
+            "startTime": "10:45",
+            "endTime": "11:15",
+            "description": "鱼山路与大学路交界处的红墙转角，青岛最热门的拍照打卡点，青春文艺范十足。",
+            "lat": 22.306360891606186,
+            "lng": 114.17896400349112,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "其他",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          }
+        ]
+      }
+    ],
+    "overview": [
+      {
+        "id": "f18139ae-6f35-4656-8cc0-96cb753b23a0",
+        "name": "崂山风景区",
+        "category": "attraction",
+        "intro": "青岛唯一的5A级山海奇观，道教名山。巨峰顶观海、太清宫访古、仰口湾踏浪，一天走不完的天然氧吧，自然爱好者首选。",
+        "reservation": "unknown",
+        "sourceLinks": [],
+        "reservationNote": "建议提前在\"崂山风景区\"官方公众号预约购票，旺季需提前1-3天"
+      },
+      {
+        "id": "c9b2a770-c6ab-4f0f-ac5b-0e4894bb0875",
+        "name": "八大关",
+        "category": "attraction",
+        "intro": "\"万国建筑博览馆\"，20余国风格别墅掩映在梧桐与海棠之间。临海散步道直通第二海水浴场，是青岛最浪漫的徒步路线。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "7c99ea6c-5287-4901-a3b6-05bd1663e766",
+        "name": "信号山公园",
+        "category": "attraction",
+        "intro": "市区最高点之一，山顶旋转观景台可360°俯瞰老城红瓦绿树碧海蓝天，是拍青岛全景的最佳机位。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "50f0c65e-2bfe-4119-a751-8fa4948e10fc",
+        "name": "小鱼山公园",
+        "category": "attraction",
+        "intro": "比信号山更小巧精致的观海点，山顶览潮阁可远眺栈桥、小青岛与汇泉湾，落日时分绝美。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "6140a212-02c8-4efa-a598-60950337edcd",
+        "name": "栈桥",
+        "category": "attraction",
+        "intro": "青岛百年象征，直伸海中的回澜阁与海鸥相映成趣。冬季可喂海鸥，夏季听浪，是必到的第一站。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "18accd7c-3154-48ca-ba13-f421b0135e56",
+        "name": "小麦岛公园",
+        "category": "attraction",
+        "intro": "新晋网红海岛公园，草坪与礁石海岸相连，360°环海步道。日落时分的橘子海与灯塔剪影，出片率极高。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "aa7634d6-6008-4ac3-9ed9-cf3697ec93d0",
+        "name": "青岛啤酒博物馆",
+        "category": "attraction",
+        "intro": "设于百年德式老厂房内，沉浸式了解青岛啤酒历史，还能喝到最新鲜的原浆啤酒。适合文化爱好者和啤酒控。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "a1dba4f7-064e-4b7a-9b4b-750451ee5571",
+        "name": "五四广场 & 奥帆中心",
+        "category": "attraction",
+        "intro": "青岛现代地标，\"五月的风\"雕塑与奥运帆船基地相连。沿海岸线可步行至情人坝，夜景灯光秀很震撼。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "204addb0-effd-4c0d-b5e1-05bfeee7c478",
+        "name": "金沙滩",
+        "category": "attraction",
+        "intro": "青岛沙质最细腻的沙滩，长达3500米，被誉为\"亚洲第一滩\"。适合赤脚漫步、赶海拾贝，黄岛一日游的核心。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "8fdfe8c1-81fd-451f-889a-bc0f1693b19f",
+        "name": "鲁迅公园",
+        "category": "attraction",
+        "intro": "临海开放式公园，红礁石与青松相映，海岸线曲折优美。连接海底世界与第一海水浴场，是免费又惬意的海滨散步道。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "1172d27e-2b3b-4981-b76b-3cbacef73eeb",
+        "name": "中山公园",
+        "category": "attraction",
+        "intro": "青岛最大的综合性公园，春季樱花大道闻名全国。园内有动物园、植物园，是本地人休闲踏青的好去处。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "333d1d23-bd6d-421c-b20e-597411becf34",
+        "name": "青岛海底世界",
+        "category": "attraction",
+        "intro": "中国首座水族馆，拥有长达82.6米的海底隧道，可观鲨鱼、鳐鱼等海洋生物。适合雨天备选或亲子游，科普性很强。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "30749a5b-cce0-4d74-80a8-ebf8d01be134",
+        "name": "船歌鱼水饺",
+        "category": "food",
+        "intro": "青岛最具代表性的海鲜水饺专门店，墨鱼、鲅鱼、黄花鱼水饺皮薄馅鲜，一口一个\"鲜\"字，游客本地人都爱。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "757493ef-eff2-4afd-bd85-f77edac45564",
+        "name": "九龙餐厅",
+        "category": "food",
+        "intro": "大沽路老字号家常菜馆，招牌香辣鱿鱼条、蚝油扇贝、肉末海参，人均70元吃地道青岛味，饭点必排队。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "69aa2ad2-5110-4878-ac46-4e80ab4e5b12",
+        "name": "王姐烧烤",
+        "category": "food",
+        "intro": "中山路老牌烧烤摊，烤鱿鱼、烤海肠、烤大虾是招牌。夜晚街头一把串、一袋散啤，就是最青岛的烟火气。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "cdcb38a9-b9ad-4403-86ca-4cdcc7d0a322",
+        "name": "营口路啤酒街 & 海鲜市场",
+        "category": "food",
+        "intro": "本地人最爱的吃法——去营口路市场自选活海鲜，到附近啤酒屋加工（白灼/辣炒/清蒸），再打一扎当日鲜啤，人均不贵体验满分。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "1128daa6-f34b-4537-a9a1-3ced40b4679b",
+        "name": "春和楼",
+        "category": "food",
+        "intro": "始建于1891年的中华老字号鲁菜馆，香酥鸡、葱烧海参、虾仁蒸饺是招牌。百年老建筑里吃正宗鲁菜，文化味十足。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "4deaa5e0-7a18-4624-b09b-b30ae79a7bf5",
+        "name": "开海红岛海鲜虾水饺",
+        "category": "food",
+        "intro": "主打时令海鲜的精致鲁菜馆，环境比普通餐厅更讲究。招牌虾水饺、铁锅蛤蜊鸡、海鲜大咖，适合想吃得舒服又地道的你。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "a4dac168-4795-471f-9e68-414366c2e962",
+        "name": "西镇电烤肉",
+        "category": "food",
+        "intro": "汶上路开了几十年的电烤串店，大肉筋、烤鸡心、烤火烧是经典。炭火味足、价格亲民，老西镇人的深夜食堂。",
+        "reservation": "none",
+        "sourceLinks": []
+      },
+      {
+        "id": "b42dbea1-c547-4643-9134-8b12a64dcccf",
+        "name": "青岛海天大酒店",
+        "category": "hotel",
+        "intro": "五四广场旁的老牌五星级海景酒店，多数房间正对浮山湾。楼下就是奥帆中心，地铁2号线直达，去各景点都方便。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "f2c65814-cad2-4549-a167-20b525b01d5a",
+        "name": "青岛怡堡酒店",
+        "category": "hotel",
+        "intro": "由德国总督府官邸改建的精品酒店，位于信号山脚下，欧式庭院静谧优雅。步行可达老城各景点，文艺氛围拉满。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "3986ef4a-a075-4d78-90e2-676e62d42c52",
+        "name": "青岛中心假日酒店",
+        "category": "hotel",
+        "intro": "五四广场商圈的高性价比四星级酒店，紧邻地铁站和万象城。房间舒适现代，适合以公共交通为主的出行方式。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      }
+    ],
+    "meta": {
+      "usedXhs": false,
+      "reviewNotes": [
+        "系统自动调整：「春和楼」自第 3 天移至第 5 天，以解决「崂山风景区」的远郊通勤冲突",
+        "系统自动调整：「石老人海水浴场」自第 3 天移至第 1 天，以解决「崂山风景区」的远郊通勤冲突",
+        "系统自动调整：「中山公园」自第 7 天移至第 6 天，以解决「大学路网红墙」的远郊通勤冲突",
+        "系统自动调整：「王姐烧烤」自第 7 天移至第 6 天，以解决「大学路网红墙」的远郊通勤冲突",
+        "第2天和第5天时间窗缓冲仅4%和2%，几乎排满无弹性，建议适当精简活动或拉大间隔，避免实际游玩时过于赶场。",
+        "部分路段存在方向回折（如第1天信号山→九龙餐厅→小鱼山、第2天八大关→鲁迅公园→船歌鱼水饺等），后续优化时可调整活动顺序使路线更顺。",
+        "第7天仅安排了一个短时活动，可根据兴趣补充其他地点；另人均费用粗估约¥60-90/天，舒适档实际消费可能更高，请留意预算。",
+        "建议优化：第1天「信号山公园」→「九龙餐厅」→「小鱼山公园」方向明显回折（回跳约 2.2 km），顺路性差"
+      ]
+    },
+    "createdAt": 1784369422459,
+    "updatedAt": 1784369422459
+  }
+}

@@ -1,0 +1,11 @@
+# 静态组合名称不得复活已审核排除
+
+成都锦里完整scope之前，真实内存预检已证明：IdentityCatalog.contract不含锦里古街主巷，但consolidate_places按planning_members再次补入该名称，components仍为空。这样仅应用excludeNames不能关闭主巷等同入口。
+
+数据库回归发现既有validate_name_exclusions要求被排除名的全部提及已确认归本实体；真实锦里主巷应待审，不能通过伪造确认或放宽该保护来写excludeNames。第一个数据库试验因这一正确保护失败（748通过/1失败），保留失败日志，不称为业务应用失败。
+
+最终设计沿用mentionSources与identityExcludedNames，不新增协议字段或迁移。v2完整scope主体的complex.memberNames仅使用当前身份合同主名/别名，不再从planning、静态别名或originalName扩充未审核入口；独立子项另存components。尚未受控的v2组合继续旧行为，但按name_key过滤已审核排除名。不改变v1历史导出，不把所有组合退化成普通地点，主名不可排除与未分配/待审名字不可排除校验保持。
+
+排除名称只关闭母项的名称入口，不删除原始来源、不撤回已有独立子实体、不删除components或子项事实/坐标，不新建子实体，不去掉历史memberIds。restoreNames与回滚应恢复原结果；若业务scope仍有该名未治理提及，既有validate_name_exclusions必须继续拒绝决定。
+
+先用纯函数测试覆盖静态组合、静态同义词和originalName复活、空白等价、无排除/v1兼容、完整scope不扩名以及独立子项保全；隔离数据库分别验证待审提及不能排除、已确认错名可排除、实际导出、幂等、过期拒绝、恢复和倒序回滚。随后用冻结成都真实资料预演锦里待审主巷与文字清洗，并核对所有其它主体不变。不得在只验证合成用例后直接报告真实锦里治理完成。

@@ -1,0 +1,11 @@
+{"_example": "Fill with {\"file\": \"path\", \"reason\": \"why\"}. Seed rows are skipped."}
+{"file": "eval/run.ts", "reason": "live 模式入口：env 加载、直调 runGeneration、gate 汇总（AMAP_KEY 标注为可选）"}
+{"file": "eval/checks.ts", "reason": "确定性检查：pass 只看 hard+structural，geo 质量只报告不设门槛（空心通过根源）"}
+{"file": "apps/server/src/generation/geoPipeline.ts", "reason": "地理会话：resolveAmapCredential + 额度闸门决定 apiKey；无坐标活动对应 leg 直接跳过"}
+{"file": "apps/server/src/services/settingsService.ts", "reason": "高德 Key 双轨解析：个人 Key（查库）→ env.amapKey → null；eval-user 在全新 eval.db 无个人 Key"}
+{"file": "apps/server/src/integrations/amap/geocoder.ts", "reason": "解析链 amap POI → amap geocode → Nominatim 兜底，各级失败静默回 null"}
+{"file": "apps/server/src/integrations/geocode.ts", "reason": "Nominatim 兜底实现：10s 超时、失败回 null（疑似本机直连不可达）"}
+{"file": "apps/server/src/services/quotaService.ts", "reason": "amapBudgetRemaining 日额度闸门参与 apiKey 判定，需排除全新 eval.db 额度为 0 的假设"}
+{"file": "eval/snapshots/shanghai-3d-transit.json", "reason": "症状证据：13 活动全部 lat/lng=0 coordSource=estimated，无 legs"}
+{"file": "eval/reports/2026-07-16T13-30-25-159Z.json", "reason": "症状证据：gate pass 但 geocodedRatio=0 legCount=0（空心通过）"}
+{"file": "apps/server/src/__tests__/evalChecks.test.ts", "reason": "现有 6 项单测，修 gate 语义后需同步扩充"}

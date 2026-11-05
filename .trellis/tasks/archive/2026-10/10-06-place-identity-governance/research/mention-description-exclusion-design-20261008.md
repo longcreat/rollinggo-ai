@@ -1,0 +1,9 @@
+# 提及描述字段排除
+
+明水古城12581的地点提及有效，但reason、evidence_text及placeContent把整城济南概述误作单点看点；野生动物园12787的原文名称有效，reason却缩写成另一园区“济南动物园”。本轮沿完整scope及现有可空JSONB扩展字段排除，不改原始提及、正文或稳定ID，不把有效提及改成待审来掩盖字段问题。
+
+`factExclusions`允许非空组合：既有`visit_duration/group_duration`，以及`reason/subject_mismatch`、`evidence_text/subject_mismatch`、`place_content/subject_mismatch`。每项仍只含reason与quote；quote须来自当前可用原文且包含当前地点提及名称，对应字段必须真实存在。拒绝未知字段、替换文本、空值、无目标及非地点排除混用。内容排除以整个当前placeContent为单位，部分看点正确时须先单独核查，不能随意应用。
+
+共享消费投影保留身份、统计、原始指纹及未排除字段。受控导出和摘要使用投影；reason排除不影响有效evidence_text，place_content排除不允许通过同提及旧reason重新兜底恢复。介绍提纯的社区来源同样过滤已排除evidence_text，版本绑定仍使用原始行指纹。新完整scope升版使旧介绍缓存失效。无需新增数据库列或下游协议字段。
+
+验证必须覆盖真实SQL完整scope、有效单例提及与独立字段保留、原文变化/非法策略重新待审、旧介绍缓存与reason兜底不回流、幂等及倒序回滚；实际导出、下游导入的介绍/看点/证据/向量文本清理，以及历史行程不变。完整原文与图片证据分别留档。用户未验收，不提交、归档或标记完成。

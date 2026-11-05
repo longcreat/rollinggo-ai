@@ -1,0 +1,455 @@
+{
+  "caseId": "hangzhou-3d-drive",
+  "generatedAt": 1784376204047,
+  "model": "deepseek-v4-flash",
+  "form": {
+    "startDate": "",
+    "totalBudget": 6000,
+    "extraNotes": "",
+    "destination": "杭州",
+    "days": 3,
+    "budgetLevel": "舒适",
+    "preferences": [
+      "自然",
+      "文化"
+    ],
+    "partySize": 4,
+    "transportMode": "drive"
+  },
+  "trip": {
+    "id": "1bb3a345-31ac-4fea-a3cb-da120d2d557d",
+    "title": "杭州三日自驾 · 湖山禅意与千年文明",
+    "destination": "杭州",
+    "startDate": "",
+    "budgetLevel": "舒适",
+    "totalBudget": 6000,
+    "preferences": [
+      "自然",
+      "文化"
+    ],
+    "partySize": 4,
+    "extraNotes": "",
+    "transportMode": "drive",
+    "lodging": {
+      "name": "湖滨商圈/杨公堤沿线（西湖区核心地带，自驾便利且紧邻景区）"
+    },
+    "days": [
+      {
+        "id": "10feab2c-8d8a-4829-8777-ace27b39a254",
+        "dayIndex": 1,
+        "title": "西湖文化经典",
+        "activities": [
+          {
+            "id": "c17873ca-1515-4153-bdb0-756d4ecd0bfc",
+            "name": "楼外楼（孤山店）",
+            "startTime": "12:15",
+            "endTime": "13:30",
+            "description": "楼外楼孤山店，西湖边百年名店，以西湖醋鱼、东坡肉闻名，可望湖景。",
+            "lat": 29.7629305718256,
+            "lng": 121.28227755407153,
+            "coordSource": "geocoded",
+            "cost": 150,
+            "category": "美食",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "23acd7f4-2f90-481d-ae44-a0fcc6fdc528",
+            "name": "清河坊历史街区",
+            "startTime": "17:30",
+            "endTime": "20:00",
+            "description": "南宋御街与河坊街交汇的千年街区，品尝定胜糕、葱包烩等杭州小吃。",
+            "lat": 0,
+            "lng": 0,
+            "coordSource": "estimated",
+            "cost": 0,
+            "category": "其他",
+            "sourceNotes": []
+          },
+          {
+            "id": "dc0ab09a-bbae-4800-8a6c-b47c49bedcff",
+            "name": "西湖",
+            "startTime": "09:00",
+            "endTime": "11:30",
+            "description": "杭州标志性世界遗产，环湖自驾或骑行，白堤苏堤一步一景。建议早8点前抵达避开拥堵，停外围停车场。",
+            "lat": 30.2436725652579,
+            "lng": 120.1478570262041,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "自然",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          }
+        ]
+      },
+      {
+        "id": "192f017f-aad7-4ae8-9583-40647f57a18d",
+        "dayIndex": 2,
+        "title": "自然生态漫游",
+        "activities": [
+          {
+            "id": "ec20918b-a3bd-491d-a4f3-31ba8b102f19",
+            "name": "西溪国家湿地公园",
+            "startTime": "09:00",
+            "endTime": "11:30",
+            "description": "城市湿地秘境，乘船穿行芦苇荡与古村落，自然生态极佳。建议提前网上购票，避开排队。",
+            "lat": 30.265006584248102,
+            "lng": 120.06806885205145,
+            "coordSource": "geocoded",
+            "cost": 80,
+            "category": "自然",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "287ad9af-06f1-48da-aea6-e1b9645d75e1",
+            "name": "龙井村·茶文化景区",
+            "startTime": "12:00",
+            "endTime": "14:00",
+            "description": "龙井茶原产地，梯田茶园风光如画，可体验品茗用餐。自驾上山别有风味，注意山路会车。",
+            "lat": 0,
+            "lng": 0,
+            "coordSource": "estimated",
+            "cost": 50,
+            "category": "文化",
+            "sourceNotes": []
+          },
+          {
+            "id": "6ab9d293-4ec0-46cd-9f2b-a8fd0afcf811",
+            "name": "岳王庙",
+            "startTime": "14:30",
+            "endTime": "15:30",
+            "description": "纪念岳飞忠烈精神的祠庙，位于栖霞岭南麓，石刻匾额与历史氛围浓厚，适合文化爱好者瞻仰。",
+            "lat": 30.25241106702379,
+            "lng": 120.13456832065764,
+            "coordSource": "geocoded",
+            "cost": 30,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "ab6fb315-ca0b-4ce9-91ec-e5c559f4b218",
+            "name": "九溪十八涧",
+            "startTime": "16:00",
+            "endTime": "18:00",
+            "description": "西湖西侧徒步秘境，溪流潺潺、茶园环绕，夏秋皆宜。从龙井村下行即达，全程约2小时轻松漫步。",
+            "lat": 30.210847037161827,
+            "lng": 120.10777369465967,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "自然",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "ecf226be-75f0-4af8-bac7-ed1b5ec7e6b6",
+            "name": "六和塔",
+            "startTime": "18:30",
+            "endTime": "19:30",
+            "description": "钱塘江畔宋代古塔，登塔可观钱塘江大桥与江景，夕阳时分尤其壮美。宋代建筑艺术代表。",
+            "lat": 30.19600857841142,
+            "lng": 120.13137105501484,
+            "coordSource": "geocoded",
+            "cost": 30,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "6ab9d293-4ec0-46cd-9f2b-a8fd0afcf811",
+            "toActivityId": "ab6fb315-ca0b-4ce9-91ec-e5c559f4b218",
+            "mode": "drive",
+            "durationMin": 20,
+            "distanceM": 7406,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "ab6fb315-ca0b-4ce9-91ec-e5c559f4b218",
+            "toActivityId": "ecf226be-75f0-4af8-bac7-ed1b5ec7e6b6",
+            "mode": "drive",
+            "durationMin": 13,
+            "distanceM": 3926,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "df9f6599-c5ff-4fc0-bddb-18c1231fcafc",
+        "dayIndex": 3,
+        "title": "良渚文明探访",
+        "activities": [
+          {
+            "id": "c63953f1-17d9-4486-8541-3dbdbbf3cfb6",
+            "name": "良渚古城遗址公园",
+            "startTime": "09:00",
+            "endTime": "11:30",
+            "description": "实证中华五千年文明的史前古城，遗址博物馆与田野风光结合。需提前在官方小程序实名预约，旺季提前3-5天。",
+            "lat": 30.379508078260475,
+            "lng": 119.98406046915568,
+            "coordSource": "geocoded",
+            "cost": 60,
+            "category": "文化",
+            "sourceNotes": [
+              {
+                "title": "良渚古城遗址公园（官方渠道）",
+                "url": "https://www.lcsite.com/"
+              }
+            ],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "03a99299-f76f-4745-80a6-885821c4c8a4",
+            "name": "灵隐寺",
+            "startTime": "12:30",
+            "endTime": "15:00",
+            "description": "千年古刹，江南禅宗名寺，飞来峰石刻造像与幽静山林相映。可在寺内或附近用素斋午餐，建议网上提前购票。",
+            "lat": 30.240128540788668,
+            "lng": 120.10243987873844,
+            "coordSource": "geocoded",
+            "cost": 75,
+            "category": "文化",
+            "sourceNotes": []
+          },
+          {
+            "id": "d8b3b70a-28cf-4455-8fa6-b73fd331aa25",
+            "name": "西湖",
+            "startTime": "15:30",
+            "endTime": "17:30",
+            "description": "杭州灵魂所在，环湖自驾或漫步皆宜，白堤苏堤一步一景。避开白堤景区正门拥堵路段，可停外围停车场。",
+            "lat": 30.2436725652579,
+            "lng": 120.1478570262041,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "自然",
+            "sourceNotes": []
+          },
+          {
+            "id": "ff84ea0c-f9ef-41db-83c2-eec043f33900",
+            "name": "雷峰塔",
+            "startTime": "18:00",
+            "endTime": "19:30",
+            "description": "西湖十景之一，登塔俯瞰全湖与夕阳美景，白蛇传说文化地标。傍晚灯光亮起别有意境。",
+            "lat": 30.231568696780915,
+            "lng": 120.14973178499346,
+            "coordSource": "geocoded",
+            "cost": 40,
+            "category": "文化",
+            "sourceNotes": []
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "c63953f1-17d9-4486-8541-3dbdbbf3cfb6",
+            "toActivityId": "03a99299-f76f-4745-80a6-885821c4c8a4",
+            "mode": "drive",
+            "durationMin": 51,
+            "distanceM": 26905,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "03a99299-f76f-4745-80a6-885821c4c8a4",
+            "toActivityId": "d8b3b70a-28cf-4455-8fa6-b73fd331aa25",
+            "mode": "drive",
+            "durationMin": 17,
+            "distanceM": 6133,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "d8b3b70a-28cf-4455-8fa6-b73fd331aa25",
+            "toActivityId": "ff84ea0c-f9ef-41db-83c2-eec043f33900",
+            "mode": "walk",
+            "durationMin": 25,
+            "distanceM": 1901,
+            "source": "heuristic"
+          }
+        ]
+      }
+    ],
+    "overview": [
+      {
+        "id": "a701e386-be69-4f12-bdc6-e3dd74717b34",
+        "name": "西湖",
+        "category": "attraction",
+        "intro": "杭州标志性世界遗产，湖光山色与人文底蕴交融，环湖自驾或骑行皆宜，白堤苏堤一步一景，是必到的核心自然文化地标。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "59a5a7fc-8aa6-4cca-b694-ba27f6bc7af4",
+        "name": "灵隐寺",
+        "category": "attraction",
+        "intro": "千年古刹，江南禅宗名寺，飞来峰石刻造像与幽静山林相映，感受佛教文化与自然清幽的绝佳去处。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "6cfd105a-7ed5-48ff-8c29-c6b5d8f247ce",
+        "name": "西溪国家湿地公园",
+        "category": "attraction",
+        "intro": "城市中的湿地秘境，可乘船穿行芦苇荡与古村落，自然生态极佳，适合自驾前往体验慢生活。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "c9b9f69b-6a84-42c2-9b1b-b936946930d1",
+        "name": "九溪十八涧",
+        "category": "attraction",
+        "intro": "西湖西侧的自然徒步秘境，溪流潺潺、茶园环绕，秋日红枫与夏日清凉皆宜，是自驾途中不可错过的山水画卷。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "fbbc454d-91ca-4157-893d-eb3d0d4bf076",
+        "name": "雷峰塔",
+        "category": "attraction",
+        "intro": "西湖十景之一，登塔可俯瞰全湖景色，白蛇传说的文化地标，傍晚赏夕阳最佳。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "4769cbc0-d4a3-4d64-8bfd-22826ad815ea",
+        "name": "岳王庙",
+        "category": "attraction",
+        "intro": "纪念南宋抗金名将岳飞的祠庙，栖霞岭南麓，瞻仰忠烈文化，感受历史厚重。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "70c1615a-4e30-453c-aa92-2ed750796800",
+        "name": "龙井村·茶文化景区",
+        "category": "attraction",
+        "intro": "龙井茶原产地，梯田茶园风光如画，可体验采茶品茗，自然与文化兼备，自驾上山别有风味。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "0c5469f3-43af-476e-ad67-cda6e4af6fdc",
+        "name": "六和塔",
+        "category": "attraction",
+        "intro": "钱塘江畔的古塔，登塔可观钱塘江大桥与江景，宋代建筑艺术的代表，适合文化爱好者。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "bc66dacb-cca5-4af9-960c-d41e978f2afc",
+        "name": "清河坊历史街区",
+        "category": "attraction",
+        "intro": "杭州老城风貌街区，南宋御街与河坊街交汇，老字号商铺与小吃林立，适合晚间闲逛品味市井文化。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "aa6bd625-d13f-4478-bc51-fd146c7a4cba",
+        "name": "良渚古城遗址公园",
+        "category": "attraction",
+        "intro": "世界文化遗产，实证中华五千年文明史的史前古城，遗址博物馆与田野风光结合，自驾约40分钟可达。",
+        "reservation": "required",
+        "sourceLinks": [
+          {
+            "title": "良渚古城遗址公园（官方渠道）",
+            "url": "https://www.lcsite.com/"
+          }
+        ],
+        "reservationNote": "需官方小程序实名预约购票，每日限流"
+      },
+      {
+        "id": "0cb6bc6a-78e8-4ea8-b4b2-0526863daf9c",
+        "name": "楼外楼（孤山店）",
+        "category": "food",
+        "intro": "杭州最负盛名的百年老店，坐拥西湖孤山绝景，正宗西湖醋鱼、东坡肉是必尝经典，宴请首选。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "db13356a-cb92-4084-ae1e-b0c6f9a74709",
+        "name": "奎元馆",
+        "category": "food",
+        "intro": "创办于1867年的百年面馆，虾爆鳝面是招牌，汤浓面劲，老杭州人的记忆味道。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "ddd67d75-6ef7-4cac-8f81-569422144673",
+        "name": "知味观（湖滨总店）",
+        "category": "food",
+        "intro": "杭州老字号小吃名店，鲜肉小笼、猫耳朵、糯米藕等江南点心一应俱全，平价尝遍杭城风味。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "5165f628-6203-4748-a871-690590d00c8d",
+        "name": "杭州酒家",
+        "category": "food",
+        "intro": "延安路上的经典杭帮菜馆，性价比高，东坡肉、龙井虾仁、叫花鸡等传统菜品口碑稳定。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "59a94191-417d-4b49-82ec-a3062bfb0541",
+        "name": "外婆家（西湖银泰店）",
+        "category": "food",
+        "intro": "人气杭帮菜连锁，价格亲民、菜品丰富，茶香鸡、外婆红烧肉等家常味深受欢迎，需早到排位。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "24f05712-b9f4-4f40-9bd8-2162c801f193",
+        "name": "菊英面店",
+        "category": "food",
+        "intro": "杭州片儿川的代表面馆，雪菜笋片肉丝汤面鲜美地道，本地人强烈推荐的市井味道。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "e6c74efc-67b1-4585-ab49-fe8f3502b087",
+        "name": "杭州西湖国宾馆",
+        "category": "hotel",
+        "intro": "坐拥西湖核心景观园林，私密性极佳，自驾停车方便，在酒店内即可尽览西湖胜景，舒适度假首选。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "352aaa6e-2966-4fed-a13d-de69cde66152",
+        "name": "杭州湖滨银泰亚朵酒店",
+        "category": "hotel",
+        "intro": "位于湖滨商圈核心，步行至西湖仅需5分钟，周边美食购物丰富，自驾有停车场，性价比之选。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "ed82b83e-0179-4004-a33b-f6459044d8ac",
+        "name": "杭州西溪悦榕庄",
+        "category": "hotel",
+        "intro": "西溪湿地内的奢华度假酒店，江南园林风格，自驾直达，适合追求私密与自然的品质之旅。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "f0a9976c-31f5-4134-a6c6-49ccbfe4c795",
+        "name": "杭州黄龙饭店",
+        "category": "hotel",
+        "intro": "老牌五星酒店，靠近浙大与黄龙洞，交通便利、停车方便，客房宽敞舒适，适合家庭自驾入住。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      }
+    ],
+    "meta": {
+      "usedXhs": false,
+      "reviewNotes": [
+        "系统自动调整：「雷峰塔」自第 1 天移至第 3 天，以解决「楼外楼（孤山店）」的远郊通勤冲突",
+        "系统自动调整：「岳王庙」自第 1 天移至第 2 天，以解决「楼外楼（孤山店）」的远郊通勤冲突",
+        "系统自动调整：「灵隐寺」自第 1 天移至第 3 天，以解决「楼外楼（孤山店）」的远郊通勤冲突",
+        "第1天楼外楼（13:30结束）到清河坊（17:30开始）之间有约4小时空档，建议用户可自行穿插西湖周边景点（如白堤、断桥）或作为自由休息时间",
+        "第3天时间仍较紧凑（缓冲约4%），实际游览时建议控制各点停留时长，或视体力适当取舍",
+        "住宿推荐「湖滨商圈/杨公堤沿线」方向正确，若用户确定酒店后补充具体坐标，可更精确评估每日通勤",
+        "建议优化：第1天住宿锚点「湖滨商圈/杨公堤沿线（西湖区核心地带，自驾便利且紧邻景区）」未解析出坐标，无法计算住宿↔活动通勤（降级跳过，不影响其他判定）",
+        "建议优化：第2天住宿锚点「湖滨商圈/杨公堤沿线（西湖区核心地带，自驾便利且紧邻景区）」未解析出坐标，无法计算住宿↔活动通勤（降级跳过，不影响其他判定）"
+      ]
+    },
+    "createdAt": 1784376204017,
+    "updatedAt": 1784376204017
+  }
+}

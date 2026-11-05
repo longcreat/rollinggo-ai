@@ -1,0 +1,4 @@
+# GitHub 语言统计规则
+# .trellis/ 是 Trellis 工作区（任务归档、spec、journal），其中归档任务会整份拷贝上游项目源码，
+# 不标记的话 GitHub 会把这些文件算成项目主要语言。标记为 documentation 后排除出语言统计。
+.trellis/** linguist-documentation

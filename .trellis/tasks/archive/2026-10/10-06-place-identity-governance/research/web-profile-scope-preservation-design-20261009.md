@@ -1,0 +1,15 @@
+# 完整scope中的既有网页资料保全
+
+武侯祠旧profile已有3条网页看点。现行scoped_facts只消费与当前实体revision、已确认提及指纹相同的identityBinding；直接scope会使未绑定profile退出消费。不能用复制缓存或放宽scoped_facts校验解决，也不调用模型重新生成替代原文。
+
+在apply_scope_decision中增加可选preserveWebProfiles列表，与提及分配作为同一事务、同一PlaceEntityChange审计。每项明确entityId、sourcePlaceId、profileHash和evidence；记录只表示人工审阅原profile属于该稳定主体，保留原历史引用，不代表重新抓取或核实每项事实。武侯祠旧政府引用抓取失败、公开营业口径冲突仍单独保留。
+
+预检要求目标是本次已确认提及的现行实体，来源属于本次范围且是其原主源，profile非空且版本为1/2，全部看点有web依据、原quote、http(s)出处及原日期。profileHash覆盖完整原profile，含已有绑定。每项证据必须明确subject_only_preservation，附审阅文件和结论；不存在、跨主体、重复、缓存变化及不完整网页来源拒绝。该机制不用于混合社区缓存、新实体或隐式自动续绑。
+
+持有城市锁及主源行锁后读取profile，先校验后保存before。完成scope及revision更新后，用实际已确认提及计算scoped_binding，只在旧profile深拷贝上设置identityBinding。所有内容、引用、method、compiledAt和日期保持，且与scope共用事务。完整请求保存在审计request；before/after既有derivedPlaces覆盖profile。幂等重放沿现行change_key门禁。
+
+回滚先沿现有scope_snapshot严格比较after，若profile或原提及发生并发更新则拒绝；只恢复本次显式绑定的profile，其他派生字段不改。scope和profile一起恢复。未带新字段的旧决定及旧审计回滚行为保持，不新增数据库字段或下游协议，不放宽介绍生成的现有保护。
+
+验证：真实SQL隔离夹具证明未绑定内容被替换、绑定后内容逐字段保持，幂等、陈旧profileHash/主体/来源拒绝，来源或profile并发更新拒绝回滚，第二次scope不显式保全即自然失效，明确重新审阅可续绑，逆序回滚恢复原profile及原scope。另需真实武侯祠来源预演、原负评和网页看点保全、全城双同步与实际facts/媒体返回对比后，才可记录业务第71批已应用。
+
+第70批已登记：实体70/flow72/audit69，成都review07。此设计不等于第71批应用，不改变未验收状态。

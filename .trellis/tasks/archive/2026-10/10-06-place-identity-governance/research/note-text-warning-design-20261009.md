@@ -1,0 +1,13 @@
+# 图片既有文字中的作者警告保全
+
+第62批确认芙蓉街note2568的既有text_content包含完整作者意见，但没有PlaceMention承接。新增scope会停止整个旧tips消费，现协议不能同时保留有效意见并去除他处事实。
+
+在既有scope新增可选textWarnings，存为可空text_warnings JSONB。每项明确noteId、imageIndex（零起始分析数组索引）、start/end（Unicode码点）、quote、entityId及inputHash；只接受text_content中的完整单行，不能替换或拼接文字。目标必须已有本scope确认提及，不能用补充文字创建实体或复活撤回主体。原RawNote、PlaceMention及图片文件不修改。
+
+内容指纹覆盖笔记身份、城市、可用性、标题/正文、选中文字、日期；不包含签名URL。消费只给有效主体增加原句tips和xhs_warning，既有mentionCount、recommendScore、停留时长、营业信息与预约推断不变。不把意见作为客观事实、正面看点或关系端点。
+
+加载时核对当前内容与审核指纹；有过期、缺失或不可用警告时停止该受控主体导出，要求完整scope重新审核或显式移除，不静默删除有效意见或自动用新文字替换。scope快照/幂等/倒序回滚覆盖字段和新增、移除前后的补充笔记输入。旧null字段不进入旧快照，历史审计保持兼容。
+
+关系sourceState可选supplementalSources存每scope的当前文字输入摘要及审核分配摘要；无补充警告时完全保持旧形状。只用于地点与关系共同版本一致性，不产生新路线关系。下游严格验证唯一scope ID和散列；事实导入仍走既有tips、research_evidence权威替换。
+
+先暂存代码并完成非法输入/来源变化/旧快照/迁移/回滚、实际导出及双导入消费测试，再安装和迁移。正式实体批次63仍需重新冻结芙蓉街当前revision3全部30提及、逐项核对归属、复用已有图片区前置检查并复核元数据。实现和自测不等于用户验收；不提交归档。

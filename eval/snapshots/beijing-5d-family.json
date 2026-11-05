@@ -1,0 +1,679 @@
+{
+  "caseId": "beijing-5d-family",
+  "generatedAt": 1784388546792,
+  "model": "deepseek-v4-flash",
+  "form": {
+    "startDate": "",
+    "totalBudget": 8000,
+    "extraNotes": "",
+    "destination": "北京",
+    "days": 5,
+    "budgetLevel": "舒适",
+    "preferences": [
+      "文化",
+      "亲子"
+    ],
+    "partySize": 3,
+    "transportMode": "transit"
+  },
+  "trip": {
+    "id": "881cd513-5a84-4266-9731-d7e225442a6d",
+    "title": "北京五日亲子文化之旅｜故宫·长城·科技馆·皇家园林",
+    "destination": "北京",
+    "startDate": "",
+    "budgetLevel": "舒适",
+    "totalBudget": 8000,
+    "preferences": [
+      "文化",
+      "亲子"
+    ],
+    "partySize": 3,
+    "extraNotes": "",
+    "transportMode": "transit",
+    "lodging": {
+      "name": "东城区核心地带（前门/王府井/东四一带），地铁密集，步行可达天安门、故宫等核心景点"
+    },
+    "days": [
+      {
+        "id": "0193a617-af43-470c-8882-722ef8d36286",
+        "dayIndex": 1,
+        "title": "中轴线皇城日｜故宫·景山·烤鸭",
+        "activities": [
+          {
+            "id": "482440f3-111d-4f5d-8768-f3d657a93cc0",
+            "name": "天安门广场",
+            "startTime": "08:00",
+            "endTime": "08:30",
+            "description": "世界最大城市广场，带孩子看人民英雄纪念碑、天安门城楼，感受国家象征。清晨人少拍照佳。",
+            "lat": 39.90412293318187,
+            "lng": 116.39768154585676,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "7e9bf189-2802-49c3-9f2e-18e740fcd1eb",
+            "name": "故宫博物院",
+            "startTime": "09:00",
+            "endTime": "12:30",
+            "description": "穿越中轴线感受六百年历史，珍宝馆和钟表馆尤其吸引小朋友。务必提前7天预约，旺季抢票激烈。",
+            "lat": 39.91867713437888,
+            "lng": 116.39701154293138,
+            "coordSource": "geocoded",
+            "cost": 180,
+            "category": "文化",
+            "sourceNotes": [
+              {
+                "title": "故宫博物院（官方渠道）",
+                "url": "https://www.dpm.org.cn/"
+              }
+            ],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "36080784-3d27-4ff1-88d0-1780e4c3e176",
+            "name": "景山公园",
+            "startTime": "13:00",
+            "endTime": "14:00",
+            "description": "登万春亭俯瞰故宫全景与北京中轴线，是拍照经典机位。公园牡丹花季（4-5月）尤其美丽。",
+            "lat": 39.92586044404271,
+            "lng": 116.39664015055057,
+            "coordSource": "geocoded",
+            "cost": 10,
+            "category": "自然",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "36029dd1-e99c-4e9d-be96-42324eeff840",
+            "name": "四季民福烤鸭店",
+            "startTime": "14:30",
+            "endTime": "16:00",
+            "description": "经典挂炉烤鸭，皮脆肉嫩，适合亲子品尝的老字号，建议提前取号",
+            "lat": 39.89625896032043,
+            "lng": 116.39764312465772,
+            "coordSource": "geocoded",
+            "cost": 150,
+            "category": "美食",
+            "sourceNotes": []
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "482440f3-111d-4f5d-8768-f3d657a93cc0",
+            "toActivityId": "7e9bf189-2802-49c3-9f2e-18e740fcd1eb",
+            "mode": "transit",
+            "durationMin": 17,
+            "distanceM": 2267,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "7e9bf189-2802-49c3-9f2e-18e740fcd1eb",
+            "toActivityId": "36080784-3d27-4ff1-88d0-1780e4c3e176",
+            "mode": "walk",
+            "durationMin": 15,
+            "distanceM": 1119,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "36080784-3d27-4ff1-88d0-1780e4c3e176",
+            "toActivityId": "36029dd1-e99c-4e9d-be96-42324eeff840",
+            "mode": "transit",
+            "durationMin": 24,
+            "distanceM": 4610,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "3587fcb2-ff45-48e9-9b7b-57d38c1bcc72",
+        "dayIndex": 2,
+        "title": "文化博物日｜国博·天坛·前门",
+        "activities": [
+          {
+            "id": "d41e64c8-bd73-40d1-87ca-446e55ac1061",
+            "name": "中国国家博物馆",
+            "startTime": "09:00",
+            "endTime": "12:00",
+            "description": "中华文物收藏最丰富的博物馆，古代中国展厅串起五千年文明。亲子必去，提前在官网免费预约，周一闭馆。",
+            "lat": 39.905148624621724,
+            "lng": 116.40163200747378,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": [
+              {
+                "title": "中国国家博物馆（官方渠道）",
+                "url": "https://www.chnmuseum.cn/"
+              }
+            ],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "7757e2f1-18e7-4bb9-98bc-ddd662c49328",
+            "name": "天坛公园",
+            "startTime": "14:00",
+            "endTime": "16:30",
+            "description": "明清帝王祭天之地，祈年殿为地标。公园古树多、面积大，适合亲子散步，回音壁让孩子体验声学奇趣。",
+            "lat": 39.88130932436191,
+            "lng": 116.4091117721168,
+            "coordSource": "geocoded",
+            "cost": 34,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "8745d083-8fb8-4d65-bd5b-62f67d8a5cf2",
+            "name": "护国寺小吃",
+            "startTime": "17:30",
+            "endTime": "18:00",
+            "description": "老北京小吃集合店，豆汁儿、焦圈、豌豆黄、驴打滚一应俱全。带娃尝遍京味点心，感受市井文化。",
+            "lat": 39.9337427724666,
+            "lng": 116.39646225334049,
+            "coordSource": "geocoded",
+            "cost": 30,
+            "category": "美食",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "d320c40f-b228-4ec1-8191-f37758c88ad4",
+            "name": "门框胡同百年卤煮",
+            "startTime": "18:30",
+            "endTime": "19:30",
+            "description": "前门附近卤煮老店，肠肺炖透火烧浸汤。小众口味但了解北京饮食文化不可错过，孩子可尝试小份。",
+            "lat": 39.95395852991094,
+            "lng": 116.42563683495419,
+            "coordSource": "geocoded",
+            "cost": 50,
+            "category": "美食",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "d41e64c8-bd73-40d1-87ca-446e55ac1061",
+            "toActivityId": "7757e2f1-18e7-4bb9-98bc-ddd662c49328",
+            "mode": "transit",
+            "durationMin": 21,
+            "distanceM": 3817,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "7757e2f1-18e7-4bb9-98bc-ddd662c49328",
+            "toActivityId": "8745d083-8fb8-4d65-bd5b-62f67d8a5cf2",
+            "mode": "transit",
+            "durationMin": 35,
+            "distanceM": 8301,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "8745d083-8fb8-4d65-bd5b-62f67d8a5cf2",
+            "toActivityId": "d320c40f-b228-4ec1-8191-f37758c88ad4",
+            "mode": "transit",
+            "durationMin": 24,
+            "distanceM": 4693,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "73eaa9bf-0e66-412b-aa89-98e79f486585",
+        "dayIndex": 3,
+        "title": "长城壮志日｜八达岭·什刹海",
+        "activities": [
+          {
+            "id": "31dd7157-a7a0-4189-b5c5-852f029029c3",
+            "name": "八达岭长城",
+            "startTime": "08:30",
+            "endTime": "13:30",
+            "description": "世界文化遗产，建议乘S2线前往，提前购票，带儿童可坐缆车上下",
+            "lat": 40.36160896992055,
+            "lng": 116.01125588589025,
+            "coordSource": "geocoded",
+            "cost": 120,
+            "category": "文化",
+            "sourceNotes": [
+              {
+                "title": "八达岭长城（官方渠道）",
+                "url": "https://www.badaling.cn/"
+              }
+            ]
+          },
+          {
+            "id": "fbde8cc2-e2cc-42ba-97f2-75fc8186dc4c",
+            "name": "什刹海",
+            "startTime": "17:30",
+            "endTime": "18:30",
+            "description": "北京最美历史文化街区，前海、后海连片，傍晚散步赏湖景，看银锭桥落日，感受老北京风情。",
+            "lat": 39.93735463694218,
+            "lng": 116.39630882455526,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "自然",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "1f691970-532e-47f8-8650-570e99011bc4",
+            "name": "东来顺饭庄",
+            "startTime": "18:30",
+            "endTime": "20:00",
+            "description": "百年老字号铜锅涮肉，手切鲜羊肉蘸麻酱是经典。冬日暖身夏日过瘾，带孩子体验正宗北京火锅。",
+            "lat": 0,
+            "lng": 0,
+            "coordSource": "estimated",
+            "cost": 150,
+            "category": "美食",
+            "sourceNotes": []
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "31dd7157-a7a0-4189-b5c5-852f029029c3",
+            "toActivityId": "fbde8cc2-e2cc-42ba-97f2-75fc8186dc4c",
+            "mode": "transit",
+            "durationMin": 151,
+            "distanceM": 80381,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "7d37c0f7-ffc7-4702-95d6-dacf0efb2f3c",
+        "dayIndex": 4,
+        "title": "亲子科技日｜科学技术馆·奥林匹克",
+        "activities": [
+          {
+            "id": "c1966f81-32c7-4667-82df-6517c32eee4f",
+            "name": "中国科学技术馆",
+            "startTime": "09:00",
+            "endTime": "12:00",
+            "description": "国家级科技馆，互动展品超多，孩子可动手体验科学原理。特效影院和科学表演深受欢迎，务必提前预约主展厅+影院。",
+            "lat": 40.0058757922257,
+            "lng": 116.39878647375669,
+            "coordSource": "geocoded",
+            "cost": 80,
+            "category": "文化",
+            "sourceNotes": [
+              {
+                "title": "中国科学技术馆（官方渠道）",
+                "url": "https://cstm.cdstm.cn/"
+              }
+            ],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "933ba33b-bf07-4ce6-9268-155b79e2de6f",
+            "name": "奥林匹克公园",
+            "startTime": "14:00",
+            "endTime": "15:30",
+            "description": "外观鸟巢、水立方，感受奥运氛围。广场开阔适合孩子奔跑拍照，可租自行车逛园区。",
+            "lat": 40.00356975483597,
+            "lng": 116.39364663852241,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "娱乐",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "0a735873-bb3c-41cc-b1ef-2383bf058e65",
+            "name": "方砖厂69号炸酱面",
+            "startTime": "18:00",
+            "endTime": "19:00",
+            "description": "《舌尖》带火的人气小馆，炸酱面配菜丰富面条筋道。南锣鼓巷旁，逛完胡同来一碗，体验北京平民味道。",
+            "lat": 39.89642318600359,
+            "lng": 116.39789487419611,
+            "coordSource": "geocoded",
+            "cost": 40,
+            "category": "美食",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "c1966f81-32c7-4667-82df-6517c32eee4f",
+            "toActivityId": "933ba33b-bf07-4ce6-9268-155b79e2de6f",
+            "mode": "walk",
+            "durationMin": 9,
+            "distanceM": 710,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "933ba33b-bf07-4ce6-9268-155b79e2de6f",
+            "toActivityId": "0a735873-bb3c-41cc-b1ef-2383bf058e65",
+            "mode": "transit",
+            "durationMin": 60,
+            "distanceM": 16688,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "41ef9915-2881-44c6-98a8-8b7b6a86cee1",
+        "dayIndex": 5,
+        "title": "园林收官日｜颐和园·北海·京味美食",
+        "activities": [
+          {
+            "id": "34211ece-dcb0-4f99-b6fb-eafc53626103",
+            "name": "颐和园",
+            "startTime": "08:00",
+            "endTime": "11:30",
+            "description": "中国古典园林巅峰之作，建议从东宫门进，沿长廊→佛香阁→石舫游览",
+            "lat": 39.991321733211166,
+            "lng": 116.27078135779443,
+            "coordSource": "geocoded",
+            "cost": 60,
+            "category": "自然",
+            "sourceNotes": []
+          },
+          {
+            "id": "14d19fef-ab8a-491f-85b7-ee0972cffb1b",
+            "name": "北海公园",
+            "startTime": "14:00",
+            "endTime": "16:00",
+            "description": "中国现存最古老皇家园林，白塔与琼岛春阴碑是经典画面。可划船赏荷，孩子可喂鱼、看白塔。",
+            "lat": 39.92779858763959,
+            "lng": 116.38870021355056,
+            "coordSource": "geocoded",
+            "cost": 20,
+            "category": "自然",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "5f9acd50-f07c-4b82-b0da-a3e5619dac5f",
+            "name": "恭王府",
+            "startTime": "16:30",
+            "endTime": "18:00",
+            "description": "清代最大王府，曾是和珅宅邸。后花园精美，有「福」字碑可摸福，孩子能了解清朝历史。需提前预约。",
+            "lat": 39.936649604433335,
+            "lng": 116.38634775967077,
+            "coordSource": "geocoded",
+            "cost": 80,
+            "category": "文化",
+            "sourceNotes": [
+              {
+                "title": "恭王府博物馆（官方渠道）",
+                "url": "https://www.pgm.org.cn/"
+              }
+            ],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "ae7ed7d2-1f9d-4524-8791-487c5fc16d6d",
+            "name": "大董烤鸭店",
+            "startTime": "18:30",
+            "endTime": "20:00",
+            "description": "高端烤鸭代表，酥不腻烤鸭配空心烧饼，创意摆盘精致。给旅程画上圆满句号，建议提前订位。",
+            "lat": 39.91526644816648,
+            "lng": 116.42140015927977,
+            "coordSource": "geocoded",
+            "cost": 200,
+            "category": "美食",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "34211ece-dcb0-4f99-b6fb-eafc53626103",
+            "toActivityId": "14d19fef-ab8a-491f-85b7-ee0972cffb1b",
+            "mode": "transit",
+            "durationMin": 62,
+            "distanceM": 17198,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "14d19fef-ab8a-491f-85b7-ee0972cffb1b",
+            "toActivityId": "5f9acd50-f07c-4b82-b0da-a3e5619dac5f",
+            "mode": "walk",
+            "durationMin": 19,
+            "distanceM": 1406,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "5f9acd50-f07c-4b82-b0da-a3e5619dac5f",
+            "toActivityId": "ae7ed7d2-1f9d-4524-8791-487c5fc16d6d",
+            "mode": "transit",
+            "durationMin": 26,
+            "distanceM": 5347,
+            "source": "heuristic"
+          }
+        ]
+      }
+    ],
+    "overview": [
+      {
+        "id": "c31fe437-02e1-40a8-8ab3-6441c240abb2",
+        "name": "故宫博物院",
+        "category": "attraction",
+        "intro": "明清两代皇家宫殿，世界最大木结构古建筑群。带孩子穿越中轴线，感受六百年历史底蕴，珍宝馆与钟表馆尤其吸引小朋友。",
+        "reservation": "required",
+        "sourceLinks": [
+          {
+            "title": "故宫博物院（官方渠道）",
+            "url": "https://www.dpm.org.cn/"
+          }
+        ],
+        "reservationNote": "需在「故宫博物院」微信小程序或官网实名预约购票，提前 7 天 20:00 放票，旺季约满即止"
+      },
+      {
+        "id": "8531572c-e9df-44f1-8aeb-84d851d87db0",
+        "name": "天坛公园",
+        "category": "attraction",
+        "intro": "明清帝王祭天之地，祈年殿是北京地标。公园面积大、古树多，适合亲子散步，还能了解古代天文与礼制。",
+        "reservation": "none",
+        "sourceLinks": [],
+        "reservationNote": "可现场购票，旺季建议在官方渠道提前购票免排队。"
+      },
+      {
+        "id": "a590014e-77c9-403a-9540-f54c127ad482",
+        "name": "颐和园",
+        "category": "attraction",
+        "intro": "皇家园林博物馆，以万寿山和昆明湖为核心。可乘船游湖、登佛香阁，亲子赏景与历史学习兼备。",
+        "reservation": "none",
+        "sourceLinks": [],
+        "reservationNote": "可现场购票，推荐提前在「畅游公园」平台预约。"
+      },
+      {
+        "id": "d58f3ad8-df28-4f0a-a939-d2818c6b81b1",
+        "name": "八达岭长城",
+        "category": "attraction",
+        "intro": "万里长城最精华段，世界文化遗产。带孩子做回好汉，缆车上下轻松省力，北段风光壮阔。",
+        "reservation": "required",
+        "sourceLinks": [
+          {
+            "title": "八达岭长城（官方渠道）",
+            "url": "https://www.badaling.cn/"
+          }
+        ],
+        "reservationNote": "需在「八达岭长城」官方小程序或官网实名分时预约购票，旺季当日票常售罄"
+      },
+      {
+        "id": "aa90014b-457a-45e4-ab9d-ecae064aac82",
+        "name": "中国国家博物馆",
+        "category": "attraction",
+        "intro": "中华文物收藏最丰富的博物馆，古代中国展厅以实物串起五千年文明。亲子必去，寓教于乐。",
+        "reservation": "required",
+        "sourceLinks": [
+          {
+            "title": "中国国家博物馆（官方渠道）",
+            "url": "https://www.chnmuseum.cn/"
+          }
+        ],
+        "reservationNote": "免费不免票，需官网或「国家博物馆」小程序提前实名预约，节假日名额紧张"
+      },
+      {
+        "id": "d93dfe78-2746-482a-ae93-57fa3e163976",
+        "name": "中国科学技术馆",
+        "category": "attraction",
+        "intro": "国家级科技馆，互动展品超多，孩子可动手体验科学原理。特效影院和科学表演深受亲子家庭欢迎。",
+        "reservation": "required",
+        "sourceLinks": [
+          {
+            "title": "中国科学技术馆（官方渠道）",
+            "url": "https://cstm.cdstm.cn/"
+          }
+        ],
+        "reservationNote": "需官网或官方小程序实名预约购票，儿童科学乐园等专馆需单独约"
+      },
+      {
+        "id": "afe9d9e0-957d-43f1-80fd-ccc354cd821c",
+        "name": "北京动物园（含海洋馆）",
+        "category": "attraction",
+        "intro": "中国最大动物园之一，熊猫馆人气最高。海洋馆有海豚表演，孩子玩一整天都不会腻。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "5b9f9155-7849-4e93-8f84-646dde7ce53b",
+        "name": "北海公园",
+        "category": "attraction",
+        "intro": "中国现存最古老皇家园林之一，白塔与琼岛春阴碑是经典画面。可划船、赏荷，兼具文化与休闲。",
+        "reservation": "none",
+        "sourceLinks": [],
+        "reservationNote": "可现场购票，也可在「畅游公园」平台预约。"
+      },
+      {
+        "id": "a3d4aa3d-5c47-44a6-9fcb-25af3f63ad4b",
+        "name": "恭王府",
+        "category": "attraction",
+        "intro": "清代规模最大的王府，曾是和珅宅邸。后花园精美，有「福」字碑，可带孩子了解清朝历史。",
+        "reservation": "required",
+        "sourceLinks": [
+          {
+            "title": "恭王府博物馆（官方渠道）",
+            "url": "https://www.pgm.org.cn/"
+          }
+        ],
+        "reservationNote": "需「恭王府博物馆」小程序或官网实名分时预约购票"
+      },
+      {
+        "id": "9cd60efa-d521-40d5-a892-3586f0b063b4",
+        "name": "北京环球影城",
+        "category": "attraction",
+        "intro": "亚洲第三座环球影城，小黄人、哈利·波特、变形金刚等主题区。亲子家庭必玩，但门票预算较高。",
+        "reservation": "required",
+        "sourceLinks": [],
+        "reservationNote": "官方APP或小程序购票并预约入园日期，票价浮动，建议提前关注。"
+      },
+      {
+        "id": "b25f12fd-320b-4833-b294-e1a01ad4ae51",
+        "name": "四季民福烤鸭店",
+        "category": "food",
+        "intro": "京城口碑最好的烤鸭店之一，皮酥肉嫩，性价比高。故宫店可边吃烤鸭边看角楼，是亲子烤鸭首选。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "fe53889e-07c2-4571-ac02-c8f69ae4df94",
+        "name": "东来顺饭庄",
+        "category": "food",
+        "intro": "百年老字号涮羊肉，铜锅炭火、手切鲜羊肉是招牌。带孩子体验正宗北京火锅，温馨又美味。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "fce3dbc5-4305-4d16-93c0-06d52bea5a4f",
+        "name": "方砖厂69号炸酱面",
+        "category": "food",
+        "intro": "南锣鼓巷旁的人气小馆，被《舌尖上的中国》带火。炸酱面配菜丰富、面条筋道，是北京平民味道。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "262189f6-08c1-40d9-ab0c-c523bfc68133",
+        "name": "护国寺小吃",
+        "category": "food",
+        "intro": "老北京小吃集合店，豆汁儿、焦圈、豌豆黄、驴打滚一应俱全。带娃一次性尝遍京味点心，贴近市井文化。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "684e7198-c844-41ea-a504-db40558658b3",
+        "name": "姚记炒肝店",
+        "category": "food",
+        "intro": "鼓楼旁的传奇小店，炒肝配包子是地道北京早点。浓稠蒜香，孩子可能好奇尝试，感受本地生活气息。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "5cef66f3-be6c-4dc9-a517-85f5ceb61cba",
+        "name": "门框胡同百年卤煮",
+        "category": "food",
+        "intro": "前门附近的卤煮老店，肠肺炖得透烂、火烧浸满汤汁。虽是小众口味，但了解北京饮食文化不可错过。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "cc0b79af-cc1e-4f91-a9bc-561ac1c938d2",
+        "name": "南门涮肉",
+        "category": "food",
+        "intro": "东城区热门涮肉店，麻酱碗和糖蒜是点睛之笔。肉品新鲜，适合家庭聚餐，氛围热闹。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "bc958e0f-e1e5-4bac-a40f-fd4ecea54e2f",
+        "name": "大董烤鸭店",
+        "category": "food",
+        "intro": "高端烤鸭代表，酥不腻烤鸭配空心烧饼，创意摆盘讲究。适合留给预算较宽裕的一餐，体验精致京味。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "2fb91fa6-45f4-47dc-8e4c-f0fb32aab185",
+        "name": "北京前门四合院漫心府",
+        "category": "hotel",
+        "intro": "位于前门胡同中的四合院风格酒店，出门就是步行街和地铁。让孩子体验老北京院落文化，离天安门、故宫步行可达。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "667e8ae8-d280-4983-a748-4dd90ac405a6",
+        "name": "北京王府井希尔顿酒店",
+        "category": "hotel",
+        "intro": "王府井核心地段，步行至故宫、天安门仅15分钟。设施舒适适合家庭，但价格偏高，需结合预算考虑。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "13639ed6-8e14-40ad-bcb1-32168ef0bd6b",
+        "name": "北京东四亚朵酒店",
+        "category": "hotel",
+        "intro": "东四地铁口旁的精品连锁，设计简约温馨，有亲子房型。周边胡同氛围浓，去故宫、南锣鼓巷、雍和宫都很方便。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "322457b9-6e7e-4d95-b184-fceafbb5d574",
+        "name": "北京西单大悦城酒店",
+        "category": "hotel",
+        "intro": "西单商圈高层酒店，俯瞰长安街夜景。楼下是商场和地铁站，餐饮购物便利，去天安门、国博仅两站地铁。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      }
+    ],
+    "meta": {
+      "usedXhs": false,
+      "reviewNotes": [
+        "第2天国博→天坛→护国寺小吃存在约5.9km回折，后续可考虑将护国寺小吃和门框胡同调整到午餐时段（国博之后），天坛放在下午，减少南北折返",
+        "第3天八达岭长城与第5天颐和园当日节奏偏满，建议实际游玩时留出弹性空间（尤其八达岭返程交通需预留2h+）",
+        "住宿建议选东城区（前门/王府井/东四一带），地铁密集，步行可达天安门、故宫，方便衔接每日行程",
+        "建议优化：第1天当日时间窗缓冲仅约 7%，低于 10%，几乎排满无弹性",
+        "建议优化：第1天「故宫博物院」→「景山公园」→「四季民福烤鸭店」方向明显回折（回跳约 3.3 km），顺路性差",
+        "建议优化：第1天住宿锚点「东城区核心地带（前门/王府井/东四一带），地铁密集，步行可达天安门、故宫等核心景点」未解析出坐标，无法计算住宿↔活动通勤（降级跳过，不影响其他判定）",
+        "建议优化：第2天「中国国家博物馆」→「天坛公园」→「护国寺小吃」方向明显回折（回跳约 5.9 km），顺路性差"
+      ]
+    },
+    "createdAt": 1784388546788,
+    "updatedAt": 1784388546788
+  }
+}

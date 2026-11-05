@@ -1,0 +1,459 @@
+{
+  "caseId": "suzhou-2d-luxury",
+  "generatedAt": 1784377693355,
+  "model": "deepseek-v4-flash",
+  "form": {
+    "startDate": "",
+    "totalBudget": 10000,
+    "extraNotes": "",
+    "destination": "苏州",
+    "days": 2,
+    "budgetLevel": "豪华",
+    "preferences": [
+      "文化",
+      "购物"
+    ],
+    "partySize": 2,
+    "transportMode": "transit",
+    "lodging": "金鸡湖"
+  },
+  "trip": {
+    "id": "db582c36-1dc5-4d45-8e77-05837fb24b5b",
+    "title": "苏州双日雅韵：古典园林与现代湖滨",
+    "destination": "苏州",
+    "startDate": "",
+    "budgetLevel": "豪华",
+    "totalBudget": 10000,
+    "preferences": [
+      "文化",
+      "购物"
+    ],
+    "partySize": 2,
+    "extraNotes": "",
+    "transportMode": "transit",
+    "lodging": {
+      "name": "金鸡湖",
+      "lat": 31.311577149380014,
+      "lng": 120.6947110632757,
+      "coordSystem": "gcj02"
+    },
+    "days": [
+      {
+        "id": "56f9f4fb-50d5-4506-8494-fc194ddb7c4e",
+        "dayIndex": 1,
+        "title": "古城园林漫步",
+        "activities": [
+          {
+            "id": "38bc92d8-652c-4e01-93eb-4f5f7e2509ae",
+            "name": "拙政园",
+            "startTime": "08:00",
+            "endTime": "10:00",
+            "description": "苏州最经典的园林，世界文化遗产，以水景和借景手法闻名。需提前预约，建议尽早入园避开旅行团高峰。",
+            "lat": 31.324190091538167,
+            "lng": 120.62889596598022,
+            "coordSource": "geocoded",
+            "cost": 80,
+            "category": "文化",
+            "sourceNotes": [
+              {
+                "title": "拙政园（官方渠道）",
+                "url": "https://www.szzzy.cn/"
+              }
+            ],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "facba491-f3d1-4cfc-be87-503cf7833a33",
+            "name": "苏州博物馆",
+            "startTime": "10:15",
+            "endTime": "11:45",
+            "description": "贝聿铭设计的建筑杰作，现代与古典融合。馆藏丰富，需提前实名预约（提前7天放票）。",
+            "lat": 31.3230853842183,
+            "lng": 120.62775112059,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "文化",
+            "sourceNotes": [
+              {
+                "title": "苏州博物馆（官方渠道）",
+                "url": "https://www.szmuseum.com/"
+              }
+            ],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "6691f0d7-a17d-461c-b73c-dcdd553f8e6f",
+            "name": "平江路",
+            "startTime": "12:15",
+            "endTime": "13:45",
+            "description": "苏州保存最完整的历史老街，小桥流水古宅。午餐可尝哑巴生煎或桃花源记的苏式小吃，建议错开饭点减少排队。",
+            "lat": 31.3127684211718,
+            "lng": 120.63387957167971,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "其他",
+            "sourceNotes": []
+          },
+          {
+            "id": "344376a5-800d-49f0-937a-beca6c5cf197",
+            "name": "狮子林",
+            "startTime": "14:15",
+            "endTime": "15:45",
+            "description": "以湖石假山闻名，洞壑曲折被誉为「假山王国」，趣味性强，适合穿行探索。",
+            "lat": 31.320964291839616,
+            "lng": 120.62906107399955,
+            "coordSource": "geocoded",
+            "cost": 40,
+            "category": "文化",
+            "sourceNotes": []
+          },
+          {
+            "id": "e1a62251-058b-4b0e-8735-f91350e8d8a9",
+            "name": "松鹤楼",
+            "startTime": "17:30",
+            "endTime": "19:00",
+            "description": "百年老字号苏帮菜馆，松鼠桂鱼是看家名菜，环境典雅。建议提前订座。",
+            "lat": 31.310600597312657,
+            "lng": 120.62569556556761,
+            "coordSource": "geocoded",
+            "cost": 300,
+            "category": "美食",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "lodging",
+            "toActivityId": "38bc92d8-652c-4e01-93eb-4f5f7e2509ae",
+            "mode": "transit",
+            "durationMin": 37,
+            "distanceM": 8970,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "38bc92d8-652c-4e01-93eb-4f5f7e2509ae",
+            "toActivityId": "facba491-f3d1-4cfc-be87-503cf7833a33",
+            "mode": "walk",
+            "durationMin": 3,
+            "distanceM": 230,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "facba491-f3d1-4cfc-be87-503cf7833a33",
+            "toActivityId": "6691f0d7-a17d-461c-b73c-dcdd553f8e6f",
+            "mode": "walk",
+            "durationMin": 24,
+            "distanceM": 1801,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "6691f0d7-a17d-461c-b73c-dcdd553f8e6f",
+            "toActivityId": "344376a5-800d-49f0-937a-beca6c5cf197",
+            "mode": "walk",
+            "durationMin": 19,
+            "distanceM": 1428,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "344376a5-800d-49f0-937a-beca6c5cf197",
+            "toActivityId": "e1a62251-058b-4b0e-8735-f91350e8d8a9",
+            "mode": "walk",
+            "durationMin": 22,
+            "distanceM": 1674,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "e1a62251-058b-4b0e-8735-f91350e8d8a9",
+            "toActivityId": "lodging",
+            "mode": "transit",
+            "durationMin": 38,
+            "distanceM": 9180,
+            "source": "heuristic"
+          }
+        ]
+      },
+      {
+        "id": "068c54a9-1af9-4b11-8c8e-ff2ede28e89e",
+        "dayIndex": 2,
+        "title": "虎丘寻迹与金鸡湖休闲",
+        "activities": [
+          {
+            "id": "22d04f08-86ae-4c54-8829-7d077cf0b341",
+            "name": "虎丘",
+            "startTime": "08:00",
+            "endTime": "10:30",
+            "description": "「到苏州不游虎丘，乃憾事也」，千年云岩寺塔是苏州地标，自然与人文兼备。建议早去避开人流。",
+            "lat": 31.329457512241476,
+            "lng": 120.43373305828622,
+            "coordSource": "geocoded",
+            "cost": 70,
+            "category": "文化",
+            "sourceNotes": [],
+            "coordSystem": "gcj02"
+          },
+          {
+            "id": "ad757470-24d9-45e5-9681-bdf919516bd8",
+            "name": "山塘街",
+            "startTime": "11:45",
+            "endTime": "13:45",
+            "description": "「姑苏第一名街」，小桥流水古宅，午餐可品尝苏式面或当地小吃。白天逛古街，也可留影。",
+            "lat": 31.319624653129846,
+            "lng": 120.60195551623227,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "其他",
+            "sourceNotes": []
+          },
+          {
+            "id": "09ac114a-7182-48b7-b688-80c94a0f49f5",
+            "name": "诚品书店（苏州）",
+            "startTime": "14:45",
+            "endTime": "16:45",
+            "description": "大陆首家诚品，文艺生活综合体，集书籍、文创、展览于一体，适合文化购物与拍照打卡。",
+            "lat": 31.320952629113815,
+            "lng": 120.70976464778413,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "购物",
+            "sourceNotes": []
+          },
+          {
+            "id": "b4c85081-a1ff-4e03-bfa8-e54171fdfb5a",
+            "name": "金鸡湖景区",
+            "startTime": "17:15",
+            "endTime": "18:45",
+            "description": "国家5A级开放式景区，沿湖步道可欣赏现代苏州天际线，傍晚灯光亮起景色迷人。可逛苏州中心或湖滨公园。",
+            "lat": 31.309358387901323,
+            "lng": 120.68457078984375,
+            "coordSource": "geocoded",
+            "cost": 0,
+            "category": "自然",
+            "sourceNotes": []
+          }
+        ],
+        "legs": [
+          {
+            "fromActivityId": "lodging",
+            "toActivityId": "22d04f08-86ae-4c54-8829-7d077cf0b341",
+            "mode": "transit",
+            "durationMin": 90,
+            "distanceM": 34818,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "22d04f08-86ae-4c54-8829-7d077cf0b341",
+            "toActivityId": "ad757470-24d9-45e5-9681-bdf919516bd8",
+            "mode": "transit",
+            "durationMin": 73,
+            "distanceM": 22423,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "ad757470-24d9-45e5-9681-bdf919516bd8",
+            "toActivityId": "09ac114a-7182-48b7-b688-80c94a0f49f5",
+            "mode": "transit",
+            "durationMin": 53,
+            "distanceM": 14339,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "09ac114a-7182-48b7-b688-80c94a0f49f5",
+            "toActivityId": "b4c85081-a1ff-4e03-bfa8-e54171fdfb5a",
+            "mode": "transit",
+            "durationMin": 21,
+            "distanceM": 3806,
+            "source": "heuristic"
+          },
+          {
+            "fromActivityId": "b4c85081-a1ff-4e03-bfa8-e54171fdfb5a",
+            "toActivityId": "lodging",
+            "mode": "walk",
+            "durationMin": 19,
+            "distanceM": 1392,
+            "source": "heuristic"
+          }
+        ]
+      }
+    ],
+    "overview": [
+      {
+        "id": "127b27e0-397b-4611-984a-716ddd81959d",
+        "name": "拙政园",
+        "category": "attraction",
+        "intro": "苏州最经典的园林，世界文化遗产，以水景和借景手法闻名，是体验江南园林文化的首选。",
+        "reservation": "required",
+        "sourceLinks": [
+          {
+            "title": "拙政园（官方渠道）",
+            "url": "https://www.szzzy.cn/"
+          }
+        ],
+        "reservationNote": "需官方渠道提前实名预约购票，每日限流，旺季建议提前数日"
+      },
+      {
+        "id": "eea0936d-4d11-47f4-bc83-d5e93258d9b5",
+        "name": "苏州博物馆",
+        "category": "attraction",
+        "intro": "贝聿铭设计的现代与古典融合的建筑杰作，馆藏丰富，是文化与建筑爱好者的必到之处。",
+        "reservation": "required",
+        "sourceLinks": [
+          {
+            "title": "苏州博物馆（官方渠道）",
+            "url": "https://www.szmuseum.com/"
+          }
+        ],
+        "reservationNote": "免费不免票，需官网或官方公众号提前实名预约，本馆与西馆分别约"
+      },
+      {
+        "id": "b665aad6-aa68-42c9-a291-08ab3f956e9d",
+        "name": "狮子林",
+        "category": "attraction",
+        "intro": "以湖石假山闻名的苏州名园，假山洞壑曲折，被誉为「假山王国」，趣味性十足。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "36714cac-bdc6-4acf-aca0-60848b612994",
+        "name": "虎丘",
+        "category": "attraction",
+        "intro": "「到苏州不游虎丘，乃憾事也」，千年云岩寺塔是苏州地标，自然与人文兼备。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "7e231b5a-3246-4d28-9ebd-28eb959fb779",
+        "name": "平江路",
+        "category": "attraction",
+        "intro": "苏州保存最完整的历史老街，小桥流水、古宅店铺，适合漫步体验苏式慢生活。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "b74f0ffa-4e9d-407f-9cc8-d9c07ffd9406",
+        "name": "山塘街",
+        "category": "attraction",
+        "intro": "「姑苏第一名街」，七里山塘夜景尤美，集美食、购物、运河景观于一体。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "e47cb0a7-e489-455c-801d-d99907a252e2",
+        "name": "金鸡湖景区",
+        "category": "attraction",
+        "intro": "国家5A级开放式景区，湖滨步道、摩天轮、文化艺术中心，现代苏州的活力名片。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "68289f43-ce50-4bd3-8254-7820dd4f42c1",
+        "name": "诚品书店（苏州）",
+        "category": "attraction",
+        "intro": "大陆首家诚品，不仅是书店更是文艺生活综合体，适合文化购物与拍照打卡。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "82fb7610-62b2-46c4-83c7-d7dac118490a",
+        "name": "观前街",
+        "category": "attraction",
+        "intro": "苏州最繁华的商业步行街，老字号店铺林立，购物美食一应俱全。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "767bfa95-2237-4380-bad9-9006ac53d4e5",
+        "name": "留园",
+        "category": "attraction",
+        "intro": "世界文化遗产，与拙政园齐名，以建筑空间处理精湛著称，游客相对较少更清幽。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "3624ac2a-2496-41c5-830c-e248680d2015",
+        "name": "同得兴精品面馆",
+        "category": "food",
+        "intro": "苏州最知名的苏式面馆之一，招牌枫镇大肉面汤清肉嫩，是体验苏式面文化的必吃店。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "b91d6ea8-28de-41eb-92c2-146544adfd7a",
+        "name": "松鹤楼",
+        "category": "food",
+        "intro": "百年老字号苏帮菜馆，松鼠桂鱼是看家名菜，环境典雅，适合正式宴请。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "935588dd-6a7c-4d03-b9b9-e26a2bf38a78",
+        "name": "哑巴生煎",
+        "category": "food",
+        "intro": "苏州生煎界的传奇，皮薄底脆、汁多味鲜，平民美食的代表，排队也值得。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "0a35c166-94c5-4806-9f2c-d78bec9390d3",
+        "name": "桃花源记",
+        "category": "food",
+        "intro": "主打苏式传统小吃的网红店，糖粥、鸡头米、赤豆圆子都是地道苏州味，性价比高。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "6247866d-e4c6-486d-9160-6d5415e1b401",
+        "name": "得月楼",
+        "category": "food",
+        "intro": "创建于明代的苏帮菜老店，影视剧取景地，经典菜品如响油鳝糊、蟹粉豆腐誉满江南。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "c2309571-2cf0-407c-8cae-a544eedb2253",
+        "name": "黄天源糕团",
+        "category": "food",
+        "intro": "苏州糕团第一品牌，猪油年糕、梅花糕等传统糕点，适合买作伴手礼。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "116167df-fd1a-4cf1-97e6-7ac76cc57b75",
+        "name": "苏州中茵皇冠假日酒店",
+        "category": "hotel",
+        "intro": "位于金鸡湖畔的豪华五星酒店，邮轮造型独特，湖景房可俯瞰整个金鸡湖，位置绝佳。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "41c83f91-62b1-45a4-b152-3d785b061738",
+        "name": "苏州金鸡湖凯宾斯基大酒店",
+        "category": "hotel",
+        "intro": "欧洲老牌豪华酒店，坐拥金鸡湖一线湖景，欧式典雅服务，适合追求品质的旅客。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      },
+      {
+        "id": "a05feff1-afee-437c-8483-40ad3fb75539",
+        "name": "苏州洲际酒店",
+        "category": "hotel",
+        "intro": "金鸡湖畔地标建筑，高层客房视野开阔，配备顶级设施，步行可达诚品书店。",
+        "reservation": "unknown",
+        "sourceLinks": []
+      }
+    ],
+    "meta": {
+      "usedXhs": false,
+      "reviewNotes": [
+        "第2天行程偏满（缓冲不足），建议虎丘结束后可适当压缩山塘街或诚品书店的停留时长，保留弹性空间。",
+        "第2天山塘街→诚品书店→金鸡湖路线略有回折（约2.7km），建议集中游览金鸡湖/诚品区域，减少往返。",
+        "部分活动描述可补充亮点和实用提示（如平江路特色小店、松鹤楼推荐菜），提升攻略的可读性。",
+        "建议优化：第1天当日时间窗缓冲仅约 6%，低于 10%，几乎排满无弹性",
+        "建议优化：第2天当日时间窗缓冲仅约 -14%，低于 10%，几乎排满无弹性",
+        "建议优化：第2天「山塘街」→「诚品书店（苏州）」→「金鸡湖景区」方向明显回折（回跳约 2.7 km），顺路性差"
+      ]
+    },
+    "createdAt": 1784377693351,
+    "updatedAt": 1784377693351
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "name": "tripweaver",
+  "version": "0.1.0",
+  "private": true,
+  "description": "织程 TripWeaver — 多 Agent 协作的开源智能旅行助手",
+  "license": "MIT",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n server,web -c blue,green \"npm run dev -w apps/server\" \"npm run dev -w apps/web\"",
+    "dev:doppler": "doppler run -- concurrently -n server,web -c blue,green \"npm run dev -w apps/server\" \"npm run dev -w apps/web\"",
+    "secrets:sync": "doppler secrets download --no-file --format env > .env && cp .env apps/server/.env",
+    "dev:server": "npm run dev -w apps/server",
+    "dev:web": "npm run dev -w apps/web",
+    "typecheck": "tsc --noEmit -p packages/shared && tsc --noEmit -p apps/server && tsc --noEmit -p apps/web && tsc --noEmit -p eval",
+    "eval": "tsx --tsconfig eval/tsconfig.json eval/run.ts",
+    "eval:live": "tsx --tsconfig eval/tsconfig.json eval/run.ts --live",
+    "eval:diff": "tsx --tsconfig eval/tsconfig.json eval/diff.ts",
+    "eval:accept": "tsx --tsconfig eval/tsconfig.json eval/accept.ts",
+    "eval:test": "node --import tsx --test eval/tests/*.test.ts apps/server/src/__tests__/evalChecks.test.ts apps/server/src/__tests__/agentRuntime.test.ts apps/server/src/__tests__/llmCompat.test.ts",
+    "eval:verify": "node eval/verify-live.mjs",
+    "eval:flow": "tsx --tsconfig eval/tsconfig.json eval/flow.ts",
+    "eval:campaign": "tsx --tsconfig eval/tsconfig.json eval/campaign.ts",
+    "eval:intent": "tsx --tsconfig eval/tsconfig.json eval/intent.ts",
+    "eval:campaign:report": "tsx --tsconfig eval/tsconfig.json eval/report-campaign.ts",
+    "eval:campaign:review": "tsx --tsconfig eval/tsconfig.json eval/review-campaign.ts",
+    "eval:campaign:audit": "tsx --tsconfig eval/tsconfig.json eval/audit-reviews.ts",
+    "eval:knowledge:export": "tsx --tsconfig eval/tsconfig.json eval/export-knowledge.ts",
+    "eval:knowledge:verify": "tsx --tsconfig eval/tsconfig.json eval/verify-knowledge.ts",
+    "eval:retrieval": "node --import tsx scripts/retrieval-quality-baseline.mts",
+    "assets:transparent": "node scripts/to-transparent.mjs",
+    "build": "npm run build -w apps/web",
+    "start": "npm run start -w apps/server"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3",
+    "playwright": "^1.61.1",
+    "typescript": "^6.0.3"
+  }
+}

@@ -45,24 +45,45 @@ export function searchPlacesPayload(hits: readonly SourcedPoi[]) {
   }));
 }
 
-/** 压缩成模型能读的行程快照：只留定位与判断需要的字段。 */
-function tripSnapshot(trip: Trip, dayIndex?: number) {
+/**
+ * 行程快照：给模型的完整事实，不做内容裁剪。
+ * 描述、费用、开放时间、通勤段、住宿都原样保留；只剔除与问答无关的机器字段（polyline、坐标来源、来源链接、封面元数据）。
+ */
+export function tripSnapshot(trip: Trip, dayIndex?: number) {
   return {
     destination: trip.destination,
     startDate: trip.startDate,
     transportMode: trip.transportMode ?? 'transit',
+    budgetLevel: trip.budgetLevel,
+    totalBudget: trip.totalBudget,
+    partySize: trip.partySize,
+    preferences: trip.preferences,
+    extraNotes: trip.extraNotes,
+    lodging: trip.lodging,
     days: trip.days
       .filter((day) => dayIndex === undefined || day.dayIndex === dayIndex)
       .map((day) => ({
         day: day.dayIndex,
         title: day.title,
+        lodging: day.lodging,
         activities: day.activities.map((activity) => ({
           id: activity.id,
           name: activity.name,
           category: activity.category,
           startTime: activity.startTime,
           endTime: activity.endTime,
-          description: activity.description.slice(0, 120),
+          description: activity.description,
+          cost: activity.cost,
+          openTime: activity.openTime,
+          lat: activity.lat,
+          lng: activity.lng,
+        })),
+        legs: day.legs?.map((leg) => ({
+          from: leg.fromActivityId,
+          to: leg.toActivityId,
+          mode: leg.mode,
+          durationMin: leg.durationMin,
+          distanceM: leg.distanceM,
         })),
       })),
   };

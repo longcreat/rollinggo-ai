@@ -15,6 +15,7 @@ import {
   type ToolRegistration,
 } from '@earendil-works/pi-durable';
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node';
+import { createSubagentTool } from './subagent';
 
 export type AgentStreamEvent =
   | { type: 'text'; text: string }
@@ -40,6 +41,17 @@ export interface RunAgentTurnOptions {
   onConversationCreated?: (id: ConversationId) => Promise<void>;
   /** 用户停止/请求超时：中断本轮并立刻释放存储锁。 */
   signal?: AbortSignal;
+  /**
+   * 子代理能力：给了它才注册 `spawn_subagents` 工具。
+   * 子代理是只读的探索代理（白名单工具），深度固定为 1。
+   */
+  subagent?: {
+    instructions: string;
+    /** 子代理模型可见的工具名（只读白名单） */
+    childTools: readonly string[];
+    maxTurns?: number;
+    maxTasks?: number;
+  };
 }
 
 export interface AgentTurnResult {
@@ -157,6 +169,27 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
 
     // 模型按轮写回：用户切换 Key/模型后，旧会话也会跟着换。
     await conversation.configure({ model: options.model }, context);
+
+    // 子代理扩展依赖当前会话 id（子会话按「父会话 + 槽位」复用），只能在会话确定后装配。
+    if (options.subagent) {
+      // 白名单按名字从本轮工具里挑：子代理拿到的是同一批只读工具闭包（同一份行程与数据源）。
+      const allowed = new Set(options.subagent.childTools);
+      const childTools = options.tools.filter((tool) => allowed.has(tool.name));
+      registry.install(defineExtension({
+        name: 'subagents',
+        tools: [createSubagentTool({
+          harness,
+          context,
+          parentId: String(conversationId),
+          model: options.model,
+          instructions: options.subagent.instructions,
+          childTools,
+          maxTurns: options.subagent.maxTurns ?? 6,
+          maxTasks: options.subagent.maxTasks ?? 3,
+          ...(options.signal ? { signal: options.signal } : {}),
+        })],
+      }));
+    }
 
     const live = await harness.watchDoc(LiveDoc, conversationId, context);
     if (!live) throw new Error('LiveDoc 不可用');

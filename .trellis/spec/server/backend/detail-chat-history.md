@@ -50,6 +50,11 @@
   第二个请求在改写共享槽位之前返回 409 `AGENT_BUSY`（前端事件 `code: 'busy'`），不排队、不消耗对话额度、
   不写历史；回合结束、异常、用户停止或 5 分钟超时都会释放锁，停止会中断 durable 运行而不是只断 SSE。
   锁是进程内的，前提是单实例部署（与 `startDetailTurn` 一致），多副本需要换成分布式锁。
+- Agent 工具输出**不按字数截断**：`web_search` 返回上游 summary 原文与全部命中，`search_places` 不裁条数。
+  上下文增长交给 pi-durable 的 compaction（默认 `enabled`，reserve 16384 / keepRecent 20000 / background 32768），
+  而不是在工具层丢数据。参考 opencode `tool-output.ts`（2000 行 / 50KiB，超限时**保存全文**再给文件引用）与
+  pi `truncate.ts`（同样上限、不切断半行）：两者都是「有损展示、无损存储」。我们没有文件读取工具，
+  所以选择「不截断 + 压缩」而不是「截断 + 落盘」。上游 `searchSource` 也不再对 summary 做字符裁剪。
 - `suggestions` 兼容旧枚举和 `ChatFollowUp {label,text,kind}`，新回答只产生结构化建议。
   `label` 1～30 字，`text` 1～300 字且不能全空白，`kind` 来自 `CHAT_SUGGESTION_KINDS`，
   新增 `follow_up` 表示只读追问，所有建议类型都绕过编辑/生成判断。没有数据库结构变更。

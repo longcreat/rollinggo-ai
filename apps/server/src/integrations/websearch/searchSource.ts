@@ -12,7 +12,6 @@ import type { SourceStatus } from '../sourceStatus';
 const SEARCH_MIN_INTERVAL_MS = 1000;              // 免费档限流未明示，串行 1s 保守姿态
 const SEARCH_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_RESULTS = 6;
-const MAX_SUMMARY_CHARS = 300;                    // 摘要化截断，控 token 成本（R8）
 
 export interface WebSearchHit {
   title: string;
@@ -62,7 +61,9 @@ function mapHit(raw: Record<string, unknown>): WebSearchHit | null {
   return {
     title: title.slice(0, 80),
     url: url.slice(0, 300),
-    summary: (str(raw.summary) || str(raw.snippet)).slice(0, MAX_SUMMARY_CHARS),
+    // 摘要不截断：上游 summary 已是浓缩结果，再按字数砍会让模型「记不住」关键条件。
+    // 上下文膨胀交给 pi-durable 的 compaction（阈值/溢出都会摘要旧轮次），而不是丢数据。
+    summary: str(raw.summary) || str(raw.snippet),
     siteName: str(raw.siteName).slice(0, 30),
     datePublished: str(raw.datePublished).slice(0, 10),
   };

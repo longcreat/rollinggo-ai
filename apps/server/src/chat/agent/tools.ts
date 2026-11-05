@@ -9,6 +9,8 @@ import type { ToolRegistration } from '@earendil-works/pi-durable';
 import type { Trip } from '@tripweaver/shared';
 import { POI_CATEGORIES, type PoiCategory } from '@tripweaver/shared';
 import type { DetailSources } from '../detailSources';
+import type { WebSearchHit } from '../../integrations/websearch/searchSource';
+import type { SourcedPoi } from '../../integrations/geoContracts';
 
 export interface TripToolDeps {
   trip: Trip;
@@ -18,6 +20,30 @@ export interface TripToolDeps {
 }
 
 const text = (value: string) => [{ type: 'text' as const, text: value }];
+
+/** 搜索结果原样给模型：不按字数截断，上下文增长交给 compaction（见 spec 的“不截断”约定）。 */
+export function webSearchPayload(hits: readonly WebSearchHit[]) {
+  return hits.map((hit) => ({
+    title: hit.title,
+    url: hit.url,
+    summary: hit.summary,
+    site: hit.siteName,
+    date: hit.datePublished || undefined,
+  }));
+}
+
+/** 地点结果不做条数裁剪：一次搜索最多 10 条，交给模型自己挑。 */
+export function searchPlacesPayload(hits: readonly SourcedPoi[]) {
+  return hits.map((hit) => ({
+    name: hit.name,
+    type: hit.type,
+    address: hit.address,
+    lat: hit.location?.lat,
+    lng: hit.location?.lng,
+    opentime: hit.opentime,
+    rating: hit.rating,
+  }));
+}
 
 /** 压缩成模型能读的行程快照：只留定位与判断需要的字段。 */
 function tripSnapshot(trip: Trip, dayIndex?: number) {
@@ -80,16 +106,7 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
       const category = normalizeCategory(args.category);
       const hits = await sources.poi.searchPois(category, args.keyword, trip.destination, signal);
       if (!hits.length) return { output: text(`未查到「${args.keyword}」相关地点`) };
-      const compact = hits.slice(0, 8).map((hit) => ({
-        name: hit.name,
-        type: hit.type,
-        address: hit.address,
-        lat: hit.location?.lat,
-        lng: hit.location?.lng,
-        opentime: hit.opentime,
-        rating: hit.rating,
-      }));
-      return { output: text(JSON.stringify(compact)) };
+      return { output: text(JSON.stringify(searchPlacesPayload(hits))) };
     },
   });
 
@@ -101,10 +118,9 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
       signal.throwIfAborted();
       const hits = await sources.search.search(args.query);
       if (!hits.length) return { output: text(`未搜到「${args.query}」的相关资料`) };
-      const compact = hits.slice(0, 5).map((hit) => ({
-        title: hit.title, url: hit.url, summary: hit.summary.slice(0, 300), site: hit.siteName,
-      }));
-      return { output: text(JSON.stringify(compact)) };
+      // 不截断：摘要原样交给模型，上下文增长由 pi-durable 的 compaction 处理。
+      // （参考 opencode 的 tool-output：超限时保存全文再给引用；我们没有文件读取工具，靠压缩更合适）
+      return { output: text(JSON.stringify(webSearchPayload(hits))) };
     },
   });
 

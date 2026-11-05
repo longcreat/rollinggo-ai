@@ -168,7 +168,8 @@ P0 用假工具（`set_note` / `get_notes`）验证了四条门槛：自定义 b
 
 - [ ] 记忆注入（L2 trip_notes）与 persona 打磨
 - [ ] `understandMessage` 降级为 fast-path（现在是「先理解再决定走哪条」）
-- [ ] 工具结果截断（搬 opencode）
+- [x] 工具结果不截断（2026-11-05）：评估 opencode/pi 的「截断 + 落盘」后改用「不截断 + compaction」——
+      我们没有被 Agent 可读的文件工具，截断即丢数据；pi-durable 默认已按阈值压缩上下文
 - [ ] 10 条 agent 场景进 `eval/`
 
 ### P2 写工具 + 提交（4 天）

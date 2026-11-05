@@ -84,6 +84,19 @@ describe('写工具回执', () => {
     assert.equal(payload.day!.activities[1]!.located, true);
   });
 
+  it('add_activity 优先复用本回合核验坐标，不再调模糊解析', async () => {
+    const draft = createTripDraft(trip());
+    let resolved = 0;
+    const tool = build(draft, async () => { resolved += 1; return { lat: 1, lng: 1 }; }, () => ({ lat: 30.6572, lng: 104.063 }))
+      .find((item) => item.name === 'add_activity')!;
+    const payload = await run(tool, { dayIndex: 1, name: '成都博物馆' });
+    assert.equal(payload.ok, true);
+    assert.equal(resolved, 0, '缓存命中时不应触发地理编码');
+    const added = draft.current().days[0]!.activities.at(-1)!;
+    assert.deepEqual([added.lat, added.lng], [30.6572, 104.063]);
+    assert.equal(added.coordSource, 'geocoded');
+  });
+
   it('地点解析失败仍然写入，只是标记未定位', async () => {
     const draft = createTripDraft(trip());
     const tool = build(draft, async () => null).find((item) => item.name === 'add_activity')!;

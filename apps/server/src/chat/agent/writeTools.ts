@@ -60,7 +60,10 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
     execute: async (args) => {
       signal.throwIfAborted();
       const name = args.name.trim();
-      const point = deps.resolvePlace ? await deps.resolvePlace(name).catch(() => null) : null;
+      // 优先用本回合已核验的坐标（search_places / 子代理 places）：既省一次解析，
+      // 也避免模糊解析把「将军府鸡毛店(人民公园店)」放到 20km 外（真机实测过）。
+      const cached = deps.cachedPoint?.(name) ?? null;
+      const point = cached ?? (deps.resolvePlace ? await deps.resolvePlace(name).catch(() => null) : null);
       signal.throwIfAborted();
       return reply(draft.addActivity({
         dayIndex: dayIndex(args.dayIndex),

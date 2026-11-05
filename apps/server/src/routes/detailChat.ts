@@ -14,6 +14,7 @@ import { getConversation } from '../services/conversationService';
 import { prepareDetailChat, runDetailChat } from '../services/detailChatService';
 import { readOperation, startDetailTurn, stopDetailTurn } from '../services/detailOperationService';
 import { resolveLlmConfig } from '../services/settingsService';
+import { streamErrorPayload } from '../chat/streamError';
 import { addFood } from '../services/tripHistoryService';
 
 const Id = Type.Object({ id: Type.String({ maxLength: 100 }) });
@@ -80,8 +81,11 @@ export const detailChatRoutes: FastifyPluginAsyncTypebox = async (app) => {
       // stopped = 用户主动停止或被断开（不记警告）；expected = 4xx 业务错（如额度不足，已知，不打栈）
       const stopped = turn.controller.signal.aborted;
       const expected = error instanceof Error && 'statusCode' in error && typeof error.statusCode === 'number' && error.statusCode < 500;
+      // 同一用户已有回合在跑：这是保护性拒绝，不是故障。单独记 info 便于观察并发发生率。
+      const busy = error instanceof Error && (error as { code?: unknown }).code === 'AGENT_BUSY';
+      if (busy) request.log.info({ requestId: input.requestId }, '详情对话并发请求被拒绝');
       if (!stopped && !expected) request.log.warn({ requestId: input.requestId }, '详情对话失败');
-      send({ type: 'error', code: timedOut ? 'timeout' : stopped ? 'stopped' : 'chat_failed', error: timedOut ? '处理超时，原行程未改动，请重试或缩小范围' : stopped ? '已停止' : expected ? error.message : '回答中断，请重试' });
+      send({ type: 'error', ...streamErrorPayload(error, { timedOut, stopped }) });
     } finally {
       // 无论哪条退出路径都要清定时器 + 释放 turn 锁，否则同会话后续消息会被判「进行中」
       clearInterval(heartbeat);

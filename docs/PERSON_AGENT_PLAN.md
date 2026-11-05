@@ -160,6 +160,8 @@ P0 用假工具（`set_note` / `get_notes`）验证了四条门槛：自定义 b
 - [x] `chat/agent/tools.ts`：`get_trip` / `get_day` / `search_places` / `web_search` / `get_weather`（全部走现有预算）
 - [x] `chat/agent/turn.ts`：durable 会话绑定（`agent_conversations`）、进度/正文映射、消息落库
 - [x] 灰度开关 `AGENT_DETAIL_CHAT=1`；只接管只读问答，修改意图仍走原确定性链路
+- [x] 会话内并发保护（2026-11-05）：同一用户同时只允许一个回合，第二个请求 409 `AGENT_BUSY`；
+      停止/超时会中断 durable 运行并释放锁（`agentRuntime.test.ts` 覆盖并发、异常、取消三条路径）
 - [x] `agentRuntime.test.ts` 三条测试；真实模型 + 真实数据库的冒烟通过
 
 仍待完成：
@@ -167,7 +169,6 @@ P0 用假工具（`set_note` / `get_notes`）验证了四条门槛：自定义 b
 - [ ] 记忆注入（L2 trip_notes）与 persona 打磨
 - [ ] `understandMessage` 降级为 fast-path（现在是「先理解再决定走哪条」）
 - [ ] 工具结果截断（搬 opencode）
-- [ ] 会话内并发保护：同一用户两个会话同时跑时会互相替换工具闭包
 - [ ] 10 条 agent 场景进 `eval/`
 
 ### P2 写工具 + 提交（4 天）

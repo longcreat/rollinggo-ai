@@ -7,8 +7,10 @@ import { join } from 'node:path';
 import { after, describe, it } from 'node:test';
 import { createModels } from '@earendil-works/pi-ai/models';
 import { fauxAssistantMessage, fauxProvider, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
+import { defineTool } from '@earendil-works/pi-durable';
+import { obj } from '@earendil-works/pi-schema';
 import type { Trip } from '@tripweaver/shared';
-import { closeAgentRuntime, runAgentTurn, type AgentStreamEvent } from '../chat/agent/runtime';
+import { AgentBusyError, closeAgentRuntime, runAgentTurn, type AgentStreamEvent } from '../chat/agent/runtime';
 import { createTripTools } from '../chat/agent/tools';
 import type { DetailSources } from '../chat/detailSources';
 
@@ -85,6 +87,31 @@ function fauxModels() {
   return { faux, models };
 }
 
+/** 可被测试卡住的工具：用于制造「一轮正在运行」的窗口。abort 时立刻放行，避免测试挂死。 */
+function gatedTool(onStart: () => void, gate: Promise<void>, signal: AbortSignal) {
+  return defineTool({
+    name: 'get_trip',
+    description: '测试用阻塞工具',
+    parameters: obj({}),
+    execute: async () => {
+      onStart();
+      await Promise.race([
+        gate,
+        new Promise<void>((resolve) => signal.addEventListener('abort', () => resolve(), { once: true })),
+      ]);
+      return { output: [{ type: 'text' as const, text: JSON.stringify({ trip: 'A 行程' }) }] };
+    },
+  });
+}
+
+function gateOf() {
+  let release!: () => void;
+  let started!: () => void;
+  const gate = new Promise<void>((resolve) => { release = resolve; });
+  const startedPromise = new Promise<void>((resolve) => { started = resolve; });
+  return { gate, release, started: startedPromise, markStarted: started };
+}
+
 describe('agent runtime', () => {
   it('模型自己读行程后回答，工具调用进入事件流', async () => {
     const { faux, models } = fauxModels();
@@ -149,5 +176,125 @@ describe('agent runtime', () => {
 
     assert.equal(second.conversationId, first.conversationId);
     assert.equal(second.text, '第二次回答');
+  });
+
+  it('同一用户并发提问立刻 409，且不替换正在运行的工具闭包', async () => {
+    const { faux, models } = fauxModels();
+    const path = await storage();
+    const { gate, release, started, markStarted } = gateOf();
+    const signal = AbortSignal.timeout(30_000);
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall('get_trip', {})], { stopReason: 'toolUse' }),
+      fauxAssistantMessage('A 回答'),
+    ]);
+
+    const first = runAgentTurn({
+      storagePath: path, models, tools: [gatedTool(markStarted, gate, signal)],
+      instructions: '测试', model: { provider: 'faux', modelId: 'faux-1' }, prompt: 'A 问',
+    });
+    await started;
+
+    // 另一个会话（同一用户）此刻发消息：必须立刻被拒绝，而不是覆盖 registry 里的 trip-tools。
+    await assert.rejects(
+      runAgentTurn({
+        storagePath: path, models, tools: [], instructions: '测试',
+        model: { provider: 'faux', modelId: 'faux-1' }, prompt: 'B 问',
+      }),
+      (error: unknown) => error instanceof AgentBusyError && error.statusCode === 409,
+    );
+
+    release();
+    const result = await first;
+    assert.equal(result.status, 'done');
+    assert.equal(result.text, 'A 回答');
+    assert.deepEqual(result.toolCalls, ['get_trip']);
+
+    // 结束后锁必须释放，后续消息正常回答。
+    faux.setResponses([fauxAssistantMessage('结束后的回答')]);
+    const next = await runAgentTurn({
+      storagePath: path, models, tools: [], instructions: '测试',
+      model: { provider: 'faux', modelId: 'faux-1' }, prompt: '下一问',
+    });
+    assert.equal(next.text, '结束后的回答');
+  });
+
+  it('回合异常后释放存储锁，不会把用户永久锁死', async () => {
+    const { faux, models } = fauxModels();
+    const path = await storage();
+    await assert.rejects(runAgentTurn({
+      storagePath: path, models, tools: [], instructions: '测试',
+      model: { provider: 'faux', modelId: 'faux-1' }, prompt: '坏会话',
+      conversationId: 999_999 as never,
+    }));
+
+    faux.setResponses([fauxAssistantMessage('恢复')]);
+    const ok = await runAgentTurn({
+      storagePath: path, models, tools: [], instructions: '测试',
+      model: { provider: 'faux', modelId: 'faux-1' }, prompt: '正常问题',
+    });
+    assert.equal(ok.text, '恢复');
+  });
+
+  it('不同用户（不同存储）可以同时运行，锁不是全局的', async () => {
+    const modelsA = fauxModels();
+    const modelsB = fauxModels();
+    const a = gateOf();
+    const b = gateOf();
+    const pathA = await storage();
+    const pathB = await storage();
+    const signal = AbortSignal.timeout(30_000);
+    modelsA.faux.setResponses([
+      fauxAssistantMessage([fauxToolCall('get_trip', {})], { stopReason: 'toolUse' }),
+      fauxAssistantMessage('A 完成'),
+    ]);
+    modelsB.faux.setResponses([
+      fauxAssistantMessage([fauxToolCall('get_trip', {})], { stopReason: 'toolUse' }),
+      fauxAssistantMessage('B 完成'),
+    ]);
+
+    const turnA = runAgentTurn({
+      storagePath: pathA, models: modelsA.models, tools: [gatedTool(a.markStarted, a.gate, signal)],
+      instructions: '测试', model: { provider: 'faux', modelId: 'faux-1' }, prompt: 'A 问',
+    });
+    await a.started;
+    const turnB = runAgentTurn({
+      storagePath: pathB, models: modelsB.models, tools: [gatedTool(b.markStarted, b.gate, signal)],
+      instructions: '测试', model: { provider: 'faux', modelId: 'faux-1' }, prompt: 'B 问',
+    });
+    // 两个用户都能进入工具执行，说明锁按存储隔离而不是一把全局锁。
+    await b.started;
+
+    a.release();
+    b.release();
+    const [doneA, doneB] = await Promise.all([turnA, turnB]);
+    assert.equal(doneA.status, 'done');
+    assert.equal(doneB.status, 'done');
+  });
+
+  it('用户停止后中断运行并立刻释放锁', async () => {
+    const { faux, models } = fauxModels();
+    const path = await storage();
+    const controller = new AbortController();
+    const { gate, started, markStarted } = gateOf();
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall('get_trip', {})], { stopReason: 'toolUse' }),
+      fauxAssistantMessage('不该出现'),
+    ]);
+
+    const turn = runAgentTurn({
+      storagePath: path, models, tools: [gatedTool(markStarted, gate, controller.signal)],
+      instructions: '测试', model: { provider: 'faux', modelId: 'faux-1' }, prompt: '长问题',
+      signal: controller.signal,
+    });
+    await started;
+    controller.abort();
+    await assert.rejects(turn, (error: unknown) => (error as Error)?.name === 'AbortError');
+
+    faux.setResponses([fauxAssistantMessage('停止后的新回答')]);
+    const next = await runAgentTurn({
+      storagePath: path, models, tools: [], instructions: '测试',
+      model: { provider: 'faux', modelId: 'faux-1' }, prompt: '新问题',
+    });
+    assert.equal(next.text, '停止后的新回答');
   });
 });

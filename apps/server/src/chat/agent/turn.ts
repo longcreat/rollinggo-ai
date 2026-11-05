@@ -99,6 +99,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     prompt,
     conversationId: durableId === null ? null : durableId as unknown as ConversationId,
     maxTurns: 10,
+    signal,
     onConversationCreated: (id) => saveBinding(userId, conversationId, id),
     onEvent: (event) => {
       events.push(event);

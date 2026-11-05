@@ -9,13 +9,29 @@
 //     提交时由 repairChangedRoutes 重算动线，前端刷新到新版本即看到新标记与新折线。
 import { arr, int, num, obj, opt, str } from '@earendil-works/pi-schema';
 import { defineTool, type ToolRegistration } from '@earendil-works/pi-durable';
+import { haversineMeters } from '@tripweaver/shared';
 import type { TripDraft, DraftResult } from './tripDraft';
 
 export interface TripWriteToolDeps {
   draft: TripDraft;
   signal: AbortSignal;
-  /** 新地点定位（高德）。未注入时按无坐标处理，前端会标「位置待核实」。 */
+  /** 新地点定位（高德，可能模糊）。未注入时按无坐标处理，前端会标「位置待核实」。 */
   resolvePlace?: (name: string) => Promise<{ lat: number; lng: number } | null>;
+  /** 本回合 search_places 已查到的精确坐标（按归一化名称），优先于模糊解析 */
+  cachedPoint?: (name: string) => { lat: number; lng: number } | null;
+}
+
+/** 改名换地点时，模糊解析结果离行程其它地点超过这个距离就不采信（典型是解析到同城另一个同名点）。 */
+const RENAME_MAX_KM = 50;
+
+function nearestKm(draft: TripDraft, point: { lat: number; lng: number }, excludeId: string): number | null {
+  const trip = draft.current();
+  const anchors = [
+    ...trip.days.flatMap((day) => day.activities),
+    ...(trip.lodging ? [{ id: 'lodging', lat: trip.lodging.lat ?? 0, lng: trip.lodging.lng ?? 0 }] : []),
+  ].filter((item) => item.id !== excludeId && item.lat !== 0 && item.lng !== 0);
+  if (!anchors.length) return null;
+  return Math.min(...anchors.map((anchor) => haversineMeters(anchor, point) / 1000));
 }
 
 const text = (value: string) => [{ type: 'text' as const, text: value }];
@@ -75,13 +91,19 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
     }),
     execute: async (args) => {
       signal.throwIfAborted();
-      // 改名 = 换成另一个地点：必须重新定位，不能沿用旧坐标（否则地图指错地方）
+      // 改名 = 换成另一个地点：必须重新定位，不能沿用旧坐标（否则地图指错地方）。
+      // 优先级：本回合 search_places 查到的精确坐标 → 高德模糊解析（需过距离可信度闸门）。
       const current = draft.current().days.find((day) => day.dayIndex === dayIndex(args.dayIndex))
         ?.activities.find((activity) => activity.id === args.activityId.trim());
       const renamed = args.name !== undefined && current !== undefined && args.name.trim() !== current.name;
-      const point = renamed && deps.resolvePlace ? await deps.resolvePlace(args.name!.trim()).catch(() => null) : null;
+      const name = args.name?.trim() ?? '';
+      const cached = renamed ? deps.cachedPoint?.(name) ?? null : null;
+      const fuzzy = renamed && !cached ? await deps.resolvePlace?.(name).catch(() => null) ?? null : null;
+      const distance = fuzzy && current ? nearestKm(draft, fuzzy, current.id) : null;
+      const plausible = fuzzy && (distance === null || distance <= RENAME_MAX_KM) ? fuzzy : null;
+      const point = cached ?? plausible;
       signal.throwIfAborted();
-      return reply(draft.updateActivity({
+      const result = draft.updateActivity({
         dayIndex: dayIndex(args.dayIndex),
         activityId: args.activityId.trim(),
         ...(args.name !== undefined ? { name: args.name } : {}),
@@ -91,7 +113,19 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
       ...(args.startTime !== undefined ? { startTime: args.startTime } : {}),
       ...(args.endTime !== undefined ? { endTime: args.endTime } : {}),
         ...(args.cost !== undefined ? { cost: args.cost } : {}),
-      }));
+      });
+      return {
+        output: text(JSON.stringify({
+          ok: result.outcome.applied,
+          summary: result.outcome.summary,
+          ...(result.day ? { day: result.day } : {}),
+          // 改名但没拿到可信坐标：照实落「位置待核实」，并提醒模型引导用户选具体地点。
+          // 不能沿用旧坐标（会指错地方），也不能整条拒绝（用户的要求会被悄悄丢掉）。
+          ...(renamed && !point && result.outcome.applied
+            ? { warning: `「${name}」没有可信位置，已标为「位置待核实」且不参与动线计算；如需精确位置，先用 search_places 从结果里挑一个具体地点` }
+            : {}),
+        })),
+      };
     },
   });
 

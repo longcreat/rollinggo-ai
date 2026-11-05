@@ -1,5 +1,6 @@
 import { Type, type Static } from '@sinclair/typebox';
 import { StringEnum } from './typebox';
+import { EditOpOutcomeSchema } from './editOps';
 import { SourceNoteSchema, TripSchema } from './schemas';
 
 export const CHAT_SUGGESTIONS = ['food', 'explore', 'pace', 'more_food', 'light_food', 'dinner'] as const;
@@ -41,6 +42,15 @@ export const ChatAttachmentSchema = Type.Object({
   clarification: Type.Optional(Type.Object({
     question: Type.String({ minLength: 1, maxLength: 300 }),
     options: Type.Array(Type.String({ minLength: 1, maxLength: 100 }), { minItems: 2, maxItems: 3 }),
+  })),
+  /**
+   * 本轮改动摘要（11-05 P2）：持久化在消息上，刷新后仍能看到「改了什么」，
+   * previousTripId 供「撤销这次修改」回到上一版。
+   */
+  edit: Type.Optional(Type.Object({
+    version: Type.Integer({ minimum: 1 }),
+    previousTripId: Type.Optional(Type.String()),
+    outcomes: Type.Array(EditOpOutcomeSchema, { minItems: 1, maxItems: 10 }),
   })),
 });
 export type ChatAttachment = Static<typeof ChatAttachmentSchema>;

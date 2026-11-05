@@ -7,6 +7,7 @@ import { appendMessages, createConversation, findConversationForTrip, saveBrief,
 import { assertLatestTrip, createTrip, getTrip, lockTripWriter } from './tripService';
 import { commitOperation, operationFingerprint, readOperation } from './detailOperationService';
 import { getRouteOptions } from './routeOptionsService';
+import { dayNeedsRouteRepair, routePairsFor } from './routeRepairPlan';
 
 export async function ensureTripConversation(userId: string, tripId: string) {
   return db.transaction(async (tx) => {
@@ -61,28 +62,20 @@ async function findFoodCandidate(userId: string, conversationId: string, candida
 export async function repairChangedRoutes(userId: string, previous: Trip, next: Trip, signal?: AbortSignal) {
   for (const day of next.days) {
     const old = previous.days.find((d) => d.id === day.id);
-    if (old?.activities.map((a) => a.id).join('|') === day.activities.map((a) => a.id).join('|')) continue;
-    day.legs = (day.legs ?? []).filter((leg) => (leg.fromActivityId === 'lodging' && day.activities[0]?.id === leg.toActivityId)
-      || (leg.toActivityId === 'lodging' && day.activities.at(-1)?.id === leg.fromActivityId)
-      || day.activities.some((a, i) => a.id === leg.fromActivityId && day.activities[i + 1]?.id === leg.toActivityId));
-    const lodging = day.lodging ?? next.lodging;
-    const lodgingActivity = lodging && typeof lodging.lat === 'number' && typeof lodging.lng === 'number' ? {
-      id: 'lodging', name: lodging.name, lat: lodging.lat, lng: lodging.lng, coordSystem: lodging.coordSystem,
-      coordSource: 'geocoded' as const, category: '住宿' as const, startTime: '', endTime: '', description: '', sourceNotes: [],
-    } : undefined;
-    const points = lodgingActivity && day.activities.length ? [lodgingActivity, ...day.activities, lodgingActivity] : day.activities;
-    for (let i = 0; i < points.length - 1; i++) {
+    if (!dayNeedsRouteRepair(old, day, next)) continue;
+    const pairs = routePairsFor(day, next);
+    // 先丢掉过期 leg：端点不再相邻，或出行方式已变
+    day.legs = (day.legs ?? []).filter((leg) => pairs.some((pair) => pair.from.id === leg.fromActivityId
+      && pair.to.id === leg.toActivityId && pair.mode === leg.mode));
+    for (const pair of pairs) {
       signal?.throwIfAborted();
-      const from = points[i]!;
-      const to = points[i + 1]!;
-      if ([from, to].some((point) => point.lat === 0 && point.lng === 0)) continue;
-      if (day.legs.some((l) => l.fromActivityId === from.id && l.toActivityId === to.id)) continue;
-      const origin = from.coordSystem === 'gcj02' ? from : wgs84ToGcj02(from.lat, from.lng);
-      const dest = to.coordSystem === 'gcj02' ? to : wgs84ToGcj02(to.lat, to.lng);
-      const mode = effectiveLegMode(origin, dest, next.transportMode ?? 'transit');
-      const options = await getRouteOptions(userId, { from, to, destination: next.destination, mode });
+      if (day.legs.some((leg) => leg.fromActivityId === pair.from.id && leg.toActivityId === pair.to.id)) continue;
+      const options = await getRouteOptions(userId, { from: pair.from, to: pair.to, destination: next.destination, mode: pair.mode });
       const available = options.options.find((option) => option.status === 'available');
-      day.legs.push(available?.status === 'available' ? available.leg : { fromActivityId: from.id, toActivityId: to.id, mode, ...estimateTransit(origin, dest, mode), source: 'heuristic' });
+      day.legs.push(available?.status === 'available' ? available.leg : {
+        fromActivityId: pair.from.id, toActivityId: pair.to.id, mode: pair.mode,
+        ...estimateTransit(pair.origin, pair.dest, pair.mode), source: 'heuristic',
+      });
     }
   }
 }

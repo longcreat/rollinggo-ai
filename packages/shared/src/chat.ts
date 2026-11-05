@@ -126,6 +126,8 @@ export const SendMessageResultSchema = Type.Object({
     Type.Object({
       tripId: Type.String(),
       version: Type.Integer({ minimum: 1 }),
+      /** 改动前的版本 id：前端据此「撤销这次修改」 */
+      previousTripId: Type.Optional(Type.String()),
       outcomes: Type.Array(EditOpOutcomeSchema, { maxItems: 10 }),
     }),
   ),

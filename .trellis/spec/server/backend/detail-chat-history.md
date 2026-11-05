@@ -69,9 +69,22 @@
   中途失败不落半成品；版本与消息同事务，避免「页面说改了、库里没改」。
 - 冲突：`assertLatestTrip` 校验 `updatedAt`，用户在其它标签页改过行程时整轮 409，草稿丢弃，
   不覆盖别人的修改（与确定性编辑链同一策略）。
-- 改名即换地点：`update_activity` 改 `name` 时会重新解析坐标（`createGeoSession.resolvePlace`），
-  解析不到就落 `estimated + 0,0` 并清空当天 legs；**绝不沿用原名地点的坐标**冒充已定位——
-  2026-11-05 真机冒烟里「四川博物院→成都博物馆」曾因此在地图上指向博物院。
+- 改名即换地点：`update_activity` 改 `name` 时必须重新定位，**绝不沿用原名地点的坐标**冒充已定位——
+  2026-11-05 真机冒烟里「四川博物院→成都博物馆」曾因此在地图上指向博物院。取点优先级：
+  ① 本回合 `search_places` 查到的精确坐标（工具闭包内按归一化名称缓存，含包含匹配）；
+  ② `createGeoSession.resolvePlace` 的模糊解析，但要求离行程其它已定位地点 ≤ 50km
+  （`RENAME_MAX_KM`；实测「人民公园东门」会被解到 56km 外的同名点）；③ 都不成立 → 落
+  `estimated + 0,0`、当天 legs 清空，并在工具回执里给 `warning`，由模型告知用户「位置待核实」。
+  不整条拒绝改名：拒绝会让用户的要求被悄悄丢掉。
+- 动线重算判定抽在 `services/routeRepairPlan.ts`（纯函数）：活动集合/顺序变化、相邻对缺 leg、
+  leg 的出行方式与当前 `transportMode` 不符，三者任一都要重算。**只按 id 列表比较是错的**——
+  只改名（清空 legs）或只改出行方式（全行程 legs 清空）时 id 不变，旧实现会永久跳过，
+  地图动线再也补不回来（2026-11-05 修复）。
+- 增删天要同步 brief：`add_day` / `delete_day` 提交时对 `conversation.brief.data` 跑
+  `syncBriefTripDates`，否则后续「按当前需求重新生成」仍用旧天数。
+- 改动可见与撤销：`ChatAttachment.edit = {version, previousTripId?, outcomes}` 随消息落库，
+  刷新后仍能显示「本轮改动」清单；`editResult.previousTripId` 供前端「撤销这次修改」调用
+  `/api/trips/:id/restore` 回到上一版（复用版本链，不新增表）。
 - 地点去重：新增时按归一化名称查全行程，命中即拒绝并提示「如确需重访请说明」；
   模型传 `allowRevisit` 才允许重复。每天活动数上限 12、总天数上限 15，与确定性编辑链共用常量。
 - 写工具不负责「保存」的话术：系统提示词要求模型不出现「点击保存/正在提交」，

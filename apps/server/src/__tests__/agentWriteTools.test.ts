@@ -64,8 +64,15 @@ describe('工具装配', () => {
 });
 
 describe('写工具回执', () => {
-  const build = (draft = createTripDraft(trip()), resolvePlace?: (name: string) => Promise<{ lat: number; lng: number } | null>) =>
-    createTripWriteTools({ draft, signal: new AbortController().signal, ...(resolvePlace ? { resolvePlace } : {}) });
+  const build = (
+    draft = createTripDraft(trip()),
+    resolvePlace?: (name: string) => Promise<{ lat: number; lng: number } | null>,
+    cachedPoint?: (name: string) => { lat: number; lng: number } | null,
+  ) => createTripWriteTools({
+    draft, signal: new AbortController().signal,
+    ...(resolvePlace ? { resolvePlace } : {}),
+    ...(cachedPoint ? { cachedPoint } : {}),
+  });
 
   it('add_activity 解析坐标后回传当天快照', async () => {
     const draft = createTripDraft(trip());
@@ -90,6 +97,42 @@ describe('写工具回执', () => {
     const payload = await run(tool, { dayIndex: 1, activityId: 'nope' });
     assert.equal(payload.ok, false);
     assert.match(payload.summary, /没找到/);
+  });
+
+  it('改名优先复用本回合 search_places 的精确坐标', async () => {
+    const draft = createTripDraft(trip());
+    const tool = build(draft, async () => ({ lat: 1, lng: 1 }), () => ({ lat: 30.6572, lng: 104.063 }))
+      .find((item) => item.name === 'update_activity')!;
+    const payload = await run(tool, { dayIndex: 1, activityId: 'a1', name: '成都博物馆' });
+    assert.equal(payload.ok, true);
+    const target = draft.current().days[0]!.activities[0]!;
+    assert.deepEqual([target.lat, target.lng], [30.6572, 104.063]);
+    assert.equal(target.coordSource, 'geocoded');
+  });
+
+  it('改名时模糊解析到 50km 外不采信：落「位置待核实」并给提示，不写入错误坐标', async () => {
+    const draft = createTripDraft(trip());
+    // 需要一个同城参照点，否则无法判断解析结果是否离谱
+    draft.addActivity({ dayIndex: 1, name: '宽窄巷子', lat: 30.6691, lng: 104.0553 });
+    const tool = build(draft, async () => ({ lat: 30.3971, lng: 104.5477 }))  // 约 56km 外的同名点
+      .find((item) => item.name === 'update_activity')!;
+    const payload = await run(tool, { dayIndex: 1, activityId: 'a1', name: '人民公园东门' }) as {
+      ok: boolean; warning?: string; day?: { activities: { located: boolean }[] };
+    };
+    assert.equal(payload.ok, true);
+    assert.match(payload.warning ?? '', /位置待核实/);
+    const target = draft.current().days[0]!.activities[0]!;
+    assert.deepEqual([target.lat, target.lng], [0, 0], '绝不能写入 56km 外的错误坐标');
+    assert.equal(target.coordSource, 'estimated');
+    assert.equal(payload.day!.activities[0]!.located, false);
+  });
+
+  it('改名时模糊解析在合理范围内则采信', async () => {
+    const draft = createTripDraft(trip());
+    const tool = build(draft, async () => ({ lat: 30.6619, lng: 104.0641 })).find((item) => item.name === 'update_activity')!;
+    const payload = await run(tool, { dayIndex: 1, activityId: 'a1', name: '人民公园东门' });
+    assert.equal(payload.ok, true);
+    assert.equal(draft.current().days[0]!.activities[0]!.coordSource, 'geocoded');
   });
 
   it('update_trip 只改传入字段', async () => {

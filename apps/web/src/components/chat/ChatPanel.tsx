@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { ACTIVE_JOB_KEY } from '../../hooks/useGenerationRun';
 import { completeFollowUpSuggestions, suggestionText, uid, type ChatAttachment, type DetailChatRequest, type SendMessageResult, type Trip, type TripOperationResult } from '@tripweaver/shared';
 import { keys, useConversation } from '../../api/hooks';
-import { recoverChat, stopChat, streamChat } from '../../api/detailChat';
+import { recoverChat, restoreVersion, stopChat, streamChat } from '../../api/detailChat';
 import { chatErrorMessage } from '../../lib/chatDerive';
 import { ChatInput } from './ChatInput';
 import { MessageBubble } from './MessageBubble';
@@ -30,6 +30,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
   const [error, setError] = useState('');
   const [restoreDraft, setRestoreDraft] = useState<{ text: string; key: number }>();
   const [stopping, setStopping] = useState(false);
+  const [undoing, setUndoing] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const scroll = useRef<HTMLDivElement>(null);
   const following = useRef(true);
@@ -50,6 +51,27 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
   useEffect(() => {
     if (following.current) scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
   }, [messages.length, pending]);
+
+  // 撤销「本轮改动」：恢复改动前那一版（服务端会校验 updatedAt，冲突则报错不做覆盖）
+  const undoEdit = async (previousTripId: string) => {
+    if (undoing || busy || readOnly) return;
+    setUndoing(true); setError('');
+    let acquired = false;
+    try {
+      const current = await begin();
+      acquired = true;
+      const result = await restoreVersion(previousTripId, {
+        operationId: uid(), expectedTripId: current.id, updatedAt: current.updatedAt,
+      });
+      await qc.invalidateQueries({ queryKey: keys.conversation(conversationId) });
+      await onTrip(result.trip.id, result);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '撤销失败，请重试');
+    } finally {
+      setUndoing(false);
+      if (acquired) end();
+    }
+  };
 
   const accept = async (result: SendMessageResult) => {
     await qc.invalidateQueries({ queryKey: keys.conversation(conversationId) });
@@ -124,7 +146,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
         <p className="mb-0 mt-1.5 text-xs leading-relaxed text-slate-500">我为你整理了 {trip.days.length} 天的行程安排，已包含主要景点与交通安排，你可以根据需要进一步调整。</p>
         {messages.length === 0 && !pending && renderSuggestions(initialSuggestions, dayId, true)}</div>}
       {messages.map((message) => <div key={message.id} className="min-w-0">
-        <MessageBubble message={message} />
+        <MessageBubble message={message} onUndo={undoEdit} undoing={undoing} />
         {message.attachment?.notice && <p className="mb-0 mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">{message.attachment.notice}</p>}
         {message.attachment?.candidates.map((candidate) => <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />)}
         {message.role === 'assistant' && message.attachment && (message.attachment.clarification ? <div className="chat-answer-options mt-3 flex flex-wrap gap-1.5" role="group" aria-label={message.attachment.clarification.question}>

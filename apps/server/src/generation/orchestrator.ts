@@ -160,8 +160,8 @@ export async function runGeneration(
         ...providerCallCounts(),
         searchCalls: search.stats.calls,
       }),
-    // LLM 请求上下文快照（09-20 调试视图）：实时推给时间线，与落库互不影响
-    onLlmRequest: (info) => emit(job, { type: 'llm_request', phase, ...info }),
+    // LLM 请求上下文由 recorder 落库（llm_request_logs）供排查，不再经 SSE 推完整 prompt 到浏览器；
+    // 只推轻量结果，评测链路依赖它记录 turn / stopReason / httpStatus。
     onLlmResponse: (info) =>
       emit(job, {
         type: 'llm_response',

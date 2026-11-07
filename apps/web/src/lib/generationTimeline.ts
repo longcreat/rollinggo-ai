@@ -18,25 +18,7 @@ export interface ThoughtItem {
   text: string;
 }
 
-/** LLM 请求上下文节点（09-20 调试视图）：llm_request 到达即长出，llm_response 回填结果 */
-export interface LlmRequestItem {
-  kind: 'llm';
-  key: string;
-  turn: number;
-  model: string;
-  systemPrompt: string;
-  messages: unknown[];
-  tools: unknown[];
-  running: boolean;
-  stopReason?: string;
-  tokensIn?: number;
-  tokensOut?: number;
-  errorMessage?: string;
-  startedAt?: number;
-  durationMs?: number;
-}
-
-export type TimelineItem = ToolItem | ThoughtItem | LlmRequestItem;
+export type TimelineItem = ToolItem | ThoughtItem;
 
 export interface PhaseBlock {
   key: string;
@@ -136,41 +118,6 @@ export function buildTimeline(events: GenerationEvent[]): TimelineModel {
       case 'candidate':
         model.candidates.push(ev.poi);
         break;
-      case 'llm_request': {
-        const block = model.phases.at(-1);
-        block?.items.push({
-          kind: 'llm',
-          key: `llm-${block.key}-${ev.turn}`,
-          turn: ev.turn,
-          model: ev.model,
-          systemPrompt: ev.systemPrompt,
-          messages: ev.messages,
-          tools: ev.tools,
-          running: true,
-          startedAt: ev.at,
-        });
-        break;
-      }
-      case 'llm_response': {
-        // 同阶段块内按 turn 配对（倒序取最近的该阶段块）；找不到时忽略（防御旧事件重放）
-        let item: LlmRequestItem | undefined;
-        for (let i = model.phases.length - 1; i >= 0 && !item; i--) {
-          const block: PhaseBlock = model.phases[i]!;
-          if (block.phase !== ev.phase) continue;
-          item = block.items.find(
-            (candidate): candidate is LlmRequestItem => candidate.kind === 'llm' && candidate.turn === ev.turn,
-          );
-        }
-        if (item) {
-          item.running = false;
-          item.stopReason = ev.stopReason;
-          item.tokensIn = ev.tokensIn;
-          item.tokensOut = ev.tokensOut;
-          item.errorMessage = ev.errorMessage;
-          item.durationMs = eventDuration(undefined, item.startedAt, ev.at);
-        }
-        break;
-      }
       case 'usage':
         model.usage = { tokensIn: ev.tokensIn, tokensOut: ev.tokensOut, amapCalls: ev.amapCalls, searchCalls: ev.searchCalls };
         break;
@@ -197,3 +144,4 @@ export function formatDuration(durationMs: number): string {
   const seconds = totalSeconds % 60;
   return seconds ? `${minutes} 分 ${seconds} 秒` : `${minutes} 分`;
 }
+

@@ -372,16 +372,6 @@ export function buildPlannerTools(deps: PlannerDeps): AgentTool[] {
   return [listAreas, searchAreaPlaces, webSearch, planDayTool, validate, submit];
 }
 
-/** completion 钩子：只有 submit_plan 成功才算完成。 */
-export function plannerCompletion(): { isComplete(): boolean; reminder: string; errorMessage: string } {
-  const state = { done: false };
-  return {
-    isComplete: () => state.done,
-    reminder: '规划尚未提交。请用 plan_day 补齐每天的活动，确认 validate_plan 没有硬性违规后调用 submit_plan。',
-    errorMessage: '规划未提交',
-  };
-}
-
 /** 工具集与 completion 共享同一个 submitted 标志：由 buildPlannerTools 暴露读取器。 */
 export function buildPlannerToolsWithStatus(deps: PlannerDeps): { tools: AgentTool[]; isSubmitted(): boolean; toolText(value: unknown): string } {
   const tools = buildPlannerTools(deps);

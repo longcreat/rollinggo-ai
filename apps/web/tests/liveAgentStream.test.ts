@@ -20,18 +20,39 @@ function snapshot(state: Partial<TripProjectionState>, taskGraph: TripProjection
   };
 }
 
-test('按阶段分组并给出进行中/完成文案', () => {
+test('按阶段分组：阶段节点只做状态，不混进工具流程', () => {
   const stream = buildLiveStreamFromProjection(snapshot({ control: { phase: 'plan', status: 'running' } }, [
-    { id: 'phase:research:1', phase: 'research', label: '调研', status: 'done' },
+    { id: 'phase:research:1', phase: 'research', label: '调研', status: 'done', summary: '候选 8 个｜成都市区' },
     { id: 'c1', phase: 'plan', label: '规划第 1 天', status: 'running' },
     { id: 'c2', phase: 'plan', label: '校验', status: 'error' },
   ]));
   assert.deepEqual(stream.phases.map((phase) => phase.key), ['research', 'plan']);
-  assert.equal(stream.phases[0]!.done, true);
-  assert.equal(stream.phases[1]!.done, false);
-  assert.equal(stream.phases[1]!.lines[0]!.text, '正在规划第 1 天…');
-  assert.equal(stream.phases[1]!.lines[1]!.text, '校验未完成');
+  const research = stream.phases[0]!;
+  assert.equal(research.status, 'done');
+  assert.equal(research.summary, '候选 8 个｜成都市区');
+  assert.equal(research.lines.length, 0, '阶段节点本身不能出现在详情步骤里');
+  const plan = stream.phases[1]!;
+  assert.equal(plan.status, 'error');
+  assert.equal(plan.current, '正在规划第 1 天…');
+  assert.equal(plan.completed, 0);
+  assert.equal(plan.total, 2);
+  assert.deepEqual(plan.lines.map((line) => line.text), ['正在规划第 1 天…', '校验未完成']);
   assert.equal(stream.active?.id, 'c1');
+});
+
+test('阶段摘要、步数与耗时进入卡片模型', () => {
+  const stream = buildLiveStreamFromProjection(snapshot({}, [
+    { id: 'phase:plan:1', phase: 'plan', label: '规划', status: 'done', summary: '活动 11 个｜候选 8 个', durationMs: 65000 },
+    { id: 't1', phase: 'plan', label: '排第 1 天', status: 'done', durationMs: 1200 },
+    { id: 't2', phase: 'plan', label: '排第 2 天', status: 'done', durationMs: 900 },
+  ]));
+  const plan = stream.phases[0]!;
+  assert.equal(plan.status, 'done');
+  assert.equal(plan.completed, 2);
+  assert.equal(plan.total, 2);
+  assert.equal(plan.summary, '活动 11 个｜候选 8 个');
+  assert.equal(plan.durationMs, 65000);
+  assert.equal(plan.lines[0]!.durationMs, 1200);
 });
 
 test('候选来自行程头，终态来自 control', () => {

@@ -1,7 +1,7 @@
 // 直播播报模型：直接读服务端投影的 taskGraph，不再归约事件流。
 //
-// 旧版（buildTimeline + buildLiveStream）随事件归约一起删除：阶段/工具进度已由
-// projectionAdapter 写进 state.taskGraph，文案使用服务端下发的 label。
+// 子 Agent 以阶段为单位呈现：每张卡片只给状态/步数/结果摘要，完整工具流程留在 lines 里，
+// 由页面在用户点击卡片时展开。这样默认界面是结论，而不是内部工作流。
 import type { DataSourceKind, ProjectionTaskNode, ResearchPoi, TripProjectionSnapshot, TripProjectionState } from '@tripweaver/shared';
 
 export interface LiveLine {
@@ -10,12 +10,27 @@ export interface LiveLine {
   text: string;
   running: boolean;
   error: boolean;
+  durationMs?: number;
 }
+
+export type LivePhaseStatus = 'pending' | 'running' | 'done' | 'error';
 
 export interface LivePhase {
   key: string;
   label: string;
+  status: LivePhaseStatus;
   done: boolean;
+  running: boolean;
+  error: boolean;
+  /** 已完成的工具步数 / 总工具步数（卡片进度条）。 */
+  completed: number;
+  total: number;
+  /** 阶段结束后服务端给的结果摘要，卡片默认展示。 */
+  summary?: string;
+  /** 运行中的当前动作，卡片用它替代摘要。 */
+  current?: string;
+  durationMs?: number;
+  /** 该阶段的完整工具流程，只给详情层使用。 */
   lines: LiveLine[];
 }
 
@@ -42,6 +57,8 @@ const PHASE_LABEL: Record<string, string> = {
   commit: '保存行程',
 };
 
+const MAX_DETAIL_LINES = 200;
+
 function terminalFromControl(control: TripProjectionState['control']): LiveTerminal | null {
   if (control.status === 'done') {
     return { type: 'job_done', tripId: control.tripId ?? '', usedXhs: false, dataSources: [], reviewNotes: [] };
@@ -53,30 +70,61 @@ function terminalFromControl(control: TripProjectionState['control']): LiveTermi
   return null;
 }
 
-/** 投影 → 播报模型：阶段与工具进度来自 state.taskGraph，候选来自行程头。 */
+function lineOf(node: ProjectionTaskNode): LiveLine {
+  return {
+    id: node.id,
+    kind: 'tool',
+    text: node.status === 'running' ? `正在${node.label}…` : node.status === 'error' ? `${node.label}未完成` : `${node.label}完成`,
+    running: node.status === 'running',
+    error: node.status === 'error',
+    ...(node.durationMs !== undefined ? { durationMs: node.durationMs } : {}),
+  };
+}
+
+/** 投影 → 播报模型：阶段卡片 + 各自完整工具流程。 */
 export function buildLiveStreamFromProjection(
   snapshot: TripProjectionSnapshot,
-  maxLinesPerPhase = 8,
   maxCandidates = 12,
 ): LiveStream {
-  const groups = new Map<string, ProjectionTaskNode[]>();
+  const groups = new Map<string, { phases: ProjectionTaskNode[]; tools: ProjectionTaskNode[] }>();
   for (const node of snapshot.state.taskGraph) {
-    const list = groups.get(node.phase) ?? [];
-    list.push(node);
-    groups.set(node.phase, list);
+    const group = groups.get(node.phase) ?? { phases: [], tools: [] };
+    if (node.id.startsWith('phase:')) group.phases.push(node);
+    else group.tools.push(node);
+    groups.set(node.phase, group);
   }
-  const phases: LivePhase[] = [...groups.entries()].map(([phase, nodes]) => ({
-    key: phase,
-    label: PHASE_LABEL[phase] ?? phase,
-    done: nodes.every((node) => node.status === 'done' || node.status === 'error'),
-    lines: nodes.slice(-maxLinesPerPhase).map((node) => ({
-      id: node.id,
-      kind: 'tool' as const,
-      text: node.status === 'running' ? `正在${node.label}…` : node.status === 'error' ? `${node.label}未完成` : `${node.label}完成`,
-      running: node.status === 'running',
-      error: node.status === 'error',
-    })),
-  }));
+
+  const phases: LivePhase[] = [...groups.entries()].map(([phase, group]) => {
+    const lastPhase = group.phases.at(-1);
+    const anyRunning = group.phases.some((node) => node.status === 'running')
+      || group.tools.some((node) => node.status === 'running');
+    const anyError = group.phases.some((node) => node.status === 'error')
+      || group.tools.some((node) => node.status === 'error');
+    const status: LivePhaseStatus = anyError
+      ? 'error'
+      : anyRunning
+        ? 'running'
+        : lastPhase?.status === 'done' || (group.tools.length > 0 && group.tools.every((node) => node.status === 'done'))
+          ? 'done'
+          : 'pending';
+    const completed = group.tools.filter((node) => node.status === 'done').length;
+    const runningLine = group.tools.find((node) => node.status === 'running');
+    return {
+      key: phase,
+      label: PHASE_LABEL[phase] ?? lastPhase?.label ?? phase,
+      status,
+      done: status === 'done',
+      running: status === 'running',
+      error: status === 'error',
+      completed,
+      total: group.tools.length,
+      ...(lastPhase?.summary ? { summary: lastPhase.summary } : {}),
+      ...(runningLine ? { current: `正在${runningLine.label}…` } : {}),
+      ...(lastPhase?.durationMs !== undefined ? { durationMs: lastPhase.durationMs } : {}),
+      lines: group.tools.slice(-MAX_DETAIL_LINES).map(lineOf),
+    };
+  });
+
   const active = phases.flatMap((phase) => phase.lines).filter((line) => line.running).at(-1) ?? null;
   return {
     phases,

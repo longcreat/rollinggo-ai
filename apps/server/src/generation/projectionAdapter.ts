@@ -85,18 +85,25 @@ export function createGenerationProjection(jobId: string): GenerationProjection 
         setTask(phaseTaskId(event.phase, event.round), {
           id: phaseTaskId(event.phase, event.round), phase: event.phase,
           label: PHASE_LABEL[event.phase] ?? event.phase, status: 'running',
+          ...(event.at !== undefined ? { startedAt: event.at } : {}),
         });
         return;
       }
       case 'phase_end': {
         const id = phaseTaskId(event.phase, event.round);
         const node = tasks.get(id) ?? { id, phase: event.phase, label: PHASE_LABEL[event.phase] ?? event.phase, status: 'pending' as const };
-        setTask(id, { ...node, status: 'done', ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}) });
+        setTask(id, {
+          ...node,
+          status: 'done',
+          ...(event.summary ? { summary: event.summary } : {}),
+          ...(event.durationMs !== undefined ? { durationMs: event.durationMs } : {}),
+        });
         return;
       }
       case 'tool_start':
         setTask(event.toolCallId, {
           id: event.toolCallId, phase: event.phase, label: event.label, status: 'running',
+          ...(event.at !== undefined ? { startedAt: event.at } : {}),
         });
         return;
       case 'tool_end': {

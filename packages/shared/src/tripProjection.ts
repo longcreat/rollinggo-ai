@@ -15,6 +15,8 @@ export interface ProjectionTaskNode {
   phase: string;
   label: string;
   status: 'pending' | 'running' | 'done' | 'error';
+  /** 阶段/步骤的用户可读结果摘要；卡片默认展示，详情里再展开步骤。 */
+  summary?: string;
   startedAt?: number;
   durationMs?: number;
 }

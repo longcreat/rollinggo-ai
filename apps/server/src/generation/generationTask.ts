@@ -48,7 +48,22 @@ async function runFromInput(input: GenerationTaskInput, options?: GenerationRunO
     failJob(job, message);
     return { status: 'error', tripId: null, message };
   }
-  await runGeneration(job, input.form, cfg, undefined, options);
+  // durable 宿主：支持的工具型阶段迁到 pi-durable 会话执行。动态导入避免与 chat runtime 形成静态循环。
+  let agent: GenerationRunOptions['agent'];
+  try {
+    const [{ getAgentRuntime }, { buildAgentModels }, { generationStoragePath }, { BACKGROUND_CONTEXT }] = await Promise.all([
+      import('../chat/agent/runtime'),
+      import('../chat/agent/models'),
+      import('./agentStorage'),
+      import('@earendil-works/chord/context'),
+    ]);
+    const runtime = await getAgentRuntime(generationStoragePath(input.userId));
+    runtime.holder.current = await buildAgentModels(cfg);
+    agent = { harness: runtime.harness, registry: runtime.registry, context: BACKGROUND_CONTEXT };
+  } catch {
+    agent = undefined;
+  }
+  await runGeneration(job, input.form, cfg, undefined, { ...options, ...(agent ? { agent } : {}) });
   const status = job.status === 'running' ? 'error' : job.status;
   return { status, tripId: job.tripId };
 }

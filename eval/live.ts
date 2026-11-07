@@ -9,6 +9,7 @@ import { loadKnowledge, seedKnowledge, type KnowledgeMode } from './knowledge';
 import { summarizeFrozen } from './frozenKnowledge';
 import type { Execution, Manifest, Snapshot } from './contracts';
 import type { GoldenCase } from './golden/cases';
+import type { GenerationRunOptions } from '../apps/server/src/generation/orchestrator';
 
 // 仅加载评估所需配置；不加载应用数据库、主密钥、用户凭据或后台图片/天气服务。
 const CREDENTIAL_KEYS = ['SITE_LLM_BASE_URL', 'SITE_LLM_API_KEY', 'SITE_LLM_MODEL', 'AMAP_KEY',
@@ -159,7 +160,22 @@ export async function startLive(options: {
           }
         });
         try {
-          await runGeneration(job, gc.form, config);
+          // 让 live 也走 durable 阶段（writer），真实验证第 6 项的迁移。
+          let agentHost: GenerationRunOptions['agent'];
+          try {
+            const [{ getAgentRuntime }, { buildAgentModels }, { generationStoragePath }, { BACKGROUND_CONTEXT }] = await Promise.all([
+              import('../apps/server/src/chat/agent/runtime'),
+              import('../apps/server/src/chat/agent/models'),
+              import('../apps/server/src/generation/agentStorage'),
+              import('@earendil-works/chord/context'),
+            ]);
+            const runtime = await getAgentRuntime(generationStoragePath('eval-user'));
+            runtime.holder.current = await buildAgentModels(config);
+            agentHost = { harness: runtime.harness, registry: runtime.registry, context: BACKGROUND_CONTEXT };
+          } catch {
+            agentHost = undefined;
+          }
+          await runGeneration(job, gc.form, config, undefined, agentHost ? { agent: agentHost } : {});
           if (!job.tripId || job.status !== 'done') throw new Error(terminalError || `生成终态：${job.status}（可能已取消或超时）`);
           const trip = await getTrip('eval-user', job.tripId);
           if (!trip) throw new Error('生成已完成，但读回行程失败');

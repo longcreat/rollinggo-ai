@@ -63,6 +63,8 @@ import { optimizeCrossDayGrouping, orderUntimedDayRoutes } from './routeCoherenc
 import { buildModel } from './model';
 import { emit, completeJob, failJob, cancelJob, type Job } from './jobManager';
 import { runPhaseAgent, type PhaseEventSink } from './agents/runner';
+import { runDurablePhaseAgent, type DurablePhaseHost } from './agents/durablePhase';
+import { agentModelRef } from '../chat/agent/models';
 import { GenerationPerformance } from './performance';
 import { createLlmRequestRecorder } from './llmRequestLog';
 import { runResearchPhase } from './researchPhase';
@@ -108,6 +110,8 @@ export interface GenerationRunOptions {
   resume?: ResearchCheckpoint;
   /** 调研完成后保存 checkpoint（durable task 用它落 task state）。 */
   onCheckpoint?: (checkpoint: ResearchCheckpoint) => Promise<void>;
+  /** durable 宿主：有则把支持的工具型阶段迁到 pi-durable 会话执行。 */
+  agent?: DurablePhaseHost;
 }
 
 export async function runGeneration(
@@ -469,7 +473,7 @@ export async function runGeneration(
     startPhase('review', 1, '撰写说明文案');
     // 文案阶段的收尾状态：update_titles 成功提交即结束（原 reviewTools 的 ReviewOutcome，内联为本地类型）
     const review: { submitted: boolean; notes: string[] } = { submitted: false, notes: [] };
-    const writerPromise = runPhaseAgent({
+    const writerOpts = {
       model,
       apiKey: cfg.apiKey,
       systemPrompt: WRITER_SYSTEM_PROMPT,
@@ -479,7 +483,11 @@ export async function runGeneration(
       sink: sinkFor('review'),
       maxTurns: 3,
       recorder: createLlmRequestRecorder({ jobId: job.id, userId: job.userId, phase: 'review', round: 1 }),
-    }).catch((err: unknown) => {
+    };
+    // 有 durable 宿主时走 pi-durable 会话（第 6 项起），否则退回 pi-agent-core runner。
+    const writerPromise = (options?.agent
+      ? runDurablePhaseAgent({ host: options.agent, phaseKey: 'writer', modelRef: agentModelRef(cfg.model), opts: writerOpts })
+      : runPhaseAgent(writerOpts)).catch((err: unknown) => {
       // 并行段若因取消/排程异常先抛出，这个 Promise 仍会 settle：必须立刻挂 catch，
       // 否则它的 rejection 无人接收（Node 视为 unhandledRejection）。
       console.warn(`[writer] 文案阶段异常：${err instanceof Error ? err.message : String(err)}`);

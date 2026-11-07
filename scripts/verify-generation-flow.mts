@@ -33,7 +33,7 @@ const { buildAgentModels } = await import('../apps/server/src/chat/agent/models'
 const { agentStoragePath, ensureAgentStorageDir } = await import('../apps/server/src/generation/agentStorage');
 const { BACKGROUND_CONTEXT } = await import('@earendil-works/chord/context');
 const { runGeneration } = await import('../apps/server/src/generation/orchestrator');
-const { createLiveRun, cancelLiveRun, emitLive } = await import('../apps/server/src/generation/liveRun');
+const { createLiveRun, emitLive } = await import('../apps/server/src/generation/liveRun');
 const { beginGenerationTask, finalizeGenerationTask, getRunningGenerationTask } = await import('../apps/server/src/generation/taskStore');
 const { loadPlaceFacts } = await import('../apps/server/src/generation/scheduling/placeFacts');
 const { poiScore, scoreMaxima } = await import('../apps/server/src/generation/scheduling/score');
@@ -81,7 +81,6 @@ async function waitFor(check: () => Promise<boolean> | boolean, label: string) {
 let runSeq = 0;
 const createRun = (userId: string, provenance: { kind: 'generation' } | { kind: 'revision'; targetTripId: string } = { kind: 'generation' }) =>
   createLiveRun({ jobId: `${userId}-run-${++runSeq}`, userId, createdAt: Date.now(), provenance });
-const cancelRun = (run: ReturnType<typeof createRun>) => cancelLiveRun(run.jobId, run.userId);
 try {
   // 初始化本身和失败审计都抛错，仍须释放运行锁，不允许脱离编排器的 rejection。
   const init = createRun('init-failure');

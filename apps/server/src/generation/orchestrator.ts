@@ -47,7 +47,7 @@ import { recordGenerationNotification } from '../services/notificationService';
 import { publishNotification, type NotificationEvent } from '../services/notificationStream';
 import { poiBudgetRemaining, resolvePoiSourceForUser } from '../integrations/geoProvider';
 import { getNullPoiSource } from '../integrations/nullPoiSource';
-import { POI_MAX_PER_TASK, createTaskPoiSource } from '../integrations/poiTaskSource';
+import { POI_MAX_PER_TASK, createTaskPoiGate, createTaskPoiSource, type TaskPoiStats } from '../integrations/poiTaskSource';
 import {
   SEARCH_MAX_PER_TASK,
   createTaskSearchSource,
@@ -57,7 +57,7 @@ import {
 import { DraftTrip } from './draft';
 import { ensureMealCoverage, isFoodFocused } from './mealPlanning';
 import { createGeoSession } from './geoPipeline';
-import { enrichMealAnchors } from './mealEnrichment';
+import { enrichMealAnchors, MEAL_ENRICH_MAX_CALLS } from './mealEnrichment';
 import { repairLongHaulMixedDays, verifiedFixNotes, type AppliedFixMove } from './longHaulFixer';
 import { optimizeCrossDayGrouping, orderUntimedDayRoutes } from './routeCoherence';
 import { buildModel } from './model';
@@ -122,7 +122,9 @@ export async function runGeneration(
   timeout.unref?.();
 
   // 先建立零调用统计，让初始化失败也能发布终态、记账和清理计时器。
-  let poi = createTaskPoiSource(getNullPoiSource());
+  // POI 记账共用一份统计（amapCalls / dataSources），但调研、片区检索、补餐的额度各自独立计数。
+  const poiStats: TaskPoiStats = { calls: 0, gotResults: false };
+  let poi = createTaskPoiSource(getNullPoiSource(), { stats: poiStats });
   let search = createTaskSearchSource(getNullSearchSource());
   // 地理会话（v0.5）：geocode/route 统一服务商与凭据解析、任务上限与日额度记账；出行方式基调来自表单（ST3）
   const geo = createGeoSession(job.userId, form.destination, form.transportMode ?? 'transit');
@@ -234,7 +236,7 @@ export async function runGeneration(
     const poiSource = await resolvePoiSourceForUser(job.userId);
     const poiBase = (await poiBudgetRemaining()) >= POI_MAX_PER_TASK ? poiSource.source : getNullPoiSource();
     assertAlive(signal);
-    poi = createTaskPoiSource(poiBase);
+    poi = createTaskPoiSource(poiBase, { stats: poiStats });
     const searchBase = (await searchBudgetRemaining()) >= SEARCH_MAX_PER_TASK
       ? (await resolveSearchSourceForUser(job.userId)).source
       : getNullSearchSource();
@@ -315,8 +317,11 @@ export async function runGeneration(
         }
         // 餐次充实（2026-11-06）：合成锚点 → 真实餐厅。必须在 geocode 之后（邻居坐标可用）、
         // computeLegs 之前（替换带入新坐标，腿按真实餐厅算）。查不到保留锚点，不影响生成。
+        // 走独立额度的包装源但并入同一份记账：原先直传 poiBase 会漏计 amapCalls 并绕过任务级上限。
+        const mealPoi = createTaskPoiSource(poiBase, { stats: poiStats, maxCalls: MEAL_ENRICH_MAX_CALLS }).source;
         await runSystemTask('plan', 'meal_enrich', '充实餐次推荐', () => enrichMealAnchors({
-          draft, poi: poiBase, destination: form.destination, startDate: form.startDate, signal,
+          draft, poi: mealPoi, destination: form.destination, startDate: form.startDate, signal,
+          maxCalls: MEAL_ENRICH_MAX_CALLS,
           onProgress: sink.onThought,
         }));
         await runSystemTask('plan', 'geo_compute_legs', '估算通勤路线', () => geo.computeLegs(draft, sink.onThought, signal));
@@ -382,6 +387,8 @@ export async function runGeneration(
         .map((poi) => ({ name: poi.name, lat: poi.location!.lat, lng: poi.location!.lng, category: 'attraction' as const, ...(poi.opentime ? { openTime: poi.opentime } : {}) }));
       areas = buildAreas(fallbackSeeds.length ? fallbackSeeds : [{ name: form.destination, lat: center.lat, lng: center.lng, category: 'attraction' }], 12_000);
     }
+    // 片区面状检索也计入 POI 记账与任务级上限（此前直连 searchAreaPois，两处都绕过）。
+    const poiAreaGate = createTaskPoiGate(poiStats);
     const planner = await runSystemTask('plan', 'agent_plan', 'Agent 规划每日行程', () => runPlannerAgent({
       model,
       apiKey: cfg.apiKey,
@@ -392,7 +399,7 @@ export async function runGeneration(
       areas,
       searchArea: async (query, plannerSignal) => {
         if (!env.amapKey) return [];
-        return searchAreaPois(env.amapKey, { city: form.destination, ...query }, plannerSignal);
+        return poiAreaGate(() => searchAreaPois(env.amapKey, { city: form.destination, ...query }, plannerSignal));
       },
       webSearch: async (query, plannerSignal) => {
         const hits = await search.source.search(query, plannerSignal);

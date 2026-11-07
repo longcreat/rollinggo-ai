@@ -38,7 +38,7 @@ Keep route orchestration in pages, server-state behavior in API hooks, and reusa
 - `/trips` renders the trip list.
 - `/trips/new` renders the structured new-trip form (`?city=` 必填，未覆盖城市会被弹回首页) and generation flow.
 - `/trips/:id` renders the editor (含内嵌对话面板，行程有关联会话时出现).
-- `/generations/:jobId` renders the authenticated generation view.
+- `/agent/:jobId` renders the live generation workspace (same editor shell as `/trips/:id`, read-only until `job_done`).
 - Unknown paths redirect to `/`.
 
 `useMe` probes with `auth: 'public'`: with no session, `GET /api/auth/me` returns HTTP 200 and a `null` guest snapshot — never 401, so the browser console stays clean. `auth: 'public'` is kept so an abnormal gateway 401 cannot trigger global expiration. `RequireAuth` waits for this query and sends guests to the homepage login dialog, preserving pathname/search/hash in route state. Non-401 failures render service-unavailable UI. `LoginDialogProvider` owns the dialog above account-keyed providers so authentication cannot unmount its success callback. Login/registration switches use local dialog state, preserving the homepage and return target. Closing keeps the mounted homepage draft; a complete draft resumes through `/trips/new` after password login or registration. Registration retains confirmation, invitation and closed-registration validation.

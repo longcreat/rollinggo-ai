@@ -461,8 +461,15 @@ LLM planner/reviewer loop for the live pipeline.
   and intra-day order use knowledge-base facts and spatial heuristics. Do not reintroduce an agent
   loop there; the measured cost of letting an LLM do it was 47228 output tokens / 432s, and the
   round-2 revision blew the 15-minute job timeout.
-- Scheduling IS a hard dependency (unlike RAG enrichment): if `draft.validate()` fails after
-  scheduling, throw `GenerationFailure`. There is no degraded path — no structure means no trip.
+- Scheduling IS a hard dependency (unlike RAG enrichment): missing days or empty days after
+  scheduling throw `GenerationFailure`. Content problems (meal coverage, cross-day repeats) are
+  repaired deterministically and otherwise downgraded to notes — they must not sink a whole trip.
+- Meal ordering (11-07): for `美食` preferences, run `ensureMealCoverage` after geocoding and
+  before `enrichMealAnchors`; the planner never picks restaurants (`plan_day` labels stops `文化`),
+  so skipping this step rejects every food-focused trip. Validate only after meal repair and
+  enrichment, never right after `submit_plan`.
+- `applyDraftTimings` snaps meals into their windows (lunch ≥ 11:30, dinner ≥ 17:30); otherwise a
+  day that runs late would schedule dinner at 16:00.
 - Date assignment first matches whole groups, minimizing closed activities (at most `2^15`
   matching states). Remaining closures use `repairScheduleDates`: move or swap up to two
   same-day ordering bundles, retaining every selected attraction. Candidates must respect

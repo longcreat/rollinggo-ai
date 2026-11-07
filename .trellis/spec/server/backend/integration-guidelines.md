@@ -88,7 +88,7 @@ Every server-side Amap external call, including generation, editor routes and PO
 ### 2. Signatures
 
 - `amapRequest(service: AmapService, params: URLSearchParams, timeout?: number)` is the only Amap fetch boundary.
-- `createAmapQuotaLedger(pool, limits, now?).acquire(service)` returns `{allowed,service,day,used,limit,resetAt}`.
+- `createAmapQuotaLedger(pool, limits, now?, { enforce }?).acquire(service)` returns `{allowed,service,day,used,limit,resetAt}`.
 - `amap_service_usage(day TEXT, service TEXT, calls INTEGER CHECK(calls >= 0))`, primary key `(day,service)`.
 - `readAmapServiceBudgets(source)` validates configuration without importing DB/env.
 
@@ -98,14 +98,15 @@ Every server-side Amap external call, including generation, editor routes and PO
 - Official personal defaults from https://lbs.amap.com/upgrade (2026-09-29): LBS shares 150000/month; search 5000/month. Divide by 31, then split LBS equally into five: 967 each, place 161. These are system budgets, not fetched account balances.
 - `AMAP_LBS_MONTHLY_BUDGET` and `AMAP_SEARCH_MONTHLY_BUDGET` may override totals. `AMAP_<SERVICE>_DAILY_BUDGET` overrides individual caps; LBS sum and search cap cannot exceed their monthly total / 31. Legacy `AMAP_DAILY_BUDGET` only lowers unset service defaults.
 - Atomic INSERT/ON CONFLICT increments before fetch; failed attempts stay charged. All keys share counters conservatively. UTC+8 midnight resets the day, independent of host timezone. Recheck the day after reservation before fetch.
+- `AMAP_QUOTA_ENFORCE` (default **false** since 11-06): budgets are accounting-only. `acquire` always allows and increments unconditionally (no `calls < limit` guard), `remaining()` / `remainingOf()` return `Infinity` so the orchestrator POI gate and geoPipeline provider gate never degrade to a Null source. Over-budget usage is still visible: one `over_budget` warn per service per day. Set `true` to restore admission control.
 - Cache hits bypass admission; task caps and serial queue still apply. `remaining()` is advisory, never a combined admission gate.
 - First migration seeds each service with recent legacy aggregate usage, conservatively including the previous day; subsequent migrations never reseed. Old task counts remain telemetry only.
 - No account balance lookup, historical monthly subtraction, or cross-process QPS limiter is implied. See `docs/AMAP_QUOTAS.md` for quota scope and rollout caveats.
 
 ### 4. Validation & Error Matrix
 
-- Zero disables a service; non-integer, negative, out-of-range or overallocated group budgets fail startup.
-- Exhaustion → `local_budget_exhausted`, no fetch. DB outage → `budget_store_error`, no fetch.
+- Zero disables a service only when `AMAP_QUOTA_ENFORCE=true`; non-integer, negative, out-of-range or overallocated group budgets fail startup.
+- Exhaustion → `local_budget_exhausted`, no fetch (enforce mode). DB outage → `budget_store_error`, no fetch (both modes, metering is the admission step).
 - Upstream failures remain charged and emit categorized diagnostics; adapters degrade to null/unavailable.
 - Log `[amap-call]` with service, outcome, used/limit and sanitized infocode/info; never key, raw URL, address or coordinates.
 

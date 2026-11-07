@@ -120,17 +120,15 @@ pi-durable 的 `afterRun` 钩子：把 draft 与 base 做 diff → `commitOperat
 - `AskUserCard`：单选/多选/自由输入。
 - `DiffCard`：活动级 diff + 撤销（走现有版本恢复）。
 
-## 7. ask_user_question 的落法
+## 7. ask_user 的落法（已实现，2026-11-06）
 
-**第一版：结束本轮 + 挂起问题**（跟 dsh `timed` 模式一致，零 durability 复杂度）。
+采用 harness 的 Human-in-the-Loop 阻塞语义（参考 dsh timed / openclaw phase machine）：
 
-1. 工具被调用 → 写 `chat_pending_questions` → 返回「已向用户提问」并 `control.terminate`。
-2. run 以 `unanswered` 结束，前端弹窗。
-3. 用户回答 → 作为下一条输入提交，带上 `answers`，模型接着聊。
-
-优点：天然可恢复、跨刷新不丢、多端一致。缺点：不是「同一次 run 内继续」，但对用户不可见。
-
-**第二版（可选）**：工具内 `sleepUntil` 轮询答案，实现同 run 阻塞；进程重启后按 `replay: safe` 重跑。等第一版跑稳再看。
+1. `ask_user` 工具在 execute 内登记问题并 await，SSE 下发 `question`；前端显示 `QuestionCard`。
+2. 用户通过 `POST /api/conversations/:id/questions/:questionId/answer` 回答。
+3. Promise 在同一次 Agent run 内 resolve，模型拿到真实 tool result 继续本轮。
+4. 同一会话同时只允许一个 pending；120s 超时/取消返回 pending 并结束本轮。
+5. `GET /questions/pending` 支持刷新恢复；断线时保留等待中的回合；问答写入消息附件。
 
 ## 8. 数据与状态分工
 
@@ -152,14 +150,14 @@ P0 用假工具（`set_note` / `get_notes`）验证了四条门槛：自定义 b
 `watch()` → SSE、关停后 `resume()` 续跑、`afterRun` 落库。结论成立后，P0 的假工具、演示脚本和
 `agent_run_commits` 表已全部删除，只保留运行时与模型层。
 
-### P1 只读 Agent（第一刀已接入，2026-11-05）
+### P1 详情 Agent（2026-11-06 升级为完整读写 harness）
 
 已落地：
 
 - [x] `chat/agent/runtime.ts`：每人一份 SQLite，每会话一个 durable conversation，`watch()` → 事件
-- [x] `chat/agent/tools.ts`：`get_trip` / `get_day` / `search_places` / `web_search` / `get_weather`（全部走现有预算）
+- [x] `chat/agent/tools.ts`：读 5（`get_trip` / `get_day` / `search_places` / `web_search` / `get_weather`）+ `search_food` / `ask_user` / `update_brief` / `start_generation` + 9 个写工具（全部走现有预算）
 - [x] `chat/agent/turn.ts`：durable 会话绑定（`agent_conversations`）、进度/正文映射、消息落库
-- [x] 灰度开关 `AGENT_DETAIL_CHAT=1`；只接管只读问答，修改意图仍走原确定性链路
+- [x] 详情页收敛为单一读写主 Agent（2026-11-06）：删除灰度/只读开关，咨询、美食、追问、Brief 与改行程统一走 harness
 - [x] 会话内并发保护（2026-11-05）：同一用户同时只允许一个回合，第二个请求 409 `AGENT_BUSY`；
       停止/超时会中断 durable 运行并释放锁（`agentRuntime.test.ts` 覆盖并发、异常、取消三条路径）
 - [x] `agentRuntime.test.ts` 三条测试；真实模型 + 真实数据库的冒烟通过
@@ -167,10 +165,10 @@ P0 用假工具（`set_note` / `get_notes`）验证了四条门槛：自定义 b
 仍待完成：
 
 - [ ] 记忆注入（L2 trip_notes）与 persona 打磨
-- [ ] `understandMessage` 降级为 fast-path（现在是「先理解再决定走哪条」）
+- [x] 详情路由移除 `understandMessage` / `shouldUseAgent` / 确定性编辑链；咨询、美食、追问、Brief、重新生成与改行程全部由主 Agent 工具完成
 - [x] 工具结果不截断（2026-11-05）：评估 opencode/pi 的「截断 + 落盘」后改用「不截断 + compaction」——
       我们没有被 Agent 可读的文件工具，截断即丢数据；pi-durable 默认已按阈值压缩上下文
-- [x] 10 条 agent 场景进 `eval/`（2026-11-05）：`eval/agent/` 确定性 6 项（分流/工具/不截断/快照/并发/停止，已进 `eval:test`）
+- [x] 10 条 agent 场景进 `eval/`（2026-11-05）：`eval/agent/` 确定性 7 项（工具策略/全量工具/不截断/快照/并发/停止，已进 `eval:test`）
       + 真实层 5 项（事实、单日范围、地点、时效、只读边界），入口 `npm run eval:agent[:live]`
 
 ### P2 写工具 + 提交（4 天）
@@ -185,13 +183,14 @@ P0 用假工具（`set_note` / `get_notes`）验证了四条门槛：自定义 b
 ### P2.5 主子代理（2026-11-05 已完成）
 
 - [x] `spawn_subagents`：按槽位并行派发只读探索子代理（参考出发鸭 explore_sub_*）
-- [x] 子会话复用（父会话 + 槽位）、只读工具白名单、深度恒为 1、AbortSignal 透传
+- [x] 子会话复用（父会话 + 槽位）、只读工具白名单（`toolPolicy.ts` 构造期校验）、深度恒为 1、AbortSignal 透传
 - [ ] 子代理进度可视化（前端雷达点/分任务状态），目前只有一条「并行调研」进度
 - [ ] 后台模式（主代理不阻塞、完成后再通知）
 
 ### P3 交互与记忆（4 天）
 
-- [ ] `ask_user_question`（第一版语义）+ 前端弹窗 + 超时
+- [x] `ask_user`（主 Agent HITL）：工具内暂停、SSE `question` → `QuestionCard` → 独立 answer 接口回注 → 同一回合继续；支持多问题、选项、多选、自定义答案
+- [x] 同一会话单 pending、120s 超时、`GET pending` 刷新恢复、断线时保留等待中的回合
 - [ ] L2 trip_notes、L3 user_memory + 设置页
 - [ ] compaction 阈值按真实用量调参
 - [ ] 验收：问句跨刷新不丢；跨会话记住忌口；可删除
@@ -230,6 +229,6 @@ P0 用假工具（`set_note` / `get_notes`）验证了四条门槛：自定义 b
 ## 12. 待拍板
 
 1. 是否接受引入 pi-durable（experimental）？——建议接受，POC 把关。
-2. ask_user 第一版用「挂起+下一条回答」，还是直接做同 run 阻塞？——建议前者。
+2. ask_user 已采用同 run 阻塞（工具内 await + 独立 answer 接口），不再用「挂起+下一条回答」的降级方案。
 3. 跨行程记忆默认开还是关？——建议默认开、可见可删。
 4. 写操作确认分级是否照 §7？——建议低风险直接改+可撤销，删除/跨天必确认。

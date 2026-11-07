@@ -27,13 +27,27 @@
 
 - `DetailChatRequest`：`requestId`（8～100 字符）、`tripId`、已保存 `updatedAt`、
   `text`（1～1000 字符）、可选 `dayId` / `suggestion`。服务端核验所有权、会话、最新版、时间戳和日期。
-- 事件为 `accepted / progress / answer_delta / recommendations / edit_result / done / error`，
-  带 `requestId` 和从 1 递增的 `sequence`，终态唯一。客户端去重、检查缺帧并拒绝无终态 EOF。
-  正文只来自无工具 runner 的 `text_delta`，绕过会缓冲完整响应的重试层。
-  折叠区来自真实步骤摘要，不暴露工具参数或内部推理。
-- 附件包含来源行程/日期、摘要、最多三张候选和三条建议。候选包含稳定 `poiKey`、
+- 事件为 `accepted / progress / answer_delta / question / question_answered / question_expired /
+  recommendations / edit_result / done / error`，带 `requestId` 和从 1 递增的 `sequence`，终态唯一。
+  客户端去重、检查缺帧并拒绝无终态 EOF。正文只来自无工具 runner 的 `text_delta`，绕过会缓冲完整响应的重试层。
+  `progress` 同时带旧字段 `text` 和可选结构化 `step`（id/name/label/status/startedAt/durationMs），
+  前端按 `step.id` upsert；只暴露工具动作标签，不暴露参数、结果或内部推理。
+- 附件包含来源行程/日期、摘要和最多三张候选。候选包含稳定 `poiKey`、
   真实坐标/来源、关联日期，可选 `meal`、位置和营业信息。网页参考不凭标题变成可添加 POI。
-  过程摘要最多 20 条，每条 300 字；处理时展开、完成后折叠，刷新后可回看。
+  附件保留必填 `summary`（最多 20 条、每条 300 字）作为旧客户端与旧历史的回退；新回合同时写
+  可选 `steps`（最多 24 条）与 `elapsedMs`。`steps` 按 `callId` 去重，连续同名完成步骤在展示层合并；
+  `summary` 只由步骤标签派生。主渲染模型是可选 `parts`（最多 40 段）：`text` 与 `steps` 按真实事件顺序排列，
+  正文出现即关闭上一工具段，工具出现即关闭上一正文段；实时与历史共用同一份顺序。旧消息无 `parts` 时
+  回退到「过程在上、正文在下」。`relatedTripId` 也标在真实修改回答上：ChatPanel 截去生成前消息时
+  不能跳过带 attachment 的首条修改回答。
+  运行中展开当前步骤，完成后收成一行摘要，停止/中断保持展开；
+  用户手动展开后本轮不再自动收起，刷新后仍可回看。旧消息无 `steps` 时逐条按已完成步骤回退，不追溯耗时。
+  `ask_user` 会开启新的 generation：流式正文按当前 generation 的完整快照下发（`answer_delta.replace`），
+  前端替换而不是累加增量；落库正文从本轮 committed assistant entries 按顺序回放。问题卡属于输入框上方的
+  dock（同 opencode session question dock），不在消息流中，因此输出内容始终在问题卡之前。
+  历史里问答记录按真实位置回放：`ask_user` 收到答案时在该回合 `parts` 追加 `{type:'question', index}`，
+  问答卡片渲染在工具段之后、后续正文之前；旧消息没有该标记时锚到含 `ask_user` 的工具段之后，找不到才退回末尾。
+  问答卡片复用用户消息气泡样式（深色、右对齐、85% 最大宽度），不新增卡片样式。
   可选 `references: SourceNote[]` 最多 8 条，去重并只接受无凭据的 HTTP(S) URL；前端使用
   `noopener noreferrer` 链接，旧附件无此字段仍有效。
 - `retrieveDetailKnowledge` 使用当前问题、最近用户问题、地点和偏好构造检索。
@@ -45,7 +59,7 @@
   `createDetailSources` 在一轮中共享缓存、最多 2 次网页与 4 次地点搜索，使用编辑器日额度预留；
   地点操作按既有天地图最多两次底层调用计费。取消后退未尝试部分，已尝试即计费，账本失败阻止落库。
   `AbortSignal` 贯穿网页和天地图搜索/城市定位，取消结果不缓存；整轮流式端点 5 分钟截止，停止不发布半成品。
-- 详情页 Agent 通路（`AGENT_DETAIL_CHAT=1`）**同一用户同时只允许一个回合**：Harness、工具注册表与模型槽位
+- 详情页 Agent 通路（2026-11-06 起为唯一链路）**同一用户同时只允许一个回合**：Harness、工具注册表与模型槽位
   都是每用户共享的（工具按名字整组替换、模型每轮覆盖），并发会让 A 行程的问题拿到 B 行程的工具闭包。
   第二个请求在改写共享槽位之前返回 409 `AGENT_BUSY`（前端事件 `code: 'busy'`），不排队、不消耗对话额度、
   不写历史；回合结束、异常、用户停止或 5 分钟超时都会释放锁，停止会中断 durable 运行而不是只断 SSE。
@@ -57,7 +71,13 @@
   而不是在工具层丢数据。参考 opencode `tool-output.ts`（2000 行 / 50KiB，超限时**保存全文**再给文件引用）与
   pi `truncate.ts`（同样上限、不切断半行）：两者都是「有损展示、无损存储」。我们没有文件读取工具，
   所以选择「不截断 + 压缩」而不是「截断 + 落盘」。上游 `searchSource` 也不再对 summary 做字符裁剪。
-- 详情页 Agent 写工具（2026-11-05 P2，`AGENT_WRITE_TOOLS !== '0'` 时开启）：9 个工具
+- 片区规划（11-06）：景区是面状区域，不能当成一个点。新增工具 `search_area_places(area, radiusM?, keywords?)`：
+  先用 `search_places` 取片区中心，再走高德周边检索，按 `geofenceImport` 的同一套规则过滤
+  （售票/码头/停车场/游客中心等设施点、超半径、重复坐标），坐标写入本回合点位缓存供 `add_activity` 复用。
+  单轮外部检索上限提升到 8 POI / 4 联网（`CHAT_POI_BUDGET` / `CHAT_WEB_BUDGET`）。
+  提示词从「发现改动先 ask_user」改为「能直接做完的先做完，再 get_trip/get_day 复核」；
+  `ask_user` 只用于删活动、删天数这类真正的取舍。用户要求按片区规划时，Agent 必须先展开片区内点位，禁止只放少量相距很远的粗点。
+- 详情页主 Agent 工具面（2026-11-06）：只读五件套 + `search_food` / `ask_user` / `update_brief` / `start_generation` + 9 个写工具
   `add_activity` / `update_activity` / `delete_activity` / `move_activity` / `reorder_day` /
   `add_day` / `update_day` / `delete_day` / `update_trip`，落在 `chat/agent/tripDraft.ts` 的内存草稿上，
   **不在工具调用时写库**。读工具（`get_trip` / `get_day`）一律读草稿，保证本回合的修改立刻可见，
@@ -82,6 +102,9 @@
   地图动线再也补不回来（2026-11-05 修复）。
 - 增删天要同步 brief：`add_day` / `delete_day` 提交时对 `conversation.brief.data` 跑
   `syncBriefTripDates`，否则后续「按当前需求重新生成」仍用旧天数。
+- 撤销/回到版本（2026-11-06）：编辑卡的「撤销这次修改」与历史面板的「回到此版本」都是 **rewind**——
+  删除目标版本之后的所有版本，让目标重新成为当前版本，不复制、不新建版本，也不写“已从 vX 恢复为 vY”
+  的聊天消息。只有“产生当前版本的那次修改”可撤销；旧消息/旧标签页的撤销请求会被 409 拒绝。
 - 改动可见与撤销：`ChatAttachment.edit = {version, previousTripId?, outcomes}` 随消息落库，
   刷新后仍能显示「本轮改动」清单；`editResult.previousTripId` 供前端「撤销这次修改」调用
   `/api/trips/:id/restore` 回到上一版（复用版本链，不新增表）。
@@ -89,8 +112,8 @@
   模型传 `allowRevisit` 才允许重复。每天活动数上限 12、总天数上限 15，与确定性编辑链共用常量。
 - 写工具不负责「保存」的话术：系统提示词要求模型不出现「点击保存/正在提交」，
   保存结果由服务端在回答末尾追加「已保存为 vN，…」。
-- 分支路由：`shouldUseAgent` 在 `writes=true` 时接管 `modify_itinerary`；`writes=false`（只读模式）
-  时修改意图仍走确定性编辑链。美食卡片、建议按钮、需要澄清的请求始终不进 Agent。
+- 详情页所有消息都进主 Agent（不再有 `shouldUseAgent`、灰度开关或只读降级）；美食、结构化追问、
+  Brief 更新、重新生成与改行程都是主 Agent 的工具，工具只写回合状态，回合边界统一提交。
 - 主子代理（2026-11-05，`spawn_subagents`）：主代理可按槽位并行派发只读探索子代理，
   参考出发鸭 `explore_sub_<domain>_<day>`。实现要点：
   - 每个子任务在**独立 durable 子会话**里跑（`harness.createConversation` + `submit` + `wait`），
@@ -100,30 +123,30 @@
     不存在「子代理改行程」。子代理看到的是同一批工具闭包（同一份行程与数据源），预算也共用。
   - 子会话首轮上下文是全新的，任务提示必须自包含；子代理只回结论（≤300 字），不把原始检索结果
     塞回主代理上下文——这是引入子代理的主要收益。
-  - 只在写模式下启用（只读模式保持单代理，省一次模型预算）；单次最多 `maxTasks=3`，子代理
-    `maxTurns=6`，超出的任务直接截断。
+  - 子代理始终注册，但只装配只读白名单；单次最多 `maxTasks=3`，子代理 `maxTurns=6`，超出的任务直接截断。
+  - 工具策略（`chat/agent/toolPolicy.ts`）是唯一事实源：主 Agent 全量，子 Agent 仅
+    `get_trip` / `get_day` / `search_places` / `web_search` / `get_weather`；
+    创建子会话时校验，配置里出现写/交互/派生工具直接失败。
   - 失败与停止：子任务未完成时回 `ok:false` 说明原因；父回合被停止时同一 `AbortSignal` 会让
     子会话随之中断，不会留下无人接收的跑动。
-- `suggestions` 兼容旧枚举和 `ChatFollowUp {label,text,kind}`，新回答只产生结构化建议。
-  `label` 1～30 字，`text` 1～300 字且不能全空白，`kind` 来自 `CHAT_SUGGESTION_KINDS`，
-  新增 `follow_up` 表示只读追问，所有建议类型都绕过编辑/生成判断。没有数据库结构变更。
-  `generateFollowUpSuggestions` 在正文完成后输入本轮问题、完整回答、行程/日期和真实候选，
-  用已有 runner 的 `suggest_follow_ups` 工具生成 2～3 条具体追问；工具 schema 和提示词均要求至少两条。
-  这类轻量调用关闭可配置的 DeepSeek thinking，避免建议阶段因长推理耗尽时限。
-  工具参数用 typebox v1，落库前用共享 v0.34 schema 校验、去重并排除用户刚问过的问题。
-  最多等待 8 秒，超时/上游失败/无工具提交/非法输出不能留下空建议区；原始取消仍终止整轮。
-  共享 `completeFollowUpSuggestions` 保留有效的 2～3 条；不足两条时基于最新回答的主题和原文片段补足两条，
-  不引入新事实，不回退固定美食/玩法/节奏菜单。服务端随答案保存，前端对已有空/不足建议的最新附件复用同一函数，
-  仅展示时兼容，无额外模型请求或历史写入。只在最新完成回答下显示一组，pending 隐藏；历史建议不同时显示。
-  `relatedTripId` 也用于真实修改回答：ChatPanel 截去生成前消息时不能跳过带 attachment 的首条修改回答。
-  有 clarification 时不另生成建议。建议和正文在同一附件/事务保存，幂等恢复不重新生成。
-  添加餐厅的确定性回复使用该餐厅、日期、餐次构造相关交通/节奏问题，不额外调用模型。
-- 详情理解启用 `detailMode`，有必要追问时仅返回一个 `clarification.question` 和 2～3 个
-  `clarification.options`；过滤空白/重复选项后持久化在助手附件。正文流末尾若缺问题则补齐。
-  点击选项仍走普通用户消息，已回答的问题保留但禁用；三条起始建议属于初始化消息，
-  后续建议仅显示在最新助手回答且没有 pending 时，不放在输入框底部常驻。旧固定枚举仅
-  供空对话起始菜单使用，不再显示为后续建议。点击发送存储的 text/kind 和附件 dayId；
-  不用当前选中日期改写来源回答的范围。餐厅位置依次选择日期、餐次和锚点。
+- 追问建议已移除（2026-11-06）：回答完成后不再额外调用模型生成「你可能还想要」，
+  `ChatAttachment` 不再写 `suggestions`，历史消息里的旧字段也不再读取。原因：这条装饰性调用
+  让正文停下 1～6 秒才提交并回 `done`，用户看到明显停顿；调研的 harness（dsh/openclaw 同回合工具、
+  pi 提交后 afterRun）都不阻塞回答。空会话的三条起始建议仍保留，属于初始化消息。
+- Agent 执行协议（2026-11-06）：按「读现状 → 查证 → 决策 → 执行 → 复核 → 总结」循环，最多 10 轮；
+  检查/优化类请求发现可执行改动时，必须用 `ask_user` 征求确认（至少「按建议改 / 只给建议」），
+  用户选择执行后用写工具完成并再次 `get_trip` / `get_day` 复核。**禁止用正文问句（要不要/你希望/可以吗）
+  结束回合**代替问题卡；正文先给结论，最多 3 条要点，通常不超过 300 字。
+- 详情页 HITL（Human-in-the-Loop，2026-11-06）：`ask_user` 在工具 execute 内登记问题并 await，
+  SSE 下发 `question`；前端 `QuestionCard` 展示问题、选项、多选与自定义答案。
+  `POST /api/conversations/:id/questions/:questionId/answer` 回注答案后 Promise 在同一次 Agent run
+  内 resolve，模型拿到真实 tool result 继续本轮；不会把选项拼成文末文本或另起一轮。
+  同一会话同时只允许一个 pending；默认等待 120s（`HITL_QUESTION_TIMEOUT_MS` 可调），超时/取消返回 pending 并结束本轮，事件区分 `timeout` / `cancelled`。
+  `GET /api/conversations/:id/questions/pending` 支持刷新恢复；SSE 断开时若有 pending 不 abort 回合。
+  问答记录写入 `ChatAttachment.questions`，刷新后仍可回看。旧 `understandMessage` 的 detailMode
+  链路不再接入详情路由；旧 `clarification` 字段只作历史消息兼容。
+  三条起始建议只属于初始化消息，不放在输入框底部常驻；回答之后不再追加建议。
+  点击发送存储的 text/kind 和附件 dayId；不用当前选中日期改写来源回答的范围。餐厅位置依次选择日期、餐次和锚点。
 - 建议查询不进入编辑/生成判断；普通文本保留局部 `editOps`。
   普通文本即使出现「推荐美食」也先理解整句，修改/确认意图不能被美食关键词降成只读查询；
   显式 suggestion 的只读边界保持不变。
@@ -170,7 +193,6 @@
 | 同一用户已有 Agent 回合在跑 | 409 `AGENT_BUSY`，提示稍后再发；不排队、不写历史、不扣额度 |
 | 缺模型配置 / 对话额度不足 | 400 `no_llm` / 429 |
 | 流中上游失败、停止 | `error` 终态，部分文字仅屏幕保留 |
-| 仅后续建议生成失败、超时或格式无效 | 正文正常提交，按回答内容补足两条追问；不回退固定菜单 |
 | 保存失败 | 不切版本；错误可见，可重试保存 |
 | 新增日期起点错误、重复追加组、总天数超出 15 | `EditOpOutcome.applied=false`，无该组日期的新版本，不部分追加 |
 | 追加调研中断、未提交、候选不足以覆盖非休息日 | `error`，新版本/消息/Brief 均不写入 |
@@ -183,17 +205,12 @@
 - Good：v5 恢复 v2 → v6 内容来自 v2，原版本保留；相同操作重试仍返回 v6。
 - Good：v5 手动保存 → v6，等待期间的新编辑继续排队为 v7；v5、v6 不被后来的快照覆盖。
 - Base：无时间轴的餐厅先选择餐次与活动前后位置；查询不创建版本。
-- Good：回答轮渡安排后建议询问返程/码头；建议随同该回答刷新恢复，点击只是继续咨询。
-- Bad：回答交通后不看正文就固定返回“美食/玩法/节奏”，或为填满三条而编造已核验事实。
 - Bad：完整回答定时逐字播放、旧版本直接作 `revisionOf`、保存失败仍切 URL、直线距离称为步行距离。
 - Good：2 天行程「再加一天」保存 3 天新版本，再延长两天为 5 天；恢复最初版本时天数与 Brief 都回到 2 天。
 - Bad：仅更新 Brief.days、对不存在的第 3 天执行 add_activity，或逐日截断超限请求。
 
 ## 6. Tests Required
 
-- `node --import tsx --test apps/server/src/__tests__/followUpSuggestions.test.ts`（设置测试 MASTER_KEY）：
-  旧附件兼容、结构化字段/能力校验、去重、真实 runner 输入完整回答/日期、单次工具提交、失败/超时补足、原始取消上抛。
-  补足基于本轮回答而非旧问题/寒暄；合法两条/三条保留，单条补齐。
 - `node --import tsx --test apps/web/tests/detail-chat.test.ts apps/web/tests/editorStore.test.ts apps/server/src/__tests__/chatEditOps.test.ts`：
   UTF-8 分块/去重/缺终态、只读 store、回执保留草稿、餐次/营业时间/重复 POI、局部编辑。
 - `detailKnowledge.test.ts`：独立语义输入、实体融合、向量降级、按需联网、禁用联网、引用协议、去重和计费。
@@ -201,10 +218,9 @@
   `researchSubmission.test.ts`：追加调研拒绝旧实体/模型虚构地点/模型伪造引用，批次提交和取消。
 - 构建后 `node --import tsx scripts/verify-detail-chat.mts`：隔离 PostgreSQL、模拟增量模型和生产前端。
   验证提前收到正文、幂等、所有权、历史冻结、迁移、并发恢复、事务回滚、改稿、重新生成入口、
-  浏览器停止、添加/恢复、保存失败与延迟保存后切版本、追问选项刷新持久化、逐步选位置、
+  浏览器停止、添加/恢复、保存失败与延迟保存后切版本、逐步选位置、
   连续保存保留日期和输入草稿、离开页面后迟到回执不抢回导航、历史刷新只读、16px 与 375px。
-  也验证动态建议与答案同存、点击完整问题、多轮仅显示最新建议、pending 隐藏以及刷新恢复。
-  无初始关联消息的首次修改仍显示完整回答与两条建议；已有空建议附件刷新即可补足，模型空输出不再使建议区消失。
+  回答完成后不再出现追问建议；空会话只显示三条起始建议。
   新增日期回归还覆盖一天/多天、跨年结束日期、重复请求不重调模型、15 天上限、
   新版本/消息/Brief 事务回滚、只读建议不新增、历史恢复同步天数与过程展开/折叠。
   混合 RAG 回归验证实际调研工具调用、简介/来源复用、连续追加不重复、调研失败和停止回滚，

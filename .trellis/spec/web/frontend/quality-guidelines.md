@@ -2,7 +2,7 @@
 
 ## Current Verification Reality
 
-`apps/web/package.json` provides `dev`, `build`, and `preview`; it does not provide `test` or `lint`. Focused Node tests for candidate selection live in `apps/web/tests/generationCards.test.ts`; run them with `node --import tsx --test apps/web/tests/generationCards.test.ts`. Keep Node tests outside `src`, which is compiled with browser-only types. Playwright is installed at the root but is not currently wired to a web test suite.
+`apps/web/package.json` provides `dev`, `build`, and `preview`; it does not provide `test` or `lint`. Keep Node tests outside `src`, which is compiled with browser-only types. Playwright is installed at the root but is not currently wired to a web test suite.
 
 Evidence: `apps/web/package.json`, `package.json`, `tsconfig.base.json`.
 

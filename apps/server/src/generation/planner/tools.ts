@@ -112,18 +112,10 @@ function contentText(value: unknown): string {
 }
 
 function draftMetrics(deps: PlannerDeps) {
-  const days = deps.draft.mutableDays();
-  return measurePlan({
-    startDate: deps.form.startDate ?? '',
-    days: days.map((day, index) => ({
-      id: `day-${index + 1}`, dayIndex: index + 1, title: day.title,
-      activities: day.activities.map((activity) => ({
-        ...activity,
-        category: (activity.category ?? '文化') as '文化',
-      })),
-      legs: [],
-    })),
-  } as never);
+  // 与线上验收同源：直接用草稿的 Trip 投影，而不是手搓假对象——
+  // 旧版把任意类目强转成 '文化'（餐次被当成可停留景点计入 stopsPerDay）且 legs 传空。
+  const trip = deps.draft.toTrip();
+  return measurePlan({ startDate: trip.startDate, days: trip.days });
 }
 
 /** 当前草稿的违规清单：validate_plan 与 submit_plan 必须用同一份口径，避免「验收通过、提交被拦」。 */

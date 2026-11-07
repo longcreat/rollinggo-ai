@@ -117,6 +117,17 @@ try {
     await page.waitForURL((url) => /^\/trips\/(?!new$)[^/]+$/.test(url.pathname), { timeout: 60_000 });
     return page.url().split('/').at(-1);
   };
+  /** SPA 内导航：保留 zustand 选天，复现「看完某天再发起新生成」。 */
+  const beginClient = async (url) => {
+    await page.evaluate((target) => {
+      history.pushState({}, '', target);
+      window.dispatchEvent(new PopStateEvent('popstate'));
+    }, url);
+    await page.waitForURL((u) => u.pathname.startsWith('/agent/'), { timeout: 35_000 });
+    const jobId = new URL(page.url()).pathname.split('/').at(-1);
+    await page.getByRole('button', { name: '停止生成', exact: true }).waitFor();
+    return jobId;
+  };
 
   await begin();
   // 进度文案只能来自用户可读标签，不能泄露服务端内部工具名。
@@ -131,6 +142,7 @@ try {
     assert.ok(!INTERNAL_LABELS.includes(core), `进度文案直接显示了内部 label：${line}`);
   }
   const firstTripId = await editor();
+  assert.ok(await page.getByRole('region', { name: '行程总览' }).isVisible(), '生成完成应停在总览');
   assert.equal(planningPosts.length, 1, '表单提交应只发生一次行前回合');
   assert.equal(generationPosts.length, 0, '前端不得再直接 POST /generations');
   const trip = await json(`/api/trips/${firstTripId}`);
@@ -147,11 +159,21 @@ try {
   assert.equal(await page.evaluate(() => sessionStorage.getItem('tw.activeJobId')), null);
   console.log('PASS 表单直达 → 行前委派 → 任务直播 → 详情；Brief 留档、餐次完整、无旧 job 入口');
 
+  // 看完第 2 天再发起新生成：新任务必须回到总览，不能继承上一趟的选天。
+  await page.goto(`${base}/trips/${firstTripId}`);
+  await page.getByRole('button', { name: '第2天', exact: true }).click();
+  await page.getByRole('region', { name: '第2天行程' }).waitFor();
+  await beginClient(entry());
+  const secondTripId = await editor();
+  assert.notEqual(secondTripId, firstTripId);
+  assert.ok(await page.getByRole('region', { name: '行程总览' }).isVisible(), '新生成不应继承上一趟选中的第2天');
+  assert.equal(planningPosts.length, 2);
+
   const restoredJobId = await begin();
   await page.reload({ waitUntil: 'domcontentloaded' });
   const restoredTripId = await editor();
   assert.notEqual(restoredTripId, firstTripId);
-  assert.equal(planningPosts.length, 2, '刷新不得重复发起行前回合');
+  assert.equal(planningPosts.length, 3, '刷新不得重复发起行前回合');
   assert.equal(generationPosts.length, 0);
   const restored = await json(`/api/generations/${restoredJobId}`);
   assert.equal(restored.status, 'done');

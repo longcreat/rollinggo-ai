@@ -28,7 +28,7 @@ test('美食必须双餐，非美食不强加餐次；输入与住宿不得悄�
   assert.equal(rows.find((r) => r.id === 'input')!.status, 'FAIL');
   assert.equal(rows.find((r) => r.id === 'lodging-input')!.status, 'FAIL');
 });
-test('标题/地图可以降级，排程跳过、模型代排或成功审计缺失则不能通过', () => {
+test('标题/地图可以降级，规划未提交、规划未调用模型或成功审计缺失则不能通过', () => {
   const snapshot = currentFixture(gc);
   delete snapshot.execution!.tasks.update_titles;
   snapshot.execution!.tasks.geo_compute_legs = { ok: 0, errors: 1 };
@@ -36,8 +36,8 @@ test('标题/地图可以降级，排程跳过、模型代排或成功审计缺�
   assert.ok(evaluateCase(gc, snapshot, true).outcome.metrics.flowDegraded! > 0);
   snapshot.execution!.tasks.update_titles = { ok: 1, errors: 1 };
   assert.equal(evaluateCase(gc, snapshot, true).outcome.flow!.find((r) => r.id === 'writer')!.status, 'PASS');
-  for (const mutate of [() => { delete snapshot.execution!.tasks.schedule_itinerary; },
-    () => { snapshot.execution!.planLlmCalls = 1; }, () => { snapshot.execution!.auditCommitted = false; }]) {
+  for (const mutate of [() => { delete snapshot.execution!.tasks.submit_plan; },
+    () => { snapshot.execution!.planLlmCalls = 0; }, () => { snapshot.execution!.auditCommitted = false; }]) {
     mutate();
     assert.equal(evaluateCase(gc, snapshot, true).outcome.status, 'FAIL');
   }

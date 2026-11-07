@@ -40,6 +40,8 @@ export interface PlanDayResult {
   timed: TimedStop[];
   endAt: string;
   totalTravelMin: number;
+  /** 当日占用合计（停留 + 通勤），与 feasibility 的 hardDayTotalMin 同口径。 */
+  totalMinutes: number;
   issues: string[];
 }
 
@@ -106,7 +108,8 @@ export async function planDay(input: PlanDayInput): Promise<PlanDayResult> {
   }
 
   if (clock > DAY_END_LIMIT) issues.push(`当天结束时刻 ${formatClock(clock)}，晚于 21:30，行程过满`);
-  return { timed, endAt: formatClock(clock), totalTravelMin, issues };
+  const dwellMin = timed.reduce((sum, item) => sum + Math.max(0, (parseClock(item.leave) ?? 0) - (parseClock(item.arrive) ?? 0)), 0);
+  return { timed, endAt: formatClock(clock), totalTravelMin, totalMinutes: dwellMin + totalTravelMin, issues };
 }
 
 function weekdayLabel(weekday: number): string {

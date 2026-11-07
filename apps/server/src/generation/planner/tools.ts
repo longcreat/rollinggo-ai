@@ -6,6 +6,7 @@ import { Type } from 'typebox';
 import type { AgentTool } from '@earendil-works/pi-agent-core';
 import type { GenerateForm, LegMode, PlanDayEventStop, PoiCategory } from '@tripweaver/shared';
 import { effectiveLegMode } from '@tripweaver/shared';
+import { DAILY_SIGHT_LIMITS, FEASIBILITY_THRESHOLDS } from '@tripweaver/shared';
 import { defineTool } from '../tools/defineTool';
 import type { DraftTrip } from '../draft';
 import type { GeoPoint, SourcedPoi } from '../../integrations/geoContracts';
@@ -257,14 +258,26 @@ export function buildPlannerTools(deps: PlannerDeps): AgentTool[] {
         travelMinutes: async (from, to) => estimateLeg(from, to, effectiveLegMode(from, to, mode)).durationMin,
       });
 
-      // 闭馆是硬冲突：不要先写进草稿再等最后校验拦下来（那样整单会失败）。
-      // 直接把冲突地点退回去，让模型换一个当天开放的候选。
-      const closures = plan.issues.filter((issue) => issue.includes('闭馆'));
-      if (closures.length) {
+      // 与最终可行性闸门同源：闭馆、景点密度、每日时长都在 plan_day 就拒绝，
+      // 否则模型会提交一份最终被判 hard 的行程（实测排出过 14.6 小时的一天）。
+      const pace = (deps.form.pace ?? 'moderate') as PlanPace;
+      const sightMax = DAILY_SIGHT_LIMITS[pace].max;
+      // 餐次由后处理插入（约 1h/餐）；美食偏好时预留两餐，避免排完刚好顶到 14h 上限。
+      const mealReserveMin = (deps.form.preferences ?? []).includes('美食') ? 2 * 60 : 0;
+      const blockers = [
+        ...plan.issues.filter((issue) => issue.includes('闭馆')),
+        ...(orderedStops.length > sightMax
+          ? [`当天 ${orderedStops.length} 个景点，超过 ${pace} 节奏上限 ${sightMax} 个`]
+          : []),
+        ...(plan.totalMinutes + mealReserveMin > FEASIBILITY_THRESHOLDS.hardDayTotalMin
+          ? [`当天占用约 ${((plan.totalMinutes + mealReserveMin) / 60).toFixed(1)} 小时，超过 ${FEASIBILITY_THRESHOLDS.hardDayTotalMin / 60} 小时上限`]
+          : []),
+      ];
+      if (blockers.length) {
         return {
-          content: text(`错误：${closures.join('；')}。请换掉闭馆地点后重新 plan_day（同一天可先用已候选里的其它点）。`),
+          content: text(`错误：${blockers.join('；')}。请减少当天点位，或把部分点位换到别的天，再重新 plan_day。`),
           isError: true,
-          details: { closures: closures.length },
+          details: { blockers: blockers.length },
         };
       }
 

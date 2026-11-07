@@ -22,8 +22,9 @@ export function checkCurrentFlow(trip: Trip, form: GenerateForm, execution?: Exe
     && JSON.stringify([...trip.preferences].sort()) === JSON.stringify([...form.preferences].sort());
   check('input', '生成输入保留', preserved, '核对目的地、日期、人数、偏好、备注和出行方式；节奏的排程效果由流程回归验证。');
   task('research', '知识检索与调研提交', ['prefetch_verified_places', 'submit_research']);
-  task('schedule', '确定性排程', ['schedule_itinerary']);
-  check('plan-model', '排程不调用模型', execution.planLlmCalls === 0, `plan 阶段模型响应数 ${execution.planLlmCalls}`);
+  // 11-06 起排程由规划 Agent 承担（模型选点/分天，代码算时刻），旧的 schedule_itinerary 已下线。
+  task('plan', '规划 Agent 选点与排程', ['plan_day', 'submit_plan']);
+  check('plan-model', '规划阶段由模型决策', execution.planLlmCalls > 0, `plan 阶段模型响应数 ${execution.planLlmCalls}`);
   task('writer', '标题文案', ['update_titles'], true);
   task('geo', '坐标与首次路线', ['geo_geocode_all', 'optimize_day_routes', 'geo_compute_legs', 'simulate_feasibility'], true);
   task('repair', '远郊与跨天处理', ['repair_long_haul', 'optimize_cross_day_grouping'], true);

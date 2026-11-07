@@ -16,8 +16,8 @@ export function currentFixture(gc: GoldenCase): Snapshot {
     research: { candidates: [{ id: 'poi', name: '景点', category: 'attraction', intro: '测试', reservation: 'unknown', sourceLinks: [] }] },
     timing: { phases: { 'research#1': 1, 'plan#1': 1, 'review#1': 1 }, totalMs: 3, tokensIn: 1, tokensOut: 1,
       providerCalls: { amap: 0, search: 0, xhs: 0 } },
-    execution: { terminal: 'done', tripReadBack: true, auditCommitted: true, overviewMatches: true, planLlmCalls: 0,
-      tasks: Object.fromEntries(['prefetch_verified_places', 'submit_research', 'schedule_itinerary', 'update_titles',
+    execution: { terminal: 'done', tripReadBack: true, auditCommitted: true, overviewMatches: true, planLlmCalls: 3,
+      tasks: Object.fromEntries(['prefetch_verified_places', 'submit_research', 'plan_day', 'submit_plan', 'update_titles',
         'geo_geocode_all', 'optimize_day_routes', 'geo_compute_legs', 'simulate_feasibility', 'repair_long_haul',
         'optimize_cross_day_grouping', 'geo_geocode_review_changes', 'geo_recompute_final_legs'].map((name) => [name, { ok: 1, errors: 0 }])) } };
 }

@@ -181,7 +181,7 @@ export type GenerationJobStatus = 'running' | 'done' | 'error' | 'cancelled';
 /** 取消来源：用户主动取消 vs 整任务超时被系统自动取消（reason 可选以兼容旧事件） */
 export type GenerationCancelReason = 'user' | 'timeout';
 
-/** SSE 载荷；事件 id 由 jobManager 递增分配，供 Last-Event-ID 重放
+/** 生成事件载荷；事件由实时层转成投影帧，客户端按 seq 水位补增量或重发快照
  *  兼容说明：xhsEnabled / xhsCalls / usedXhs 为小红书时代的旧前端兼容字段——
  *  xhsEnabled 现语义为「有任一外部调研数据源可用」，xhsCalls 恒 0，usedXhs 恒 false */
 export type GenerationEventPayload =

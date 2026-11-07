@@ -42,16 +42,15 @@ export async function runPlanningAnswer(options: RunPlanningAnswerOptions): Prom
     ? applyDialogueDecision(detail.conversation.brief.data, { ...state.briefPatch, intent: 'update_brief' }, evidenceSequence)
     : detail.conversation.brief.data;
 
-  const createTask = async (taskInput: GenerationTaskInput) => { await startGenerationTask(taskInput); };
+  const createTask = (taskInput: GenerationTaskInput) => startGenerationTask(taskInput);
   const generateTrip = (api: ToolExecutionApi, context: Context) => delegateGeneration({
     userId,
     conversationId,
     brief: briefWithPatch(),
     requestId: input.requestId,
     onRunning: 'adopt',
-    createTask: async (taskInput) => {
-      await api.createTask(GenerationTask, taskInput, { ownership: { kind: 'conversation' }, background: true }, context);
-    },
+    createTask: (taskInput) =>
+      api.createTask(GenerationTask, taskInput, { ownership: { kind: 'conversation' }, background: true }, context),
   });
   const generationStatus = () => readGenerationStatus(userId, state.startedGenerationJobId);
 

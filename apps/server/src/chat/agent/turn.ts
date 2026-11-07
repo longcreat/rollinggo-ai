@@ -157,9 +157,8 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     // 行程内重新生成 = 当前行程的下一版，保持版本链与同一个会话。
     targetTripId: trip.id,
     onRunning: 'error',
-    createTask: async (input) => {
-      await api.createTask(GenerationTask, input, { ownership: { kind: 'conversation' }, background: true }, context);
-    },
+    createTask: (input) =>
+      api.createTask(GenerationTask, input, { ownership: { kind: 'conversation' }, background: true }, context),
   });
 
   const generationStatus = () => readGenerationStatus(userId, state.startedGenerationJobId);

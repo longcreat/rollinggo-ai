@@ -5,7 +5,7 @@ import { and, desc, eq, isNotNull } from 'drizzle-orm';
 import type { DataSourceKind, GenerateForm, GenerationJobStatus, GenerationWarning } from '@tripweaver/shared';
 import { db } from '../db/client';
 import { generations } from '../db/schema';
-import type { Job } from './jobManager';
+import type { GenerationTaskRef } from './provenance';
 
 export interface GenerationTaskUsage {
   tokensIn: number;
@@ -15,6 +15,8 @@ export interface GenerationTaskUsage {
 }
 
 export interface GenerationTaskDetails {
+  destination?: string;
+  days?: number;
   summary?: string;
   reviewNotes?: string[];
   dataSources?: DataSourceKind[];
@@ -36,6 +38,8 @@ export interface GenerationTaskView {
   warnings?: GenerationWarning[];
   error?: string;
   conversationId?: string;
+  /** durable task id：重启后取消仍能命中具体任务。 */
+  durableTaskId?: string;
   createdAt: number;
   finishedAt?: number;
 }
@@ -56,27 +60,28 @@ export function toGenerationTaskView(row: Row): GenerationTaskView | null {
     ...(row.warnings?.length ? { warnings: row.warnings } : {}),
     ...(row.error ? { error: row.error } : {}),
     ...(row.conversationId ? { conversationId: row.conversationId } : {}),
+    ...(row.durableTaskId ? { durableTaskId: row.durableTaskId } : {}),
     createdAt: row.createdAt.getTime(),
     ...(row.finishedAt ? { finishedAt: row.finishedAt.getTime() } : {}),
   };
 }
 
 /** 任务开始：先落 running 行，重启/刷新后仍能发现「有一份生成在跑」。 */
-export async function beginGenerationTask(job: Job, form: GenerateForm, requestId?: string): Promise<void> {
+export async function beginGenerationTask(ref: GenerationTaskRef, form: GenerateForm, requestId?: string): Promise<void> {
   await db.insert(generations).values({
-    id: job.id,
-    userId: job.userId,
-    jobId: job.id,
+    id: ref.jobId,
+    userId: ref.userId,
+    jobId: ref.jobId,
     requestId: requestId ?? null,
-    conversationId: job.provenance.conversationId ?? null,
-    kind: job.provenance.kind,
-    targetTripId: job.provenance.targetTripId ?? null,
+    conversationId: ref.provenance.conversationId ?? null,
+    kind: ref.provenance.kind,
+    targetTripId: ref.provenance.targetTripId ?? null,
     destination: form.destination,
     days: form.days,
     status: 'running',
     usedXhs: false,
     usedByok: false,
-    createdAt: new Date(job.createdAt),
+    createdAt: new Date(ref.createdAt),
   }).onConflictDoUpdate({
     target: [generations.userId, generations.jobId],
     set: { status: 'running', ...(requestId ? { requestId } : {}) },
@@ -85,7 +90,7 @@ export async function beginGenerationTask(job: Job, form: GenerateForm, requestI
 
 /** 任务终态：连同摘要、软告警与用量一起原地更新（成功路径在行程事务内调用）。 */
 export async function finalizeGenerationTask(
-  job: Job,
+  ref: GenerationTaskRef,
   status: Exclude<GenerationJobStatus, 'running'>,
   tripId: string | null,
   details: GenerationTaskDetails = {},
@@ -93,14 +98,14 @@ export async function finalizeGenerationTask(
 ): Promise<void> {
   const finishedAt = new Date();
   await writer.insert(generations).values({
-    id: job.id,
-    userId: job.userId,
-    jobId: job.id,
-    conversationId: job.provenance.conversationId ?? null,
-    kind: job.provenance.kind,
-    targetTripId: job.provenance.targetTripId ?? null,
-    destination: job.destination ?? null,
-    days: job.days ?? null,
+    id: ref.jobId,
+    userId: ref.userId,
+    jobId: ref.jobId,
+    conversationId: ref.provenance.conversationId ?? null,
+    kind: ref.provenance.kind,
+    targetTripId: ref.provenance.targetTripId ?? null,
+    destination: details.destination ?? null,
+    days: details.days ?? null,
     status,
     tripId,
     finishedAt,
@@ -115,7 +120,7 @@ export async function finalizeGenerationTask(
     tokensOut: details.usage?.tokensOut ?? 0,
     amapCalls: details.usage?.amapCalls ?? 0,
     searchCalls: details.usage?.searchCalls ?? 0,
-    createdAt: new Date(job.createdAt),
+    createdAt: new Date(ref.createdAt),
   }).onConflictDoUpdate({
     target: [generations.userId, generations.jobId],
     set: {
@@ -141,6 +146,32 @@ export async function getGenerationTask(userId: string, jobId: string): Promise<
     .where(and(eq(generations.userId, userId), eq(generations.jobId, jobId)))
     .limit(1);
   return row ? toGenerationTaskView(row) : null;
+}
+
+/** 当前运行中的任务（持久层判定并发闸门的唯一依据）。 */
+export async function getRunningGenerationTask(userId: string): Promise<GenerationTaskView | null> {
+  const [row] = await db.select().from(generations)
+    .where(and(eq(generations.userId, userId), eq(generations.status, 'running'), isNotNull(generations.jobId)))
+    .orderBy(desc(generations.createdAt))
+    .limit(1);
+  return row ? toGenerationTaskView(row) : null;
+}
+
+/** 运行中且未超时的任务；超时行顺手标 error，避免永久占用运行闸门。 */
+export async function findActiveRunningTask(userId: string, staleAfterMs: number): Promise<GenerationTaskView | null> {
+  const task = await getRunningGenerationTask(userId);
+  if (!task) return null;
+  if (Date.now() - task.createdAt > staleAfterMs) {
+    await markGenerationTaskFailed(userId, task.jobId, '任务已中断，请重新生成').catch(() => {});
+    return null;
+  }
+  return task;
+}
+
+export async function setGenerationDurableTaskId(userId: string, jobId: string, durableTaskId: string): Promise<void> {
+  await db.update(generations)
+    .set({ durableTaskId })
+    .where(and(eq(generations.userId, userId), eq(generations.jobId, jobId)));
 }
 
 export async function getLatestGenerationTask(userId: string): Promise<GenerationTaskView | null> {

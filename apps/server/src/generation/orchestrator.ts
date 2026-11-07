@@ -62,7 +62,8 @@ import { enrichMealAnchors, MEAL_ENRICH_MAX_CALLS } from './mealEnrichment';
 import { repairLongHaulMixedDays, verifiedFixNotes, type AppliedFixMove } from './longHaulFixer';
 import { optimizeCrossDayGrouping, orderUntimedDayRoutes } from './routeCoherence';
 import { buildModel } from './model';
-import { emit, completeJob, failJob, cancelJob, type Job } from './jobManager';
+import { emitLive, type LiveRun } from './liveRun';
+import type { GenerationTaskRef } from './provenance';
 import type { PhaseAgentRunner, PhaseEventSink } from './agents/phase';
 import { runDurablePhaseAgent, type DurablePhaseHost } from './agents/durablePhase';
 import { agentModelRef } from '../chat/agent/models';
@@ -128,16 +129,17 @@ export interface GenerationRunSummary {
 }
 
 export async function runGeneration(
-  job: Job,
+  run: LiveRun,
   form: GenerateForm,
   cfg: LlmConfig,
   logger: Pick<FastifyBaseLogger, 'info' | 'error'> | undefined,
   options: GenerationRunOptions,
 ): Promise<GenerationRunSummary> {
-  const signal = job.abort.signal;
+  const signal = run.abort.signal;
+  const taskRef: GenerationTaskRef = run.ref;
   const usage = { tokensIn: 0, tokensOut: 0 };
   // 餐次/餐宿要求的开关（09-21 D3/D6）：只在偏好含「美食」时强制午晚餐与餐次兜底
-  const timing = new GenerationPerformance(job.createdAt);
+  const timing = new GenerationPerformance(run.createdAt);
   let terminalStatus: GenerationJobStatus = 'error';
   /** 最终可行性检查的结构化告警：随任务结果持久化，供任务卡与主 Agent 展示。 */
   let runWarnings: GenerationWarning[] = [];
@@ -146,8 +148,8 @@ export async function runGeneration(
   let systemTaskSeq = 0;
   const timeout = setTimeout(() => {
     if (signal.aborted) return;
-    job.cancelReason = 'timeout';   // 超时自动取消：事件携带 reason，前端区分展示
-    job.abort.abort();
+    run.cancelReason = 'timeout';   // 超时自动取消：事件携带 reason，前端区分展示
+    run.abort.abort();
   }, JOB_TIMEOUT_MS);
   timeout.unref?.();
 
@@ -157,7 +159,7 @@ export async function runGeneration(
   let poi = createTaskPoiSource(getNullPoiSource(), { stats: poiStats });
   let search = createTaskSearchSource(getNullSearchSource());
   // 地理会话（v0.5）：geocode/route 统一服务商与凭据解析、任务上限与日额度记账；出行方式基调来自表单（ST3）
-  const geo = createGeoSession(job.userId, form.destination, form.transportMode ?? 'transit');
+  const geo = createGeoSession(run.userId, form.destination, form.transportMode ?? 'transit');
   // 图片采集由独立后台任务处理，不计入本次生成的地理调用统计。
   // 地理调用按链分流计入各自用量列：POI 搜索固定天地图，路线 + 地理编码走另一条（高德优先）。
   // 两条链各自独立计数，不再靠单一开关二选一（高德缺 Key 时地理链自己降级到天地图，也要如实记到天地图列）。
@@ -174,17 +176,17 @@ export async function runGeneration(
   // 它只做一件事：把 Agent 内部回调 → SSE 事件。前端时间线看到的「思考中」「调用了某工具」
   // 「工具返回了什么」全部来自这里，所以每个 emit 的字段要和前端 GenerationRunPanel 对得上。
   const sinkFor = (phase: GenerationPhase): PhaseEventSink => ({
-    onThought: (text) => emit(job, { type: 'thought', phase, text }),
+    onThought: (text) => emitLive(run, { type: 'thought', phase, text }),
     onToolStart: (toolCallId, tool, label, args) => {
       const at = timing.startTask(toolCallId, tool);
-      emit(job, { type: 'tool_start', phase, toolCallId, tool, label, args: JSON.stringify(args ?? {}).slice(0, 200), at });
+      emitLive(run, { type: 'tool_start', phase, toolCallId, tool, label, args: JSON.stringify(args ?? {}).slice(0, 200), at });
     },
     onToolEnd: (toolCallId, tool, label, summary, isError) => {
       const ended = timing.endTask(toolCallId);
-      emit(job, { type: 'tool_end', phase, toolCallId, tool, label, summary, isError, ...ended });
+      emitLive(run, { type: 'tool_end', phase, toolCallId, tool, label, summary, isError, ...ended });
     },
     onUsage: (tokensIn, tokensOut) =>
-      emit(job, {
+      emitLive(run, {
         type: 'usage',
         tokensIn: usage.tokensIn + tokensIn,
         tokensOut: usage.tokensOut + tokensOut,
@@ -195,7 +197,7 @@ export async function runGeneration(
     // LLM 请求上下文由 recorder 落库（llm_request_logs）供排查，不再经 SSE 推完整 prompt 到浏览器；
     // 只推轻量结果，评测链路依赖它记录 turn / stopReason / httpStatus。
     onLlmResponse: (info) =>
-      emit(job, {
+      emitLive(run, {
         type: 'llm_response',
         phase,
         turn: info.turn,
@@ -208,11 +210,11 @@ export async function runGeneration(
 
   const startPhase = (phase: GenerationPhase, round: number, note?: string) => {
     const at = timing.startPhase(phase, round);
-    emit(job, { type: 'phase_start', phase, round, note, at });
+    emitLive(run, { type: 'phase_start', phase, round, note, at });
   };
   const endPhase = (phase: GenerationPhase, round: number, summary?: string) => {
     const ended = timing.endPhase(phase, round);
-    emit(job, { type: 'phase_end', phase, round, summary, ...ended });
+    emitLive(run, { type: 'phase_end', phase, round, summary, ...ended });
   };
   const runSystemTask = async <T>(
     phase: GenerationPhase,
@@ -223,15 +225,15 @@ export async function runGeneration(
   ): Promise<T> => {
     const toolCallId = `system:${++systemTaskSeq}:${tool}`;
     const at = timing.startTask(toolCallId, tool);
-    emit(job, { type: 'tool_start', phase, toolCallId, tool, label, args: '{}', at });
+    emitLive(run, { type: 'tool_start', phase, toolCallId, tool, label, args: '{}', at });
     try {
       const result = await action();
       const ended = timing.endTask(toolCallId);
-      emit(job, { type: 'tool_end', phase, toolCallId, tool, label, summary, isError: false, ...ended });
+      emitLive(run, { type: 'tool_end', phase, toolCallId, tool, label, summary, isError: false, ...ended });
       return result;
     } catch (error) {
       const ended = timing.endTask(toolCallId);
-      emit(job, { type: 'tool_end', phase, toolCallId, tool, label, summary: '已降级', isError: true, ...ended });
+      emitLive(run, { type: 'tool_end', phase, toolCallId, tool, label, summary: '已降级', isError: true, ...ended });
       throw error;
     }
   };
@@ -243,8 +245,10 @@ export async function runGeneration(
     details: { summary?: string; reviewNotes?: string[]; dataSources?: DataSourceKind[]; error?: string } = {},
     writer: Pick<typeof db, 'insert'> = db,
   ) => {
-    await finalizeGenerationTask(job, status, tripId, {
+    await finalizeGenerationTask(taskRef, status, tripId, {
       ...details,
+      destination: form.destination,
+      days: form.days,
       warnings: runWarnings,
       usage: {
         tokensIn: usage.tokensIn,
@@ -259,10 +263,10 @@ export async function runGeneration(
   try {
     // 幂等：提交与「成功通知」在同一事务里落库（(userId, jobId) 唯一）。
     // 若进程在提交后、durable 记录终态前崩溃，重跑时这里直接复用已提交结果，绝不生成第二个版本。
-    const committed = await getGenerationResult(job.userId, job.id);
+    const committed = await getGenerationResult(run.userId, run.jobId);
     if (committed?.status === 'done' && committed.tripId) {
       await finalizeTask('done', committed.tripId);
-      completeJob(job, committed.tripId, [], []);
+      emitLive(run, { type: 'job_done', tripId: committed.tripId, usedXhs: false, dataSources: [], reviewNotes: [], at: Date.now(), durationMs: Date.now() - run.createdAt });
       terminalStatus = 'done';
       return { status: 'done', tripId: committed.tripId, reviewNotes: [], dataSources: [], warnings: [] };
     }
@@ -273,12 +277,12 @@ export async function runGeneration(
       (model) => ({ ok: true as const, model }),
       (error: unknown) => ({ ok: false as const, error }),
     );
-    const poiSource = await resolvePoiSourceForUser(job.userId);
+    const poiSource = await resolvePoiSourceForUser(run.userId);
     const poiBase = (await poiBudgetRemaining()) >= POI_MAX_PER_TASK ? poiSource.source : getNullPoiSource();
     assertAlive(signal);
     poi = createTaskPoiSource(poiBase, { stats: poiStats });
     const searchBase = (await searchBudgetRemaining()) >= SEARCH_MAX_PER_TASK
-      ? (await resolveSearchSourceForUser(job.userId)).source
+      ? (await resolveSearchSourceForUser(run.userId)).source
       : getNullSearchSource();
     assertAlive(signal);
     search = createTaskSearchSource(searchBase);
@@ -289,14 +293,14 @@ export async function runGeneration(
       ...(search.source.kind === 'websearch' ? (['websearch'] as const) : []),
     ];
     // xhsEnabled 为旧前端兼容字段，现语义 =「有任一外部调研数据源可用」
-    emit(job, {
+    emitLive(run, {
       type: 'job_start',
       destination: form.destination,
       days: form.days,
       ...(form.startDate ? { startDate: form.startDate } : {}),
       xhsEnabled: enabledSources.length > 0,
       dataSources: enabledSources,
-      at: job.createdAt,
+      at: run.createdAt,
     });
     const modelResult = await modelPromise;
     assertAlive(signal);
@@ -328,7 +332,7 @@ export async function runGeneration(
       geo.useResearchPlaces(research.pool, research.locations);
       // 重建直播：job_start 已发出，补发候选与调研阶段边界。
       startPhase('research', 1, '复用上次调研结果');
-      for (const poi of research.pool) emit(job, { type: 'candidate', poi });
+      for (const poi of research.pool) emitLive(run, { type: 'candidate', poi });
       endPhase('research', 1, `候选 ${research.pool.length} 个｜复用上次调研`);
     } else {
       startPhase('research', 1, researchNote(enabledSources));
@@ -349,9 +353,9 @@ export async function runGeneration(
           void saveAmapPhoto(form.destination, name, url).catch((error: unknown) =>
             console.warn(`[amap-photo] 回写失败（不影响生成）：${error instanceof Error ? error.message : String(error)}`));
         },
-        onCandidate: (candidate) => emit(job, { type: 'candidate', poi: candidate }),
+        onCandidate: (candidate) => emitLive(run, { type: 'candidate', poi: candidate }),
         sink: sinkFor('research'),
-        recorder: createLlmRequestRecorder({ jobId: job.id, userId: job.userId, phase: 'research', round: 1 }),
+        recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'research', round: 1 }),
       });
       usage.tokensIn += researchRun.tokensIn;
       usage.tokensOut += researchRun.tokensOut;
@@ -482,8 +486,8 @@ export async function runGeneration(
         const hits = await search.source.search(query, plannerSignal);
         return hits.map((hit) => ({ title: hit.title, url: hit.url, summary: hit.summary }));
       },
-      recorder: createLlmRequestRecorder({ jobId: job.id, userId: job.userId, phase: 'plan', round: 2 }),
-      onDayPlanned: (day) => emit(job, { type: 'plan_day', ...day }),
+      recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'plan', round: 2 }),
+      onDayPlanned: (day) => emitLive(run, { type: 'plan_day', ...day }),
     }));
     usage.tokensIn += planner.result.tokensIn;
     usage.tokensOut += planner.result.tokensOut;
@@ -510,7 +514,7 @@ export async function runGeneration(
       signal,
       sink: sinkFor('review'),
       maxTurns: 3,
-      recorder: createLlmRequestRecorder({ jobId: job.id, userId: job.userId, phase: 'review', round: 1 }),
+      recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'review', round: 1 }),
     };
     // 所有 LLM 阶段都在 durable 会话上执行。
     const writerPromise = runDurablePhaseAgent({ host: options.agent, phaseKey: 'writer', modelRef: agentModelRef(cfg.model), opts: writerOpts }).catch((err: unknown) => {
@@ -664,7 +668,7 @@ export async function runGeneration(
       throw new GenerationFailure(`规划结果不完整（${shape}，候选 ${research.pool.length} 个）：${structuralProblems.join('；')}。请重试`);
     }
     if (completeness.length) {
-      logger?.info({ jobId: job.id, problems: completeness.slice(0, 6) }, 'plan completeness advisory');
+      logger?.info({ jobId: run.jobId, problems: completeness.slice(0, 6) }, 'plan completeness advisory');
       reviewNotes = [...new Set([...completeness.slice(0, 3), ...reviewNotes])].slice(0, 8);
     }
 
@@ -677,7 +681,7 @@ export async function runGeneration(
       ...(search.stats.gotResults ? (['websearch'] as const) : []),
     ];
     // 修订（PR5）：targetTripId 存在时把新行程挂到同一版本链的下一版；否则就是全新行程
-    const revisionOf = job.provenance.kind === 'revision' ? job.provenance.targetTripId : undefined;
+    const revisionOf = run.provenance.kind === 'revision' ? run.provenance.targetTripId : undefined;
     const completedDraft = draft.toTrip(reviewNotes, { overview: research.pool, dataSources });
     // 第三阶段的专属建议使用最终结构，避免并行路线修复让建议中的天序失真。
     try {
@@ -687,7 +691,7 @@ export async function runGeneration(
       assertAlive(signal);
       const adviceRun = await runTripAdviceWriter(completedDraft, evidence, {
         model, apiKey: cfg.apiKey, signal, sink: finalSink,
-        recorder: createLlmRequestRecorder({ jobId: job.id, userId: job.userId, phase: 'review', round: 2 }),
+        recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'review', round: 2 }),
       }, adviceRunner);
       usage.tokensIn += adviceRun.result.tokensIn;
       usage.tokensOut += adviceRun.result.tokensOut;
@@ -695,7 +699,7 @@ export async function runGeneration(
       if (adviceRun.advice) completedDraft.meta.advice = adviceRun.advice;
     } catch (err) {
       if (signal.aborted) throw err;
-      logger?.info({ jobId: job.id, errorType: err instanceof Error ? err.name : 'unknown' }, 'trip advice writing degraded');
+      logger?.info({ jobId: run.jobId, errorType: err instanceof Error ? err.name : 'unknown' }, 'trip advice writing degraded');
     }
     endPhase('review', 1, completedDraft.meta.advice ? '旅行建议与注意事项已撰写' : '专属建议暂未生成，保留基础提醒');
     completedDraft.weather = await getTripWeather(completedDraft);
@@ -703,7 +707,7 @@ export async function runGeneration(
     const trip = await db.transaction(async (tx) => {
       assertAlive(signal);
       const saved = await createTrip(
-        job.userId,
+        run.userId,
         completedDraft,
         revisionOf,
         tx,
@@ -712,9 +716,9 @@ export async function runGeneration(
       await finalizeTask('done', saved.id, { summary: research.summary, reviewNotes, dataSources }, tx);
       // publish: false —— 事务未提交时推送会让前端回查到空列表；提交后再发
       doneNotification = await recordGenerationNotification({
-        userId: job.userId, jobId: job.id, kind: 'success', tripId: saved.id,
+        userId: run.userId, jobId: run.jobId, kind: 'success', tripId: saved.id,
         destination: form.destination, days: form.days, title: `${form.destination} ${form.days} 天行程已生成`,
-        message: '路线与每日安排已准备好。', jobCreatedAt: new Date(job.createdAt),
+        message: '路线与每日安排已准备好。', jobCreatedAt: new Date(run.createdAt),
       }, tx, { publish: false });
       assertAlive(signal);
       return saved;
@@ -722,51 +726,51 @@ export async function runGeneration(
     // COMMIT 是成功边界：事务内取消会回滚；提交成功后不再把已保存结果宣告取消。
     // 先补对话完成消息再发终态：直播页跳转/刷新时，会话里已经能看到结果。
     await appendGenerationCompletion({
-      userId: job.userId,
-      jobId: job.id,
-      conversationId: job.provenance.conversationId,
+      userId: run.userId,
+      jobId: run.jobId,
+      conversationId: run.provenance.conversationId,
       status: 'done',
       tripId: trip.id,
       tripTitle: trip.title,
       days: trip.days.length,
       summary: research.summary,
     }).catch(() => {});
-    completeJob(job, trip.id, dataSources, reviewNotes);
-    publishNotification(job.userId, doneNotification!);
+    emitLive(run, { type: 'job_done', tripId: trip.id, usedXhs: false, dataSources, reviewNotes, at: Date.now(), durationMs: Date.now() - run.createdAt });
+    publishNotification(run.userId, doneNotification!);
     terminalStatus = 'done';
     return { status: 'done', tripId: trip.id, summary: research.summary, reviewNotes, dataSources, warnings: runWarnings };
   } catch (err) {
     let failureMessage: string | undefined;
     if (signal.aborted) {
-      cancelJob(job);
+      emitLive(run, { type: 'job_cancelled', reason: run.cancelReason });
       terminalStatus = 'cancelled';
     } else {
       failureMessage = err instanceof GenerationFailure || err instanceof ScheduleDateConflictError ? err.message : '生成失败，请稍后重试';
-      failJob(job, failureMessage);
+      emitLive(run, { type: 'job_error', message: failureMessage });
       terminalStatus = 'error';
       logger?.error({
-        jobId: job.id,
+        jobId: run.jobId,
         errorType: err instanceof Error ? err.name : 'unknown',
         error: err instanceof Error ? err.message : String(err),
         stack: err instanceof Error ? err.stack : undefined,
       }, 'generation failed');
     }
     // 失败/取消先发布权威终态。审计异常必须可观测，但不能再次困住任务锁。
-    if (terminalStatus === 'error' || job.cancelReason === 'timeout') {
+    if (terminalStatus === 'error' || run.cancelReason === 'timeout') {
       try {
         await recordGenerationNotification({
-          userId: job.userId, jobId: job.id, kind: 'error', tripId: null,
+          userId: run.userId, jobId: run.jobId, kind: 'error', tripId: null,
           destination: form.destination, days: form.days, title: `${form.destination}行程暂未生成成功`,
-          message: job.cancelReason === 'timeout' ? '生成超时，本次不计入配额。可回首页重新规划。' : '本次不计入配额，可回首页检查后重试。',
-          jobCreatedAt: new Date(job.createdAt),
+          message: run.cancelReason === 'timeout' ? '生成超时，本次不计入配额。可回首页重新规划。' : '本次不计入配额，可回首页检查后重试。',
+          jobCreatedAt: new Date(run.createdAt),
         });
-      } catch { logger?.error({ jobId: job.id }, 'generation notification write failed'); }
+      } catch { logger?.error({ jobId: run.jobId }, 'generation notification write failed'); }
     }
     if (failureMessage) {
       await appendGenerationCompletion({
-        userId: job.userId,
-        jobId: job.id,
-        conversationId: job.provenance.conversationId,
+        userId: run.userId,
+        jobId: run.jobId,
+        conversationId: run.provenance.conversationId,
         status: 'error',
         destination: form.destination,
         days: form.days,
@@ -776,7 +780,7 @@ export async function runGeneration(
     try {
       await finalizeTask(terminalStatus as Exclude<GenerationJobStatus, 'running'>, null, failureMessage ? { error: failureMessage } : {});
     } catch {
-      logger?.error({ jobId: job.id, status: terminalStatus }, 'generation audit write failed');
+      logger?.error({ jobId: run.jobId, status: terminalStatus }, 'generation audit write failed');
     }
     return {
       status: terminalStatus as Exclude<GenerationJobStatus, 'running'>,
@@ -790,7 +794,7 @@ export async function runGeneration(
     clearTimeout(timeout);
     logger?.info(
       {
-        jobId: job.id,
+        jobId: run.jobId,
         ...timing.summary(terminalStatus),
         usage: {
           tokensIn: usage.tokensIn,

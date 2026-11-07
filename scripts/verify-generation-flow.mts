@@ -33,7 +33,8 @@ const { buildAgentModels } = await import('../apps/server/src/chat/agent/models'
 const { agentStoragePath, ensureAgentStorageDir } = await import('../apps/server/src/generation/agentStorage');
 const { BACKGROUND_CONTEXT } = await import('@earendil-works/chord/context');
 const { runGeneration } = await import('../apps/server/src/generation/orchestrator');
-const { createJob, completeJob, cancelJob, getRunningJobId } = await import('../apps/server/src/generation/jobManager');
+const { createLiveRun, cancelLiveRun, emitLive } = await import('../apps/server/src/generation/liveRun');
+const { beginGenerationTask, finalizeGenerationTask, getRunningGenerationTask } = await import('../apps/server/src/generation/taskStore');
 const { loadPlaceFacts } = await import('../apps/server/src/generation/scheduling/placeFacts');
 const { poiScore, scoreMaxima } = await import('../apps/server/src/generation/scheduling/score');
 const { createSession } = await import('../apps/server/src/auth/session');
@@ -77,38 +78,42 @@ async function waitFor(check: () => Promise<boolean> | boolean, label: string) {
   for (let i = 0; i < 200; i++) { if (await check()) return; await sleep(25); }
   throw new Error(`Timed out: ${label}`);
 }
+let runSeq = 0;
+const createRun = (userId: string, provenance: { kind: 'generation' } | { kind: 'revision'; targetTripId: string } = { kind: 'generation' }) =>
+  createLiveRun({ jobId: `${userId}-run-${++runSeq}`, userId, createdAt: Date.now(), provenance });
+const cancelRun = (run: ReturnType<typeof createRun>) => cancelLiveRun(run.jobId, run.userId);
 try {
   // 初始化本身和失败审计都抛错，仍须释放运行锁，不允许脱离编排器的 rejection。
-  const init = createJob('init-failure');
+  const init = createRun('init-failure');
   const selectFailure = mock.method(db, 'select', () => { throw new Error('lookup failed'); });
   const insertFailure = mock.method(db, 'insert', () => { throw new Error('audit failed'); });
   try { await runGeneration(init, form, cfg, logger, { agent }); }
   finally { selectFailure.mock.restore(); insertFailure.mock.restore(); }
   assert.equal(init.status, 'error');
-  assert.equal(getRunningJobId(init.userId), null);
+  assert.equal(await getRunningGenerationTask(init.userId), null);
   assert.equal(init.projection.channel.snapshot.state.control.status, 'error');
   assert.ok(auditErrors.some((args) => JSON.stringify(args).includes('generation audit write failed')));
   console.log('PASS 初始化与审计双重失败发布 error 并解锁');
 
-  const cancelledInit = createJob('init-cancel');
+  const cancelledInit = createRun('init-cancel');
   const cancelLookup = mock.method(db, 'select', () => { cancelledInit.abort.abort(); throw new Error('cancelled lookup'); });
   try { await runGeneration(cancelledInit, form, cfg, logger, { agent }); }
   finally { cancelLookup.mock.restore(); }
   assert.equal(cancelledInit.status, 'cancelled');
-  assert.equal(getRunningJobId(cancelledInit.userId), null);
+  assert.equal(await getRunningGenerationTask(cancelledInit.userId), null);
   console.log('PASS 初始化取消收口');
 
   await pool.query(`CREATE FUNCTION reject_success_audit() RETURNS trigger LANGUAGE plpgsql AS $$
     BEGIN IF NEW.user_id='rollback' AND NEW.status='done' THEN RAISE EXCEPTION 'injected audit failure'; END IF; RETURN NEW; END $$`);
   await pool.query(`CREATE TRIGGER generation_audit_failure BEFORE INSERT ON generations FOR EACH ROW EXECUTE FUNCTION reject_success_audit()`);
-  const rollback = createJob('rollback');
+  const rollback = createRun('rollback');
   await runGeneration(rollback, form, cfg, logger, { agent });
   assert.equal(rollback.status, 'error');
   assert.deepEqual(await counts(rollback.userId), { trips: 0, done: 0 });
   assert.equal((await pool.query(`SELECT status FROM generations WHERE user_id=$1`, [rollback.userId])).rows[0]?.status, 'error');
   console.log('PASS 成功审计 SQL 失败时行程事务回滚');
 
-  const success = createJob('success');
+  const success = createRun('success');
   // 规划 Agent 需要片区候选：无地图服务时用知识库种子构造 2.5km 内的片区。
   await pool.query(`INSERT INTO canonical_places (id,city,name,category,verified,source,lat,lng,payload,created_at)
     VALUES ('advice-palace','北京','故宫博物院','文化',TRUE,'goldset',39.9163,116.3972,
@@ -139,7 +144,7 @@ try {
   await pool.query(`DELETE FROM canonical_places WHERE id='advice-palace'`);
 
   llm.setAdviceResponse('error');
-  const adviceFallback = createJob('advice-fallback');
+  const adviceFallback = createRun('advice-fallback');
   try { await runGeneration(adviceFallback, form, cfg, logger, { agent }); }
   finally { llm.setAdviceResponse('tool'); }
   assert.equal(adviceFallback.status, 'done');
@@ -150,9 +155,9 @@ try {
 
   const savedNotice = (await listNotifications(success.userId)).items[0]!;
   assert.equal(savedNotice.tripId, success.tripId);
-  assert.equal(savedNotice.jobId, success.id);
+  assert.equal(savedNotice.jobId, success.jobId);
   assert.equal(savedNotice.readAt, null);
-  await recordGenerationNotification({ userId: success.userId, jobId: success.id, kind: 'success', tripId: success.tripId,
+  await recordGenerationNotification({ userId: success.userId, jobId: success.jobId, kind: 'success', tripId: success.tripId,
     destination: '北京', days: 3, title: '重复通知', message: '', jobCreatedAt: new Date(success.createdAt) });
   assert.equal((await listNotifications(success.userId)).items.length, 1);
   console.log('PASS 生成事务持久化正确通知，同一任务幂等去重');
@@ -160,14 +165,14 @@ try {
   await pool.query(`CREATE FUNCTION reject_success_notification() RETURNS trigger LANGUAGE plpgsql AS $$
     BEGIN IF NEW.user_id='notification-rollback' AND NEW.kind='success' THEN RAISE EXCEPTION 'injected notification failure'; END IF; RETURN NEW; END $$`);
   await pool.query(`CREATE TRIGGER notification_failure BEFORE INSERT ON generation_notifications FOR EACH ROW EXECUTE FUNCTION reject_success_notification()`);
-  const notificationRollback = createJob('notification-rollback');
+  const notificationRollback = createRun('notification-rollback');
   await runGeneration(notificationRollback, form, cfg, logger, { agent });
   assert.equal(notificationRollback.status, 'error');
   assert.deepEqual(await counts(notificationRollback.userId), { trips: 0, done: 0 });
   assert.equal((await listNotifications(notificationRollback.userId)).items[0]?.kind, 'error');
   console.log('PASS 成功通知落库失败整体回滚，不产生虚假成功消息或扣额');
 
-  const revision = createJob('success', { kind: 'revision', targetTripId: success.tripId! });
+  const revision = createRun('success', { kind: 'revision', targetTripId: success.tripId! });
   await runGeneration(revision, form, cfg, logger, { agent });
   assert.equal(revision.status, 'done');
   const lineage = (await pool.query(`SELECT root_id, version, parent_id FROM trips WHERE id=$1`, [revision.tripId])).rows[0];
@@ -179,7 +184,7 @@ try {
   await blocker.connect();
   await blocker.query('BEGIN');
   await blocker.query('LOCK TABLE trips IN ACCESS EXCLUSIVE MODE');
-  const cancelSave = createJob('cancel-save');
+  const cancelSave = createRun('cancel-save');
   const pendingSave = runGeneration(cancelSave, form, cfg, logger, { agent });
   try {
     await waitFor(async () => Number((await admin.query(`SELECT count(*) FROM pg_stat_activity WHERE datname=$1 AND wait_event_type='Lock' AND query ILIKE '%trips%'`, [databaseName])).rows[0].count) > 0, 'save waiting for database lock');
@@ -194,7 +199,7 @@ try {
   console.log('PASS 事务期间取消不残留行程或成功配额');
 
   // 真事务已 COMMIT、编排器尚未拿到返回值时收到取消：保存结果仍须宣告成功。
-  const committed = createJob('cancel-after-commit');
+  const committed = createRun('cancel-after-commit');
   const transact = db.transaction.bind(db);
   const lateAbort = mock.method(db, 'transaction', async (...args: Parameters<typeof db.transaction>) => {
     const saved = await transact(...args);
@@ -251,9 +256,11 @@ try {
   assert.equal(persistedSnapshot.status, 'done');
   assert.equal(persistedSnapshot.tripId, success.tripId);
   assert.equal((await notificationRequest(`/api/generations/${other.jobId}`)).statusCode, 404);
-  const discoverable = createJob('success');
-  assert.equal((await notificationRequest('/api/generations/current')).json().data.jobId, discoverable.id);
-  cancelJob(discoverable);
+  // /current 只看持久 running 行：内存任务与重启后的判定必须同口径。
+  const discoverable = { jobId: `discoverable-${Date.now()}`, userId: 'success', createdAt: Date.now(), provenance: { kind: 'generation' as const } };
+  await beginGenerationTask(discoverable, form);
+  assert.equal((await notificationRequest('/api/generations/current')).json().data.jobId, discoverable.jobId);
+  await finalizeGenerationTask(discoverable, 'cancelled', null, { destination: form.destination, days: form.days });
   assert.equal((await notificationRequest('/api/generations/current')).json().data, null);
   console.log('PASS 通知鉴权、分页、未读持久化与已读边界，内存任务过期后恢复结果，按账号发现任务');
   // 统一投影：REST 重订阅返回快照或按水位补齐的帧序列。
@@ -275,12 +282,12 @@ try {
       ('closed-square','天安门广场','北京','文化',39.905,116.398,'xhs',true,
       '{"openHours":{"closedWeekdays":[1]},"content":{"intro":"城市广场。"}}',NOW())`);
   const beforeClosed = await counts('success');
-  const closedJob = createJob('success');
+  const closedJob = createRun('success');
   await runGeneration(closedJob, { ...form, days: 1, startDate: '2026-10-19' }, cfg, logger, { agent });
   assert.equal(closedJob.status, 'error');
   assert.deepEqual(await counts('success'), beforeClosed);
-  assert.equal(getRunningJobId('success'), null);
-  const closedProjection = await projection(closedJob.id);
+  assert.equal(await getRunningGenerationTask('success'), null);
+  const closedProjection = await projection(closedJob.jobId);
   assert.equal(closedProjection.kind, 'snapshot');
   if (closedProjection.kind === 'snapshot') {
     assert.equal(closedProjection.snapshot.state.control.status, 'error');
@@ -303,23 +310,24 @@ try {
   assert.equal(hoursFacts.get('待审街区')!.closureText, undefined, '不能从旧 evidence 再次引入已拒绝规则');
   assert.equal(hoursFacts.get('明确博物馆')!.openTime, '周一闭馆');
   console.log('PASS 营业归属待审不经旧证据回流，明确博物馆闭馆仍保留');
-  const replay = await projection(success.id);
+  const replay = await projection(success.jobId);
   assert.equal(replay.kind, 'snapshot');
   if (replay.kind === 'snapshot') assert.equal(replay.snapshot.state.control.status, 'done');
   // 水位一致时无需补发。
-  const sameSeq = await projection(success.id, success.projection.channel.snapshot.seq);
+  const sameSeq = await projection(success.jobId, success.projection.channel.snapshot.seq);
   assert.deepEqual(sameSeq, { kind: 'delta', frames: [] });
-  const cancelled = createJob('success'); cancelJob(cancelled);
-  const cancelledProjection = await projection(cancelled.id);
+  const cancelled = createRun('success');
+  emitLive(cancelled, { type: 'job_cancelled', reason: 'user' });
+  const cancelledProjection = await projection(cancelled.jobId);
   assert.equal(cancelledProjection.kind, 'snapshot');
   if (cancelledProjection.kind === 'snapshot') assert.equal(cancelledProjection.snapshot.state.control.status, 'cancelled');
-  const live = createJob('success');
+  const live = createRun('success');
   const controller = new AbortController();
-  const response = await fetch(`http://127.0.0.1:18809/api/generations/${live.id}/projection/events?fromSeq=0`, { headers: { cookie: auth }, signal: controller.signal });
+  const response = await fetch(`http://127.0.0.1:18809/api/generations/${live.jobId}/projection/events?fromSeq=0`, { headers: { cookie: auth }, signal: controller.signal });
   assert.equal(response.status, 200);
   controller.abort();
   await response.body?.cancel().catch(() => {});
-  completeJob(live, 'terminal', [], []);
+  emitLive(live, { type: 'job_done', tripId: 'terminal', usedXhs: false, dataSources: [], reviewNotes: [] });
   assert.deepEqual(appErrors, []);
   console.log('PASS 终态快照/增量重订阅正常结束，断连不抛路由异常');
   console.log('PASS 主流程故障验收全部通过');

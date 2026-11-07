@@ -1,9 +1,9 @@
-// 旧生成事件流 → 统一投影（阶段二的过渡桥）。
+// 生成事件 → 统一投影。
 //
-// 现在由本适配器把 jobManager 的事件翻译成投影 delta；#7 把 orchestrator 迁到 defineTask 后，
-// 改由 durable task 直接产出同样的 delta，本文件随旧事件流一起删除。
+// 本适配器把 orchestrator / liveRun 的事件翻译成投影 delta；实时层只保留投影与订阅，
+// 任务真相落在 generations 行。
 // 关键点：行程的真相变成「行」——job_start 建空天，plan_day 逐日 upsert，客户端读到的就是真相，
-// 不再依赖「重放 512 条事件重新合成」。
+// 不再依赖「重放事件重新合成」。
 import {
   emptySnapshot,
   emptyTripProjectionState,

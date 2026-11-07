@@ -285,9 +285,10 @@ try {
   const regenerateFrames = (await regenerated.text()).split('\n\n').filter((f) => f.startsWith('data:')).map((f) => JSON.parse(f.slice(5)));
   const regenerateResult = regenerateFrames.at(-1).result;
   assert.ok(regenerateResult?.startedGenerationJobId, JSON.stringify(regenerateFrames));
-  const { getJob, cancelJob } = await import('../apps/server/src/generation/jobManager');
-  const job = getJob(regenerateResult.startedGenerationJobId, 'detail-user')!;
-  job.abort.abort(); cancelJob(job);
+  const { getLiveRun, cancelLiveRun } = await import('../apps/server/src/generation/liveRun');
+  const run = getLiveRun(regenerateResult.startedGenerationJobId, 'detail-user');
+  run?.abort.abort();
+  cancelLiveRun(regenerateResult.startedGenerationJobId, 'detail-user');
   const regenerateRetry = await fetch(`${base}/api/conversations/${editConversation}/messages/stream`, { method: 'POST', headers, body: JSON.stringify(regenerateInput) });
   assert.match(await regenerateRetry.text(), new RegExp(regenerateResult.startedGenerationJobId));
   console.log('PASS update_brief + generate_trip 回放启动任务，重试返回同一任务');

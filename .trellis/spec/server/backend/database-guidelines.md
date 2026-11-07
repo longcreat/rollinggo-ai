@@ -52,7 +52,7 @@ Representative paths: `apps/server/src/db/schema.ts`,
 - Migration batches run inside a single PG transaction (BEGIN/COMMIT in `runMigrations`).
 
 Representative paths: `apps/server/src/services/tripService.ts`,
-`apps/server/src/services/quotaService.ts`, `apps/server/src/generation/jobManager.ts`.
+`apps/server/src/services/quotaService.ts`, `apps/server/src/generation/liveRun.ts`.
 
 ### Generation transaction writer
 

@@ -1,6 +1,6 @@
 // 通知推送的订阅表（进程内）。
 //
-// 单实例边界（与 generation/jobManager 同一约定）：订阅表在内存里，多副本部署时
+// 单实例边界（与 generation/liveRun 同一约定）：订阅表在内存里，多副本部署时
 // B 副本写入的通知推不到 A 副本持有的连接上；那时要换 Postgres `pg_notify` + 专用
 // LISTEN 连接，本期不做。
 //
@@ -29,7 +29,7 @@ export function subscribeNotifications(userId: string, push: Listener): () => vo
 
 /**
  * 写库成功之后调用。监听器抛错不能影响写入方（坏连接由 SSE 层的 close 清理），
- * 与 jobManager.emit 的「坏监听器绝不能拖垮流水线」是同一条约定。
+ * 与 liveRun.emitLive 的「坏监听器绝不能拖垮流水线」是同一条约定。
  */
 export function publishNotification(userId: string, event: NotificationEvent): void {
   for (const push of listeners.get(userId) ?? []) {

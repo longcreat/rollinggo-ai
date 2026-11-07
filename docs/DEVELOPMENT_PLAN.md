@@ -123,7 +123,7 @@
 
 - [x] **`model.ts` Key 双轨解析**（settingsService.resolveLlmConfig + buildModel；使用时二次过 ssrfGuard）
 - [x] `prompts.ts` 三份 system prompt；`tools/` 四组工具（xhs/geo/draft/review，defineTool 泛型助手）+ DraftTrip（draft.ts）+ 完整性校验兜底
-- [x] `orchestrator.ts`（三阶段 + ≤2 轮修订 + token/xhs 用量聚合 + 全站 XHS 日额度闸门 + 10min 兜底超时）；`jobManager.ts`（状态机/512 环形缓冲/取消/30min 终态保留）；agents/runner.ts 公共运行器（轮次上限/事件转发/中止）
+- [x] `orchestrator.ts`（三阶段 + ≤2 轮修订 + token/xhs 用量聚合 + 全站 XHS 日额度闸门 + 10min 兜底超时）；`liveRun.ts`（实时投影/订阅/取消）+ `taskStore.ts`（任务行状态机/终态保留）；agents/runner.ts 公共运行器（轮次上限/事件转发/中止）
 - [x] 路由：POST /generations（**配额检查→429+重置时间**）、GET :jobId（快照）、SSE（Last-Event-ID 重放+心跳）、cancel；任务落 `generations` 表（取消/失败不计配额）
 - [x] 追加：`scripts/verify-c2.mjs` 离线端到端验收（mock OpenAI 兼容端点驱动全流水线，28 项断言）
 

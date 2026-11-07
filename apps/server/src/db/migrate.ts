@@ -163,6 +163,7 @@ const STATEMENTS = [
     target_trip_id TEXT,
     job_id TEXT,
     request_id TEXT,
+    durable_task_id TEXT,
     destination TEXT,
     days INTEGER,
     finished_at TIMESTAMPTZ,
@@ -347,6 +348,7 @@ export async function runMigrations(pool: Pool): Promise<void> {
     // 任务视图（11-07）：生成开始即写 running 行，重启后状态/结果仍可读。列全部 nullable，旧代码忽略。
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS job_id TEXT`);
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS request_id TEXT`);
+    await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS durable_task_id TEXT`);
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS destination TEXT`);
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS days INTEGER`);
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS finished_at TIMESTAMPTZ`);
@@ -358,6 +360,8 @@ export async function runMigrations(pool: Pool): Promise<void> {
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_generations_job ON generations(user_id, job_id)`);
     await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_generations_request ON generations(user_id, request_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_generations_status ON generations(user_id, status, created_at DESC)`);
+    // 并发闸门下沉到数据库：同一用户最多一行 running（存量已结束任务不受影响）。
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_generations_running_user ON generations(user_id) WHERE status='running'`);
     // 景区围栏（11-06）：面状片区 + 子点关系 + 坐标去重键；存量行 dedupe_key 为 NULL，唯一索引只约束新数据。
     await client.query(`ALTER TABLE canonical_places ADD COLUMN IF NOT EXISTS parent_id TEXT`);
     await client.query(`ALTER TABLE canonical_places ADD COLUMN IF NOT EXISTS geom_kind TEXT NOT NULL DEFAULT 'point'`);

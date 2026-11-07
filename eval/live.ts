@@ -112,24 +112,26 @@ export async function startLive(options: {
     await seedKnowledge(pool, knowledge);
     await pool.query(`INSERT INTO users (id,email,password_hash,created_at) VALUES ('eval-user','eval@invalid.local','disabled',NOW())`);
     const { runGeneration } = await import('../apps/server/src/generation/orchestrator');
-    const { createJob, observe } = await import('../apps/server/src/generation/jobManager');
+    const { createLiveRun, observeLiveRun } = await import('../apps/server/src/generation/liveRun');
     const { getTrip } = await import('../apps/server/src/services/tripService');
     const config = { baseUrl: process.env.SITE_LLM_BASE_URL!, apiKey: process.env.SITE_LLM_API_KEY!, model: process.env.SITE_LLM_MODEL!, byok: false };
     console.log(`live：专用 PostgreSQL｜知识库 ${knowledge.places.length} 地点`);
     return {
       close,
       async generate(gc: GoldenCase, signal: AbortSignal): Promise<Snapshot> {
-        const job = createJob('eval-user');
+        const run = createLiveRun({
+          jobId: crypto.randomUUID(), userId: 'eval-user', createdAt: Date.now(), provenance: { kind: 'generation' },
+        });
         const candidates: ResearchPoi[] = [];
         const timing: NonNullable<Snapshot['timing']> = { phases: {} };
         const events: object[] = [];
         const execution: Execution = { tasks: {}, planLlmCalls: 0, terminal: 'running', tripReadBack: false, auditCommitted: false, overviewMatches: false };
         let terminalError = '';
-        const stop = () => job.abort.abort();
+        const stop = () => run.abort.abort();
         signal.addEventListener('abort', stop, { once: true });
         if (signal.aborted) stop();
-        const timeout = setTimeout(() => { job.cancelReason = 'timeout'; stop(); }, options.timeoutMs);
-        const unsubscribe = observe(job, (event: GenerationEvent) => {
+        const timeout = setTimeout(() => { run.cancelReason = 'timeout'; stop(); }, options.timeoutMs);
+        const unsubscribe = observeLiveRun(run, (event: GenerationEvent) => {
           if (event.type === 'tool_end') {
             const count = execution.tasks[event.tool] ??= { ok: 0, errors: 0 };
             if (event.isError) count.errors++; else count.ok++;
@@ -172,11 +174,11 @@ export async function startLive(options: {
           const agentHost: GenerationRunOptions['agent'] = {
             harness: runtime.harness, registry: runtime.registry, context: BACKGROUND_CONTEXT,
           };
-          await runGeneration(job, gc.form, config, undefined, { agent: agentHost });
-          if (!job.tripId || job.status !== 'done') throw new Error(terminalError || `生成终态：${job.status}（可能已取消或超时）`);
-          const trip = await getTrip('eval-user', job.tripId);
+          await runGeneration(run, gc.form, config, undefined, { agent: agentHost });
+          if (!run.tripId || run.status !== 'done') throw new Error(terminalError || `生成终态：${run.status}（可能已取消或超时）`);
+          const trip = await getTrip('eval-user', run.tripId);
           if (!trip) throw new Error('生成已完成，但读回行程失败');
-          execution.terminal = job.status;
+          execution.terminal = run.status;
           execution.tripReadBack = true;
           execution.auditCommitted = (await pool!.query(`SELECT id FROM generations WHERE user_id=$1 AND trip_id=$2 AND status='done'`, ['eval-user', trip.id])).rows.length === 1;
           execution.overviewMatches = hash(trip.overview ?? []) === hash(candidates.slice(0, MAX_OVERVIEW_POIS));
@@ -184,8 +186,8 @@ export async function startLive(options: {
             research: { candidates }, timing, execution };
         } finally {
           clearTimeout(timeout); signal.removeEventListener('abort', stop); unsubscribe();
-          execution.terminal = job.status;
-          writeJson(path.join(options.directory, 'events', `${gc.id}.json`), { terminal: job.status, events, research: { candidates }, timing, execution });
+          execution.terminal = run.status;
+          writeJson(path.join(options.directory, 'events', `${gc.id}.json`), { terminal: run.status, events, research: { candidates }, timing, execution });
         }
       },
     };

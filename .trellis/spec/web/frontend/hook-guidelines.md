@@ -54,24 +54,26 @@ Evidence: `apps/web/src/components/Modal.tsx`, `apps/web/src/lib/export.ts`.
 
 ## SSE and Recovery
 
-Generation progress is an external event stream, not React Query cache state. `useGenerationRun` stores the active job id in `sessionStorage`, checks a snapshot on refresh, then connects `EventSource` with `lastEventId=0` so the timeline can be rebuilt from replayed events. Native reconnects carry `Last-Event-ID`; the server prioritizes that header and sends only the missing suffix. Preserve the existing event list and deduplicate positive safe-integer IDs within the current job/effect. A new task or mount starts at zero. Terminal events close the stream, clear session state, update relevant caches, and navigate or display recovery UI.
+Generation progress is a projection stream, not React Query cache state. `useGenerationProjection` keeps the last applied `TripProjectionSnapshot` in a ref, then connects `EventSource` with `fromSeq=<snapshot.seq ?? 0>`. The server answers with a snapshot (no baseline / gap / watermark ahead) or the missing delta frames, and the hook applies them through `applyProjectionResume`. Persist the job id only as navigation state; on reconnect the projection watermark is the source of truth. Terminal frames end the stream, update relevant caches, and navigate or display recovery UI. Task status itself is read from `GET /api/generations/:jobId` (backed by the `generations` row), not the live layer.
 
-Evidence: `apps/web/src/hooks/useGenerationRun.ts`, `apps/server/src/routes/generations.ts`, `packages/shared/src/types.ts`.
+Evidence: `apps/web/src/hooks/useGenerationProjection.ts`, `apps/web/src/lib/projectionResume.ts`, `apps/server/src/routes/generations.ts`, `packages/shared/src/projection.ts`.
 
-Treat SSE data as untrusted input even when the server and client share a union type. Parse inside `try/catch`, validate or narrowly guard the event shape before appending it, and convert malformed payloads into a controlled stream error. A type assertion after `JSON.parse` is not runtime validation. `useGenerationRun.ts` now drops malformed frames with a `try/catch`; keep any new consumer at the same bar.
+Treat SSE data as untrusted input even when the server and client share a union type. Parse inside `try/catch`, validate or narrowly guard the projection message shape before applying it, and convert malformed payloads into a controlled stream error. A type assertion after `JSON.parse` is not runtime validation. `projectionResume.ts` drops malformed frames with a `try/catch`; keep any new consumer at the same bar.
 
-### Common Mistake: clearing the event list on reconnect
+### Common Mistake: clearing the projection snapshot on reconnect
 
 **Symptom**: after a short disconnect, the task title, candidates, or completed phases disappear.
 
-**Cause**: clearing React state assumes a full server replay, while native EventSource reconnection
-uses the last delivered ID. Skipping only the first `open` still loses all earlier history on reconnect.
+**Cause**: clearing the snapshot before reconnecting drops the baseline. The server then answers
+`fromSeq=0` with a snapshot (safe), but an in-flight delta handler may apply frames against the
+cleared state and lose or duplicate rows.
 
-**Fix / Prevention**: never clear from `onopen`; clear when starting/adopting/resetting a task.
-Keep the event ID cursor local to the effect and ignore IDs already seen. Verify with
-`node apps/web/tests/generation-recovery-browser.mjs` (Vite at 18811): the server sends IDs 1–3,
-disconnects, then sends duplicate 3 and new 4; all four original events must remain exactly once.
-The same test checks terminal callback/session cleanup, a new task with smaller IDs, and refresh.
+**Fix / Prevention**: never clear the snapshot from `onopen`; clear it only when starting,
+adopting, or resetting a task. Always resubscribe with the last applied `snapshot.seq`; a gap or
+ahead watermark must trigger a resync snapshot, never a guess. Verify with
+`node --import tsx --test apps/web/tests/projectionResume.test.ts` for snapshot/delta application,
+empty-frame handling, and gap detection; browser flows are covered by
+`scripts/verify-generation-browser.mjs`.
 
 ### Recovery-aware route guards
 

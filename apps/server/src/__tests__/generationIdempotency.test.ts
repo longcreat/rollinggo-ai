@@ -4,8 +4,8 @@ import test from 'node:test';
 import { eq } from 'drizzle-orm';
 import { uid, type GenerateForm } from '@tripweaver/shared';
 import { db } from '../db/client';
-import { generationNotifications } from '../db/schema';
-import { rehydrateJob } from '../generation/jobManager';
+import { generationNotifications, generations } from '../db/schema';
+import { createLiveRun } from '../generation/liveRun';
 import { runGeneration } from '../generation/orchestrator';
 import type { LlmConfig } from '../services/settingsService';
 
@@ -17,7 +17,7 @@ test('已提交过的任务重跑直接复用 tripId，不生成新版本', asyn
     destination: '成都', days: 1, title: '已生成', message: 'ok', jobCreatedAt: new Date(), createdAt: new Date(),
   });
 
-  const job = rehydrateJob(jobId, userId, { kind: 'generation' });
+  const run = createLiveRun({ jobId, userId, createdAt: Date.now(), provenance: { kind: 'generation' } });
   const form: GenerateForm = {
     destination: '成都', days: 1, startDate: '2026-11-10', budgetLevel: '舒适', totalBudget: 0,
     preferences: [], partySize: 2, extraNotes: '',
@@ -27,12 +27,13 @@ test('已提交过的任务重跑直接复用 tripId，不生成新版本', asyn
 
   try {
     // 命中幂等分支前不会触碰 durable 宿主，传占位即可。
-    await runGeneration(job, form, cfg, undefined, {
+    await runGeneration(run, form, cfg, undefined, {
       agent: { harness: {} as never, registry: {} as never, context: {} as never },
     });
-    assert.equal(job.status, 'done');
-    assert.equal(job.tripId, 'trip-existing');
+    assert.equal(run.status, 'done');
+    assert.equal(run.tripId, 'trip-existing');
   } finally {
     await db.delete(generationNotifications).where(eq(generationNotifications.jobId, jobId));
+    await db.delete(generations).where(eq(generations.jobId, jobId));
   }
 });

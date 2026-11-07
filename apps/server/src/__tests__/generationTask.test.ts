@@ -1,7 +1,7 @@
-// 生成 durable 任务：终态映射（纯函数）与进程重启后的 Job 重建。
+// 生成 durable 任务：终态映射（纯函数）与进程重启后的直播层重建。
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { createJob, getJob, rehydrateJob } from '../generation/jobManager';
+import { createLiveRun, emitLive, getLiveRun } from '../generation/liveRun';
 import { taskOutcome } from '../generation/generationTask';
 import { serializeResearch } from '../generation/checkpoint';
 
@@ -55,19 +55,24 @@ describe('生成任务终态映射', () => {
   });
 });
 
-describe('进程重启后的 Job 重建', () => {
-  it('按原 id 重建，归属校验仍生效', () => {
+describe('进程重启后的直播层重建', () => {
+  it('按 jobId 重建，归属校验仍生效', () => {
     const id = `resume-${Date.now()}`;
-    const job = rehydrateJob(id, 'user-1', { kind: 'generation' });
-    assert.equal(job.id, id);
-    assert.equal(getJob(id, 'user-1')?.id, id);
-    assert.equal(getJob(id, 'user-2'), null, '别人的任务不可见');
-    assert.equal(rehydrateJob(id, 'user-1'), job, '已存在时复用，不覆盖事件');
+    const run = createLiveRun({ jobId: id, userId: 'user-1', createdAt: 1, provenance: { kind: 'generation' } });
+    assert.equal(run.jobId, id);
+    assert.equal(getLiveRun(id, 'user-1')?.jobId, id);
+    assert.equal(getLiveRun(id, 'user-2'), null, '别人的任务不可见');
   });
 
-  it('createJob 生成的 id 与传入的 userId 绑定', () => {
-    const job = createJob(`create-${Date.now()}`);
-    assert.equal(getJob(job.id, job.userId)?.id, job.id);
+  it('终态唯一：重复终态与迟到事件都不再改变状态', () => {
+    const run = createLiveRun({ jobId: `terminal-${Date.now()}`, userId: 'user-1', createdAt: 1, provenance: { kind: 'generation' } });
+    emitLive(run, { type: 'job_done', tripId: 'saved', usedXhs: false, dataSources: [], reviewNotes: [] });
+    const seqAtDone = run.projection.channel.snapshot.seq;
+    emitLive(run, { type: 'job_error', message: 'late error' });
+    emitLive(run, { type: 'thought', phase: 'review', text: 'late writer' });
+    assert.equal(run.status, 'done');
+    assert.equal(run.tripId, 'saved');
+    assert.equal(run.projection.channel.snapshot.seq, seqAtDone, '终态之后的事件不再进投影');
   });
 });
 describe('调研 checkpoint 序列化', () => {

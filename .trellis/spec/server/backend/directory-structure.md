@@ -26,7 +26,7 @@ Representative paths: `apps/server/src/index.ts`, `apps/server/src/routes/trips.
 
 ## Naming
 
-- TypeScript module files use camelCase: `tripService.ts`, `jobManager.ts`,
+- TypeScript module files use camelCase: `tripService.ts`, `liveRun.ts`,
   `searchSource.ts`, and `serialQueue.ts`.
 - Directories use lowercase domain names: `routes`, `services`, `generation`, and
   `integrations/websearch`.
@@ -35,7 +35,7 @@ Representative paths: `apps/server/src/index.ts`, `apps/server/src/routes/trips.
   `amapBudgetRemaining`.
 
 Representative paths: `apps/server/src/services/tripService.ts`,
-`apps/server/src/generation/jobManager.ts`, `apps/server/src/integrations/websearch/searchSource.ts`.
+`apps/server/src/generation/liveRun.ts`, `apps/server/src/integrations/websearch/searchSource.ts`.
 
 ## Route and Service Boundary
 

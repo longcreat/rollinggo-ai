@@ -117,6 +117,8 @@ export const generations = pgTable('generations', {
   // 任务视图（11-07）：running 行在开始时就写入，重启后仍能读进度/结果。
   jobId: text('job_id'),
   requestId: text('request_id'),
+  /** pi-durable 任务 id：重启后取消/审计用它找回任务（与业务 jobId 不同）。 */
+  durableTaskId: text('durable_task_id'),
   destination: text('destination'),
   days: integer('days'),
   finishedAt: timestamp('finished_at', { withTimezone: true }),

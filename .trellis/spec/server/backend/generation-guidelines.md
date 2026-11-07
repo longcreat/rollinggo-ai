@@ -29,7 +29,7 @@ the trip and success audit commit together. Terminal helpers are idempotent, and
 events from parallel enhancement work are discarded.
 
 Representative paths: `apps/server/src/routes/generations.ts`,
-`apps/server/src/generation/orchestrator.ts`, `apps/server/src/generation/jobManager.ts`.
+`apps/server/src/generation/orchestrator.ts`, `apps/server/src/generation/liveRun.ts`.
 
 ## Scenario: Research Tool Submission Completion (2026-10-04)
 
@@ -116,22 +116,28 @@ successful-generation quota. Publish the authoritative in-memory terminal state 
 later audit write can fail.
 
 The `job_cancelled` event carries `reason: 'user' | 'timeout'` so the client can tell a
-manual cancel from the whole-job timeout. The cancel route sets `job.cancelReason = 'user'`
-before aborting; the orchestrator's timeout timer sets `job.cancelReason = 'timeout'`. The
-field is optional in the shared type so legacy buffered events replay cleanly, and missing
-`reason` renders as a user cancel on the client.
+manual cancel from the whole-job timeout. The cancel route calls `cancelLiveRun()` (which
+sets `run.cancelReason = 'user'`), while the orchestrator's timeout timer sets it to
+`'timeout'`. The field is optional in the shared type so legacy buffered events replay
+cleanly, and missing `reason` renders as a user cancel on the client. Task truth lives in the
+`generations` row, so a cancel after restart goes through `harness.abortTask(durableTaskId)`.
 
 Representative paths: `apps/server/src/routes/generations.ts`,
-`apps/server/src/generation/jobManager.ts`, `apps/server/src/services/quotaService.ts`.
+`apps/server/src/generation/liveRun.ts`, `apps/server/src/generation/taskStore.ts`,
+`apps/server/src/services/quotaService.ts`.
 
 ## SSE Contract
 
+The generation stream now carries **projection frames**, not raw events:
+
 - Use `text/event-stream`, disable transformation/buffering, and keep the connection alive.
-- Assign monotonically increasing event IDs per job.
-- Replay buffered events after `Last-Event-ID` or the `lastEventId` query fallback, then
-  subscribe to live events.
+- First frame is a `snapshot` when the client omits `fromSeq` (or its watermark is ahead/behind
+  the window); otherwise replay the `delta` frames after the watermark, then subscribe live.
+- Each frame carries a monotonically increasing `seq`; clients persist it and resubscribe with
+  `fromSeq` after a gap or reconnect.
 - Send heartbeat comments every 25 seconds.
-- End the stream after `job_done`, `job_error`, or `job_cancelled`.
+- End the stream when the live run is terminal. When the live layer has expired, synthesize a
+  terminal snapshot from the persisted task row instead of returning 404.
 - On connection close or write failure, unsubscribe and clear the heartbeat without affecting
   generation.
 - `subscribe` replays synchronously. Initialize the unsubscribe variable before subscribing, then
@@ -146,10 +152,11 @@ Changes to initialization, cancellation, `createTrip`, audit writes, or SSE term
 
 ### 2. Signatures
 
-- `runGeneration(job, form, cfg, logger?: Pick<FastifyBaseLogger, 'info' | 'error'>): Promise<void>`
+- `runGeneration(run: LiveRun, form, cfg, logger?, options): Promise<GenerationRunSummary>`
 - `createTrip(userId, source, revisionOf?, writer = db)`; writer exposes `select` and `insert`.
-- `completeJob` / `failJob` / `cancelJob`: one terminal transition per job.
-- `subscribe(job, afterId, listener): () => void`: synchronous replay, then optional live subscription.
+- `emitLive(run, event)`: one terminal transition per run; `finalizeGenerationTask(ref, status, …)`
+  writes the same terminal state to the `generations` row.
+- `subscribeLiveProjection(run, fromSeq, listener)`: synchronous snapshot/delta resume, then live frames.
 
 ### 3. Contracts
 
@@ -157,8 +164,9 @@ Changes to initialization, cancellation, `createTrip`, audit writes, or SSE term
 - Persist trip and `generations(status='done', tripId)` in the same `db.transaction` writer.
 - Cancellation observed inside the transaction throws and rolls back both writes. COMMIT is the
   success boundary: an abort after commit must not turn the saved result into a cancelled job.
-- For failure/cancellation, release the per-user running lock before the audit write. Audit failure
-  logs safe job/status metadata and cannot leave a running job or a detached rejection.
+- For failure/cancellation, finalize the task row before the audit write. Audit failure logs safe
+  job/status metadata and cannot leave a running row (the DB partial unique index is the gate) or
+  a detached rejection.
 - Unexpected internal failures return a generic user message; never expose raw SQL or credentials.
 
 ### 4. Validation & Error Matrix
@@ -181,15 +189,17 @@ Changes to initialization, cancellation, `createTrip`, audit writes, or SSE term
 
 ### 6. Tests Required
 
-`jobManager.test.ts` verifies idempotent terminal transitions, late events, and terminal replay.
+`apps/server/src/__tests__/generationTask.test.ts` verifies idempotent terminal transitions and
+late-event suppression in the live layer.
 `scripts/verify-generation-flow.mts` injects setup/audit failures, locks PostgreSQL during saving,
 checks rollback and lineage, and reads actual HTTP SSE streams to EOF. Use a disposable database.
 
 ### 7. Wrong vs Correct
 
-Wrong: `await createTrip(...); await record('done', id); completeJob(...)`.
-Correct: pass the same `tx` to `createTrip` and success auditing inside `db.transaction`, then call
-`completeJob` after commit. For failure, call `failJob` first and catch audit errors separately.
+Wrong: `await createTrip(...); await record('done', id); emitLive(job_done)`.
+Correct: pass the same `tx` to `createTrip`, success auditing, and `finalizeGenerationTask` inside
+`db.transaction`, then call `emitLive(job_done)` after commit. For failure, emit the terminal
+event first and catch the task-row/audit writes separately.
 
 Event payloads are shared contracts in `packages/shared/src/types.ts`. Preserve compatibility
 fields until coordinated shared/web removal. Current `xhsEnabled`, `xhsCalls`, and `usedXhs`
@@ -214,7 +224,7 @@ adoption metrics therefore match by name, extracting meal lookup names
 enter reports as observational fields first and only join the gate after proving stable.
 
 Representative paths: `apps/server/src/routes/generations.ts`,
-`apps/server/src/generation/jobManager.ts`, `packages/shared/src/types.ts`.
+`apps/server/src/generation/liveRun.ts`, `packages/shared/src/types.ts`.
 
 ## Scenario: Replay-Stable Generation Timing
 
@@ -229,14 +239,14 @@ into `Trip` or a performance-history table.
 
 - Every `GenerationEvent` may carry `at?: number` (Unix milliseconds).
 - `phase_end`, `tool_end`, and terminal events may carry `durationMs?: number`.
-- `GenerationPerformance(job.createdAt)` records phase keys (`research:1`, `plan:1`, etc.)
+- `GenerationPerformance(run.createdAt)` records phase keys (`research:1`, `plan:1`, etc.)
   and aggregates tool/task keys by count, total, and maximum duration.
-- `runGeneration(job, form, cfg, logger?)` accepts the Fastify/Pino logger from the route.
+- `runGeneration(run, form, cfg, logger?)` accepts the Fastify/Pino logger from the route.
 
 ### 3. Contracts
 
-- `jobManager.emit` fills a missing `at` on every emitted event. Producers may supply an
-  earlier authoritative time, such as `job_start.at = job.createdAt`.
+- `liveRun.emitLive` fills a missing `at` on every emitted event. Producers may supply an
+  earlier authoritative time, such as `job_start.at = run.createdAt`.
 - The server computes completed durations once. The web client uses those fixed values after
   completion and uses its local clock only to animate an item that is still running.
 - Deterministic post-passes reuse `tool_start` / `tool_end` with stable non-sensitive tool keys;
@@ -269,7 +279,7 @@ into `Trip` or a performance-history table.
 ### 6. Tests Required
 
 - Unit-test phase/task aggregation with an injected deterministic clock, including active work.
-- Unit-test `jobManager` timestamp filling and terminal duration for a non-success outcome.
+- Unit-test `liveRun.emitLive` timestamp filling and terminal duration for a non-success outcome.
 - Unit-test timeline reconstruction for explicit timing and legacy missing fields.
 - Run `npm run typecheck`, all server tests, `npm run build -w apps/web`, and
   `node scripts/verify-c2.mjs` to cover the shared union, SSE replay, cancellation, and full flow.

@@ -61,7 +61,18 @@ export function getRunningJobId(userId: string): string | null {
 }
 
 export function createJob(userId: string, provenance: JobProvenance = { kind: 'generation' }): Job {
-  const id = uid();
+  return registerJob(uid(), userId, provenance);
+}
+
+/**
+ * 进程重启后按原 id 重建内存任务（durable task 续跑时用）：
+ * 已有同名任务直接复用；否则新建一份空白任务，随后由 runGeneration 重新 emit job_start。
+ */
+export function rehydrateJob(id: string, userId: string, provenance: JobProvenance = { kind: 'generation' }): Job {
+  return jobs.get(id) ?? registerJob(id, userId, provenance);
+}
+
+function registerJob(id: string, userId: string, provenance: JobProvenance): Job {
   const job: Job = {
     id,
     userId,

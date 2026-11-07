@@ -21,7 +21,7 @@ import { getTrip } from '../services/tripService';
 import { hasSiteLlm } from '../env';
 import { createJob, getJob, getRunningJobId, jobView, subscribe, subscribeProjection, type StoredEvent } from '../generation/jobManager';
 import { runGeneration } from '../generation/orchestrator';
-import { GenerationTask, registerGenerationRunner, unregisterGenerationRunner } from '../generation/generationTask';
+import { GenerationTask, type GenerationTaskInput } from '../generation/generationTask';
 import { agentStoragePath, ensureAgentStorageDir } from '../generation/agentStorage';
 import { getAgentRuntime } from '../chat/agent/runtime';
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
@@ -42,6 +42,28 @@ const GenerateBodySchema = Type.Intersect([
 
 function isTerminalEvent(event: GenerationEvent): boolean {
   return event.type === 'job_done' || event.type === 'job_error' || event.type === 'job_cancelled';
+}
+
+/**
+ * 懒恢复：内存里没有该任务时（进程重启），打开用户存储并 resume —— durable task 会按输入
+ * 重建内存 Job 并重跑流水线，job_start 一到投影即可读。等待有界，找不到仍返回 null。
+ */
+async function resolveJob(jobId: string, userId: string): Promise<ReturnType<typeof getJob>> {
+  const existing = getJob(jobId, userId);
+  if (existing) return existing;
+  try {
+    await ensureAgentStorageDir();
+    const runtime = await getAgentRuntime(agentStoragePath(userId));
+    runtime.harness.resume();
+  } catch {
+    return null;
+  }
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const job = getJob(jobId, userId);
+    if (job) return job;
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  return getJob(jobId, userId);
 }
 
 export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
@@ -84,24 +106,19 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
       kind,
       ...(kind === 'revision' && targetTripId ? { targetTripId } : {}),
     });
-    // 运行上下文是进程内闭包：先注册，再建 durable 任务；任务被调度时按 jobId 取回。
-    registerGenerationRunner(job.id, async () => {
-      await runGeneration(job, request.body, cfg, app.log);
-      const status = job.status === 'running' ? 'error' : job.status;
-      return { status, tripId: job.tripId };
-    });
+    // 任务输入携带重建上下文所需的非敏感数据：进程重启后 resume 也能重建 Job 并续跑。
+    const taskInput: GenerationTaskInput = { jobId: job.id, userId, form: request.body, provenance: job.provenance };
     try {
       await ensureAgentStorageDir();
       const runtime = await getAgentRuntime(agentStoragePath(userId));
       const root = await runtime.harness.root(BACKGROUND_CONTEXT);
       await root.commit(
-        (tx) => tx.createTask(GenerationTask, { jobId: job.id }, { ownership: { kind: 'conversation' } }),
+        (tx) => tx.createTask(GenerationTask, taskInput, { ownership: { kind: 'conversation' } }),
         BACKGROUND_CONTEXT,
       );
       runtime.harness.resume();
     } catch (error) {
       // durable 骨架不可用时退回直接运行：生成不能因为 harness 故障而丢。
-      unregisterGenerationRunner(job.id);
       app.log.warn(error, 'generation task 创建失败，回退直接运行');
       runGeneration(job, request.body, cfg, app.log).catch((err) => app.log.error(err, 'runGeneration 未捕获异常'));
     }
@@ -117,7 +134,7 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
 
   app.get('/:jobId', async (request, reply) => {
     const { jobId } = request.params as { jobId: string };
-    const job = getJob(jobId, request.user!.id);
+    const job = await resolveJob(jobId, request.user!.id);
     if (!job) {
       const result = await getGenerationResult(request.user!.id, jobId);
       return result ?? reply.code(404).send({ error: '任务不存在或已过期' });
@@ -189,7 +206,7 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
    */
   app.get('/:jobId/projection', async (request, reply) => {
     const { jobId } = request.params as { jobId: string };
-    const job = getJob(jobId, request.user!.id);
+    const job = await resolveJob(jobId, request.user!.id);
     if (!job) return reply.code(404).send({ error: '任务不存在或已过期' });
     const fromSeq = Number.parseInt((request.query as { fromSeq?: string }).fromSeq ?? '0', 10) || 0;
     const resumed = job.projection.channel.resume(fromSeq);
@@ -201,7 +218,7 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
   // 投影 SSE：先发 initial（快照或补帧），再推实时帧。
   app.get('/:jobId/projection/events', async (request, reply) => {
     const { jobId } = request.params as { jobId: string };
-    const job = getJob(jobId, request.user!.id);
+    const job = await resolveJob(jobId, request.user!.id);
     if (!job) return reply.code(404).send({ error: '任务不存在或已过期' });
 
     const fromSeq = Number.parseInt((request.query as { fromSeq?: string }).fromSeq ?? '0', 10) || 0;

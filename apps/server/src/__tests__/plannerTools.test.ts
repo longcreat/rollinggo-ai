@@ -111,9 +111,9 @@ test('search_area_places：过滤设施点，结果进入候选后可用于 plan
     webSearch: async () => [],
   });
   const found = await tool(status, 'search_area_places').execute('t1', { areaId: areas[0]!.id });
-  const payload = JSON.parse((found as { content: { text: string }[] }).content[0]!.text) as { returned: number; accepted: { name: string }[] };
+  const payload = JSON.parse((found as { content: { text: string }[] }).content[0]!.text) as { returned: number; places: { name: string }[] };
   assert.equal(payload.returned, 2);
-  assert.deepEqual(payload.accepted.map((item) => item.name), ['苏堤春晓']);
+  assert.deepEqual(payload.places.map((item) => item.name), ['苏堤春晓']);
 
   const planned = await tool(status, 'plan_day').execute('t2', { dayIndex: 1, areaId: areas[0]!.id, places: ['苏堤春晓', '花港码头售票亭'] });
   assert.equal((planned as { isError?: boolean }).isError, true, '设施点不能进入行程');

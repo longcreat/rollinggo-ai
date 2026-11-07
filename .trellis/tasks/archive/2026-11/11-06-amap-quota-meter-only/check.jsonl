@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/server/backend/integration-guidelines.md", "reason": "外部集成的降级、日志与凭据边界约定"}
+{"file": ".trellis/spec/server/backend/error-handling.md", "reason": "错误语义与可重试/不可重试的区分"}
+{"file": ".trellis/spec/server/backend/logging-guidelines.md", "reason": "结构化日志字段与不落敏感信息的约定"}
+{"file": ".trellis/spec/server/backend/quality-guidelines.md", "reason": "改动完成前的自检清单"}

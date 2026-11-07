@@ -64,6 +64,8 @@ export async function runPlanningAnswer(options: RunPlanningAnswerOptions): Prom
     instructions: PLANNING_INSTRUCTIONS,
     model: agentModelRef(cfg.model),
     prompt: buildPlanningPrompt({ brief: detail.conversation.brief.data, text: input.text, autostart: Boolean(input.autostart) }),
+    // 行前回合只确认并委派，不需要长工具链；给上限避免异常模型把表单提交拖住。
+    maxTurns: 6,
     conversationId: durableId === null ? null : durableId as unknown as ConversationId,
     signal,
     onConversationCreated: (id) => saveBinding(userId, conversationId, id),

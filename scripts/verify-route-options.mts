@@ -17,6 +17,7 @@ process.env.DOTENV_CONFIG_PATH = './data/route-options-absent.env';
 process.env.MASTER_KEY = 'a'.repeat(64);
 process.env.AMAP_KEY = 'route-test-fixture';
 process.env.AMAP_DAILY_BUDGET = '40';
+process.env.AMAP_QUOTA_ENFORCE = 'true';
 process.env.GITHUB_CLIENT_ID = '';
 process.env.GITHUB_CLIENT_SECRET = '';
 process.env.REGISTRATION_MODE = 'open';

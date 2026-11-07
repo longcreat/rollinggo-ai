@@ -25,6 +25,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run eval
+      - name: Unit and integration tests
+        run: npm run eval:test
+        env:
+          # 仅测试用固定密钥；CI 不接触真实凭据。
+          MASTER_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+          DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/tripweaver
+      - name: Web unit tests
+        run: node --import tsx --test apps/web/tests/*.test.ts
       - name: Install browser for current product flow
         run: npx playwright install --with-deps chromium
       - name: Verify current product flow with isolated databases and mocks

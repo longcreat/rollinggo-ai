@@ -26,6 +26,7 @@ import {
   useStartPlanning,
   useUsage,
 } from '../api/hooks';
+import { useTravelPreferencesDraft } from '../components/TravelPreferencesProvider';
 import { clearPlanningEntry, readPlanningEntry, resolvePlanningEntry, writePlanningEntry } from '../lib/planningEntry';
 import { daysBetween, isISODate, isoDateAfter } from '../lib/dates';
 
@@ -82,6 +83,7 @@ export function NewTripPage() {
   const patchBrief = useSaveBriefSnapshot();
   const startPlanning = useStartPlanning();
   const current = useCurrentGeneration(userId, Boolean(userId));
+  const preferences = useTravelPreferencesDraft();
 
   const draft = useMemo(() => parseDraft(params), [params]);
   const text = (params.get('text') ?? '').trim().slice(0, 1000);
@@ -162,6 +164,14 @@ export function NewTripPage() {
         input: { requestId, text: text || `规划${draft.city}${draft.days}天行程`, autostart: true },
       });
       if (result.startedGenerationJobId) {
+        // 首页选择只在生成真正开始后记忆；存的是本次提交的快照，不误存用户之后的新草稿。
+        void preferences.persist({
+          preferences: draft.preferences,
+          transportMode: draft.transportMode ?? 'transit',
+          pace: draft.pace,
+          partySize: draft.partySize,
+          extraNotes: draft.extraNotes,
+        });
         clearPlanningEntry();
         void qc.invalidateQueries({ queryKey: keys.currentGeneration(userId) });
         navigate(`/agent/${encodeURIComponent(result.startedGenerationJobId)}`, { replace: true });

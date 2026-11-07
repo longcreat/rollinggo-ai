@@ -30,20 +30,60 @@ const server = createServer(async (req, res) => {
     let raw = '';
     for await (const data of req) raw += data;
     const body = JSON.parse(raw);
-    const isWriter = body.tools?.some((tool) => tool.function?.name === 'update_titles');
-    // 只统计调研阶段的请求：review 阶段也会发不含 update_titles 的请求，不能拿「不是 writer」当调研判据。
-    if (body.tools?.some((tool) => tool.function?.name === 'submit_research')) researchRequests++;
-    const ids = [...new Set([...JSON.stringify(body.messages).matchAll(/id=([a-zA-Z0-9_-]+)/g)].map((m) => m[1]))].slice(0, 4);
-    const call = isWriter
-      ? { name: 'update_titles', arguments: JSON.stringify({ title: '广州一日漫游', dayTitles: ['广州老城漫步'] }) }
-      : { name: 'submit_research', arguments: JSON.stringify({ candidates: ids.map((placeId) => ({ placeId, intro: '历史街区与城市景点，适合步行参观并体验当地文化。' })), summary: '本机模拟评估' }) };
+    const tools = new Set((body.tools ?? []).map((tool) => tool.function?.name));
+    const isWriter = tools.has('update_titles');
+    const isPlanner = tools.has('plan_day') && tools.has('submit_plan');
+    const isResearch = tools.has('submit_research');
+    // 只统计调研阶段的请求：别的阶段也可能带相似工具，按 submit_research 判定。
+    if (isResearch) researchRequests++;
+    const textOf = (message) => {
+      const content = message?.content;
+      if (typeof content === 'string') return content;
+      return Array.isArray(content) ? content.map((part) => part?.text ?? '').join('') : '';
+    };
+    const promptText = body.messages.map(textOf).join('\n');
+    const toolTexts = body.messages.filter((message) => message.role === 'tool').map(textOf);
+
+    // 提交成功后用纯文本收尾，避免 mock 在 turn limit 内反复 submit。
+    const submitted = toolTexts.some((text) => text.includes('已提交') || text.includes('"ok":true'));
+    let call;
+    if (submitted) {
+      call = undefined;
+    } else if (isWriter) {
+      call = { name: 'update_titles', arguments: JSON.stringify({ title: '广州一日漫游', dayTitles: ['广州老城漫步'] }) };
+    } else if (isPlanner) {
+      const areasText = toolTexts.find((text) => text.includes('"areas"'));
+      if (!areasText) {
+        call = { name: 'list_areas', arguments: '{}' };
+      } else {
+        const areas = JSON.parse(areasText.slice(areasText.indexOf('{'), areasText.lastIndexOf('}') + 1)).areas ?? [];
+        const area = areas.find((item) => (item.candidates?.length ?? 0) >= 2) ?? areas[0];
+        const planned = toolTexts.some((text) => text.includes('"dayIndex"'));
+        if (!area || planned) {
+          call = { name: 'submit_plan', arguments: '{}' };
+        } else {
+          const places = area.candidates.length >= 2
+            ? area.candidates.slice(0, 3)
+            : areas.flatMap((item) => item.candidates ?? []).slice(0, 3);
+          call = {
+            name: 'plan_day',
+            arguments: JSON.stringify({ dayIndex: 1, areaId: area.id, places, startAt: '09:00' }),
+          };
+        }
+      }
+    } else if (isResearch) {
+      const ids = [...new Set([...JSON.stringify(body.messages).matchAll(/id=([a-zA-Z0-9_-]+)/g)].map((m) => m[1]))].slice(0, 4);
+      call = { name: 'submit_research', arguments: JSON.stringify({ candidates: ids.map((placeId) => ({ placeId, intro: '历史街区与城市景点，适合步行参观并体验当地文化。' })), summary: '本机模拟评估' }) };
+    }
+    const researchTextOnly = isResearch && (values['research-response'] === 'text-only' ||
+      (values['research-response'] === 'text-first' && researchRequests === 1));
     res.writeHead(200, { 'content-type': 'text/event-stream' });
     const base = { id: 'eval-mock', object: 'chat.completion.chunk', created: 1, model: 'eval-mock' };
-    const textOnly = !isWriter && (values['research-response'] === 'text-only' ||
-      (values['research-response'] === 'text-first' && researchRequests === 1));
+    // 未覆盖的阶段（建议撰写等）回纯文本：允许流水线按现有降级路径继续。
+    const textOnly = !call || researchTextOnly;
+    const content = call ? `\`\`\`json\n${call.arguments}\n\`\`\`` : '（模拟阶段输出）';
     for (const chunk of [
-      { choices: [{ index: 0, delta: textOnly ? { role: 'assistant', content: `\`\`\`json\n${call.arguments}\n\`\`\`` }
-        : { role: 'assistant', content: '', tool_calls: [{ index: 0, id: 'eval-call', type: 'function', function: call }] }, finish_reason: null }] },
+      { choices: [{ index: 0, delta: textOnly ? { role: 'assistant', content } : { role: 'assistant', content: '', tool_calls: [{ index: 0, id: `eval-call-${Math.random().toString(36).slice(2, 10)}`, type: 'function', function: call }] }, finish_reason: null }] },
       { choices: [{ index: 0, delta: {}, finish_reason: textOnly ? 'stop' : 'tool_calls' }] },
       { choices: [], usage: { prompt_tokens: 100, completion_tokens: 20 } },
     ]) res.write(`data: ${JSON.stringify({ ...base, ...chunk })}\n\n`);
@@ -102,7 +142,8 @@ try {
     assert.ok(snapshot.timing.phases['plan#1'] >= 0);
     assert.equal(snapshot.execution.auditCommitted, true);
     assert.equal(snapshot.execution.overviewMatches, true);
-    assert.equal(snapshot.execution.planLlmCalls, 0);
+    // 当前规划阶段由模型选点/排程，必须真的有模型响应（旧的确定性排程已退出主链）。
+    assert.ok(snapshot.execution.planLlmCalls > 0, `规划阶段应调用模型，实际 ${snapshot.execution.planLlmCalls}`);
     assert.equal(report.cases[0].metrics.flowFailures, 0);
     assert.ok(report.cases[0].flow.some((row) => row.id === 'persistence' && row.status === 'PASS'));
     assert.ok(events.events.some((event) => event.type === 'tool_end' && event.tool === 'submit_research'));

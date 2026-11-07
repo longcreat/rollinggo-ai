@@ -744,7 +744,12 @@ export async function runGeneration(
       failureMessage = err instanceof GenerationFailure || err instanceof ScheduleDateConflictError ? err.message : '生成失败，请稍后重试';
       failJob(job, failureMessage);
       terminalStatus = 'error';
-      logger?.error({ jobId: job.id, errorType: err instanceof Error ? err.name : 'unknown' }, 'generation failed');
+      logger?.error({
+        jobId: job.id,
+        errorType: err instanceof Error ? err.name : 'unknown',
+        error: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+      }, 'generation failed');
     }
     // 失败/取消先发布权威终态。审计异常必须可观测，但不能再次困住任务锁。
     if (terminalStatus === 'error' || job.cancelReason === 'timeout') {

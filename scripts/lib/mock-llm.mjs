@@ -24,6 +24,16 @@ function respondWithToolCalls(res, model, calls) {
   res.end();
 }
 
+function respondWithText(res, model, text) {
+  res.writeHead(200, { 'content-type': 'text/event-stream' });
+  const base = { id: 'chatcmpl-mock', object: 'chat.completion.chunk', created: Math.floor(Date.now() / 1000), model };
+  sseChunk(res, { ...base, choices: [{ index: 0, delta: { role: 'assistant', content: text }, finish_reason: null }] });
+  sseChunk(res, { ...base, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] });
+  sseChunk(res, { ...base, choices: [], usage: { prompt_tokens: 100, completion_tokens: 20 } });
+  res.write('data: [DONE]\n\n');
+  res.end();
+}
+
 function researchCalls(turnHasToolResults) {
   if (turnHasToolResults) {
     return [{ name: 'submit_research', args: { summary: '（来自模型知识）候选已入池：故宫博物院、测试食堂、测试酒店。建议第 1 天集中在市中心。' } }];
@@ -33,42 +43,49 @@ function researchCalls(turnHasToolResults) {
     { name: 'search_pois', args: { category: 'attraction', keyword: '必去景点' } },
     { name: 'search_web', args: { query: '攻略 预约' } },
     { name: 'add_candidate', args: { name: '故宫博物院', category: 'attraction', intro: '明清两代皇宫，世界文化遗产。', reservation: 'none' } },
+    { name: 'add_candidate', args: { name: '天安门广场', category: 'attraction', intro: '城市中轴线上的开放广场。', reservation: 'none' } },
+    { name: 'add_candidate', args: { name: '景山公园', category: 'attraction', intro: '登高俯瞰中轴线的城市公园。', reservation: 'none' } },
     { name: 'add_candidate', args: { name: '测试食堂', category: 'food', intro: '本地人气小馆，招牌菜实惠。', reservation: 'unknown' } },
     { name: 'add_candidate', args: { name: '测试酒店', category: 'hotel', intro: '交通便利的舒适型酒店。' } },
     { name: 'add_candidate', args: { name: '故宫博物院', category: 'attraction', intro: '重复添加应被去重。' } },
   ];
 }
 
-function plannerCalls(days, turnHasToolResults, { geocodedActivities, includeLodging }) {
-  if (turnHasToolResults) return [{ name: 'submit_plan', args: {} }];
-  const calls = [
-    { name: 'set_trip_skeleton', args: { title: '测试之旅', dayTitles: Array.from({ length: days }, (_, i) => `第${i + 1}天主题`) } },
-  ];
-  // ST3 住宿锚点：用户未指定时建议一个区域（用户已指定时工具幂等返回提示，不报错）
-  if (includeLodging) calls.push({ name: 'set_lodging', args: { name: '市中心站前区域' } });
-  for (let d = 1; d <= days; d++) {
-    const activities = [
-      { name: `活动${d}-1`, placeName: `活动${d}-1`, startTime: '09:00', endTime: '11:00', category: '文化' },
-      { name: `午餐｜活动${d}-1周边当地风味`, startTime: '12:00', endTime: '13:15', category: '美食' },
-      { name: `晚餐｜市中心片区当地风味`, startTime: '18:00', endTime: '19:15', category: '美食' },
-    ];
-    for (const [j, activity] of activities.entries()) {
-      calls.push({
-        name: 'add_activity',
-        args: {
-          dayIndex: d,
-          ...activity,
-          description: activity.category === '美食'
-            ? '建议选择所在片区的当地菜系或代表菜，具体门店与实时信息到本地生活平台确认。'
-            : '测试活动描述',
-          lat: 35.68 + d * 0.01 + j * 0.001,
-          lng: 139.76 + d * 0.01 + j * 0.001,
-          ...(geocodedActivities ? { coordSource: 'geocoded' } : {}),
-        },
-      });
-    }
+function messageText(message) {
+  const content = message?.content;
+  if (typeof content === 'string') return content;
+  if (Array.isArray(content)) return content.map((part) => (typeof part === 'string' ? part : part?.text ?? '')).join('');
+  return '';
+}
+
+/** 当前规划协议：list_areas → plan_day（每天） → submit_plan。工具结果决定下一步。 */
+function plannerCalls(days, messages) {
+  const toolTexts = messages.filter((message) => message.role === 'tool').map(messageText);
+  const areasText = toolTexts.find((text) => text.includes('"areas"'));
+  if (!areasText) return [{ name: 'list_areas', args: {} }];
+
+  let areas = [];
+  try {
+    const start = areasText.indexOf('{');
+    const end = areasText.lastIndexOf('}');
+    areas = JSON.parse(areasText.slice(start, end + 1)).areas ?? [];
+  } catch {
+    areas = [];
   }
-  return calls;
+  // plan_day 至少 2 个地点：优先选候选足够多的片区，否则跨片区拼。
+  const area = areas.find((item) => (item.candidates?.length ?? 0) >= 2) ?? areas[0];
+  if (!area) return [{ name: 'submit_plan', args: {} }];
+
+  const alreadyPlanned = toolTexts.some((text) => text.includes('"totalMinutes"') || text.includes('"dayIndex"'));
+  if (alreadyPlanned) return [{ name: 'submit_plan', args: {} }];
+
+  const places = area.candidates.length >= 2
+    ? area.candidates.slice(0, 3)
+    : areas.flatMap((item) => item.candidates ?? []).slice(0, 3);
+  return Array.from({ length: days }, (_, index) => ({
+    name: 'plan_day',
+    args: { dayIndex: index + 1, areaId: area.id, places, startAt: '09:00' },
+  }));
 }
 
 /**
@@ -105,8 +122,14 @@ export async function startMockLlm(
       // content 可能是字符串或 [{type:'text',text}] 数组（pi-ai 按 OpenAI 规范发数组）
       const rawUser = payload.messages.find((m) => m.role === 'user')?.content;
       const userText = typeof rawUser === 'string' ? rawUser : Array.isArray(rawUser) ? rawUser.map((c) => c?.text ?? '').join('\n') : '';
-      const days = Number(/天数：(\d+) 天/.exec(userText)?.[1] ?? 2);
+      // 规划/调研的 system prompt 写「天数：3；」，旧 userText 里是「3 天」；两者都认。
+      const days = Number(/天数[:：](\d+)/.exec(`${system}\n${userText}`)?.[1] ?? /(\d+)\s*天/.exec(userText)?.[1] ?? 2);
 
+      if (system.includes('行前规划助手')) {
+        // 行前回合可以只回文本：表单 autostart 会按条件确定性委派生成。
+        respondWithText(res, payload.model, '已在后台开始生成，可在任务里查看进度。');
+        return;
+      }
       if (system.includes('对话助手')) {
         // 问答式入口（09-23）：单轮工具调用，不带多轮工具链。
         // fixture 标记「先不定日期」：故意不给出发日期，用来验证「缺字段 → 给可点选控件」。
@@ -169,7 +192,7 @@ export async function startMockLlm(
         respondWithToolCalls(res, payload.model, prefetched.length
           ? [{ name: 'submit_research', args: { candidates: prefetched.map(([, placeId, name]) => ({ placeId, intro: `${name}适合漫步参观。` })) } }]
           : researchCalls(toolResults > 0));
-      } else if (system.includes('行程规划师') && system.includes('局部修订')) {
+      } else if (system.includes('行程规划') && system.includes('局部修订')) {
         if (toolResults === 0) {
           seenRevisions.push({
             tools: (payload.tools ?? []).map((tool) => tool.function?.name),
@@ -180,8 +203,14 @@ export async function startMockLlm(
         respondWithToolCalls(res, payload.model, toolResults > 0
           ? [{ name: 'submit_plan', args: {} }]
           : [{ name: 'update_activity', args: { dayIndex: 1, position: 1, startTime: '09:30', description: '局部修订：延后半小时参观，保留其他安排。' } }]);
-      } else if (system.includes('行程规划师')) {
-        respondWithToolCalls(res, payload.model, plannerCalls(days, toolResults > 0, { geocodedActivities, includeLodging }));
+      } else if (system.includes('行程规划')) {
+        // 提交成功后用纯文本收尾，避免 mock 在轮次上限内反复 submit。
+        const submitted = payload.messages
+          .filter((message) => message.role === 'tool')
+          .map(messageText)
+          .some((text) => text.includes('已提交') || text.includes('"ok":true'));
+        if (submitted) respondWithText(res, payload.model, '规划完成');
+        else respondWithToolCalls(res, payload.model, plannerCalls(days, payload.messages));
       } else if (system.includes('旅行建议撰写员')) {
         if (adviceResponse === 'error') {
           res.writeHead(400, { 'content-type': 'application/json' });
@@ -189,11 +218,17 @@ export async function startMockLlm(
           return;
         }
         const { finalItinerary, evidence } = JSON.parse(userText);
-        const day = finalItinerary.days.find(day => day.activities.length);
-        const activity = day.activities[0];
-        const evidenceIds = evidence.filter(e => e.activityIds.includes(activity.id)).slice(0, 2).map(e => e.id);
+        const allActivities = finalItinerary.days.flatMap((day) => day.activities);
+        // 优先引用 SQL 知识库里注入的证据，并把它挂到真实行程活动上。
+        const sqlEvidence = evidence.find((item) => item.sources?.some((source) => source.url === 'https://example.com/palace-evidence'));
+        const matched = sqlEvidence
+          ? allActivities.find((item) => sqlEvidence.activityIds.includes(item.id))
+          : allActivities.find((item) => evidence.some((e) => e.activityIds.includes(item.id)));
+        const activity = matched ?? allActivities[0];
+        const dayIndex = finalItinerary.days.find((day) => day.activities.some((item) => item.id === activity.id))?.dayIndex ?? 1;
+        const evidenceIds = sqlEvidence ? [sqlEvidence.id] : evidence.filter(e => e.activityIds.includes(activity.id)).slice(0, 2).map(e => e.id);
         respondWithToolCalls(res, payload.model, [{ name: 'submit_trip_advice', args: {
-          suggestions: [{ title: '按当天体力慢游', text: `第${day.dayIndex}天游览${activity.name}时留出停留与休息时间。`, activityIds: [activity.id], evidenceIds }],
+          suggestions: [{ title: '按当天体力慢游', text: `第${dayIndex}天游览${activity.name}时留出停留与休息时间。`, activityIds: [activity.id], evidenceIds }],
           cautions: [{ title: '核实参观要求', text: `${activity.name}的预约与入场规则请以官方最新信息为准。`, activityIds: [activity.id], evidenceIds }],
         } }]);
       } else if (system.includes('行程标题撰写员')) {

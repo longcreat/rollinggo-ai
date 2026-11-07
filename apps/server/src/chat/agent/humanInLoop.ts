@@ -191,10 +191,14 @@ export function startHardTimeout(
   hasPending: () => boolean,
   onTimeout: () => void,
 ): { clear(): void } {
+  const deadline = Date.now() + limitMs;
+  // 到点之后每 1s 复查，而不是再等一整个 limitMs：原实现跳过一 tick 后要再等一整段，
+  // 实测能把 5min 硬超时拖到 ~10min。待答问题 settle 后最迟 1s 内触发。
   const timer = setInterval(() => {
+    if (Date.now() < deadline) return;
     if (hasPending()) return;
     clearInterval(timer);
     onTimeout();
-  }, limitMs);
+  }, Math.min(1_000, limitMs));
   return { clear: () => clearInterval(timer) };
 }

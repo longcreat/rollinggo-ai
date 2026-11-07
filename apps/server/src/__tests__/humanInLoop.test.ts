@@ -1,6 +1,6 @@
 // HITL 注册表：暂停/回答/超时/取消/校验。纯内存，不连模型。
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { describe, it, mock } from 'node:test';
 import type { AgentQuestion, PendingQuestionView } from '@tripweaver/shared';
 import {
   answerPendingQuestion, cancelPendingQuestions, createHitlSession, pendingQuestion, startHardTimeout,
@@ -135,5 +135,29 @@ describe('硬超时闸门（5min 防挂死 × pending HITL）', () => {
     gate.clear();
     await sleep(60);
     assert.equal(fired, 1, '触发后不再重复 abort');
+  });
+
+  it('问题跨过 deadline 后 settle，最迟一个轮询周期内触发，而不是再等一整段', async () => {
+    const state = session();
+    // 问题自身用真实定时器且给足时间，避免被假时钟推进判成超时。
+    const pending = state.hitl.ask([question], 3_600_000);
+    let fired = 0;
+    mock.timers.enable({ apis: ['setInterval', 'Date'], now: Date.now() });
+    try {
+      const gate = startHardTimeout(300_000, () => state.hitl.hasPending(), () => { fired += 1; });
+      mock.timers.tick(301_000); // 跨过 deadline，但仍 pending → 不触发
+      assert.equal(fired, 0, 'pending 问题挂起时不能砍回合');
+      assert.equal(answerPendingQuestion({
+        userId: 'u1', conversationId: 'c1', questionId: state.view!.id,
+        answers: [{ id: 'day', selected: ['第 2 天'] }],
+      }).ok, true);
+      await pending;
+      mock.timers.tick(1_000); // 旧实现要到下一个 5min tick 才触发
+      assert.equal(fired, 1, 'settle 后应在一个轮询周期内恢复硬超时判定');
+      gate.clear();
+    } finally {
+      mock.timers.reset();
+      cancelPendingQuestions('c1');
+    }
   });
 });

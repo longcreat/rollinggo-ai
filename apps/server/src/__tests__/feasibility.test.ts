@@ -117,15 +117,26 @@ test('overpacked 软：步行累计 > 15km（leg 距离累加，与坐标无关�
   assert.ok(report.violations.some((x) => x.code === 'overpacked' && /步行/.test(x.message)));
 });
 
-test('overpacked 软：缓冲比 < 10%（时间窗几乎排满）', () => {
+test('overpacked 软：相对 14h 日上限的余量 < 10%', () => {
+  const acts = [
+    activity('a1', { startTime: '09:00', endTime: '12:00', ...P }),
+    activity('a2', { startTime: '12:10', endTime: '22:00', ...east(0.001) }),
+  ];
+  const legs = [leg('a1', 'a2', { mode: 'walk', distanceM: 200, durationMin: 5 })];
+  const report = simulateDay(day(acts, legs), ctx());
+  assert.ok(report.bufferRatio !== null && report.bufferRatio < FEASIBILITY_THRESHOLDS.softBufferRatio);
+  assert.ok(report.violations.some((x) => x.code === 'overpacked' && /缓冲/.test(x.message)));
+});
+
+test('连续排程的短日不算缓冲不足（旧时间窗算法会误报 0%）', () => {
   const acts = [
     activity('a1', { startTime: '09:00', endTime: '12:00', ...P }),
     activity('a2', { startTime: '12:10', endTime: '17:00', ...east(0.001) }),
   ];
   const legs = [leg('a1', 'a2', { mode: 'walk', distanceM: 200, durationMin: 5 })];
   const report = simulateDay(day(acts, legs), ctx());
-  assert.ok(report.bufferRatio !== null && report.bufferRatio < FEASIBILITY_THRESHOLDS.softBufferRatio);
-  assert.ok(report.violations.some((x) => x.code === 'overpacked' && /缓冲/.test(x.message)));
+  assert.ok(report.bufferRatio !== null && report.bufferRatio > FEASIBILITY_THRESHOLDS.softBufferRatio);
+  assert.equal(report.violations.some((x) => x.code === 'overpacked' && /缓冲/.test(x.message)), false);
 });
 
 // ---------- backtrack（软） ----------

@@ -86,6 +86,7 @@ import { buildAreas } from './planner/tools';
 import { searchAreaPois } from '../integrations/amap/placeArea';
 import { ScheduleDateConflictError, scheduleClosureConflicts } from './closureConflict';
 import { applyDraftTimings } from './scheduling/dayPlanner';
+import { applyTrimRemovals, planOverpackedTrim } from './dayTrim';
 import {
   WRITER_SYSTEM_PROMPT,
   writerUserPrompt,
@@ -619,6 +620,23 @@ export async function runGeneration(
     // 按最终 legs 顺延每个活动的到达/离开时刻：规划 Agent 预览用的是启发式时长，
     // 真实路线重算后必须再校准一次，否则会出现「17 分钟间隔走 26 分钟路程」的可行性冲突。
     runSystemTask('review', 'retime_days', '按真实通勤校准时刻', () => applyDraftTimings(draft.mutableDays(), form.pace ?? 'moderate'));
+
+    // 真实 legs + 餐次可能把个别天推到 14h 以上：落库前确定性移除超载日最长的非首站景点，
+    // 只重算受影响天的 legs，再校准一次时刻。保证最终产物可执行，而不是把硬冲突留到详情页。
+    const trim = planOverpackedTrim(draft.mutableDays());
+    if (trim.removals.length) {
+      const touched = applyTrimRemovals(draft.mutableDays(), trim.removals);
+      try {
+        await runSystemTask('review', 'trim_overpacked_days', '精简超载日安排', () =>
+          geo.computeLegs(draft, finalSink.onThought, signal, touched));
+      } catch (err) {
+        if (signal.aborted) throw err;
+        for (const dayIndex of touched) delete draft.mutableDays()[dayIndex - 1]!.legs;
+      }
+      applyDraftTimings(draft.mutableDays(), form.pace ?? 'moderate');
+      reviewNotes = [...trim.notes, ...reviewNotes].slice(0, 8);
+      assertAlive(signal);
+    }
 
     // 只保留最终草稿中仍成立的换天说明。
     const verifiedAutoNotes = verifiedFixNotes(draft, autoFixMoves);

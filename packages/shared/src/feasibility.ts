@@ -32,7 +32,7 @@ export const FEASIBILITY_THRESHOLDS = {
   hardDayTotalMin: 14 * 60,     // 硬：日活动占用 + 通勤 > 14h → overpacked
   softMaxActivities: 8,         // 软：日活动数 > 8 → overpacked
   softWalkMeters: 15_000,       // 软：日步行累计 > 15km → overpacked
-  softBufferRatio: 0.1,         // 软：日缓冲比 < 10% → overpacked（时间窗几乎排满）
+  softBufferRatio: 0.1,         // 软：相对 14h 日上限的余量 < 10% → overpacked
   backtrackTurnCosMax: 0,       // 软：回头角 > 90° ⟺ 方向向量夹角余弦 < 0
   backtrackJumpMeters: 2_000,   // 软：且该段直线回跳 > 2km 才判折返（滤掉小抖动）
 } as const;
@@ -46,7 +46,7 @@ export interface DayReport {
   transitMinutes: number;       // 当日通勤合计（活动间 + 住宿 leg；无 leg 时按 haversine 估算）
   totalMinutes: number;         // 活动占用 + 通勤
   walkingMeters: number;        // 步行段直线距离累计
-  bufferRatio: number | null;   // 缓冲比（1 - 用时/时间窗）；无法计算（缺首尾时间）为 null
+  bufferRatio: number | null;   // 相对 14h 日上限的剩余比例；无法计算（缺首尾时间）为 null
   violations: Violation[];
 }
 
@@ -190,14 +190,16 @@ export function simulateDay(day: TripDay, ctx: DaySimContext): DayReport {
 
   const totalMinutes = activityMinutes + transitMinutes;
 
-  // 缓冲比：仅当首活动起点与末活动终点齐备且时间窗 > 0 才可计（≥2 活动）；否则 null
+  // 缓冲比：相对「单日 14h 上限」还剩多少余量。
+  // 早先的算法用首尾活动时间窗做分母，只要一天是连续排程（没有空等），缓冲恒为 0%，
+  // 8 小时的轻松一天也会被标「几乎排满」；那不是密度问题，而是分母选错了。
+  // 仍然要求首尾时刻齐备（缺时间的活动不臆造），否则保持 null。
   let bufferRatio: number | null = null;
   if (activities.length >= 2) {
     const windowStart = toMinutes(activities[0]!.startTime);
     const windowEnd = toMinutes(activities[activities.length - 1]!.endTime);
     if (windowStart !== null && windowEnd !== null && windowEnd > windowStart) {
-      const windowMin = windowEnd - windowStart;
-      bufferRatio = (windowMin - activityMinutes - transitMinutes) / windowMin;
+      bufferRatio = Math.max(0, (FEASIBILITY_THRESHOLDS.hardDayTotalMin - totalMinutes) / FEASIBILITY_THRESHOLDS.hardDayTotalMin);
     }
   }
 
@@ -237,9 +239,9 @@ export function simulateDay(day: TripDay, ctx: DaySimContext): DayReport {
       code: 'overpacked',
       severity: 'soft',
       dayIndex,
-      message: `当日时间窗缓冲仅约 ${Math.round(bufferRatio * 100)}%，低于 ${Math.round(
-        FEASIBILITY_THRESHOLDS.softBufferRatio * 100,
-      )}%，几乎排满无弹性`,
+      message: `当日安排约 ${round1(totalMinutes / 60)} 小时，距 ${FEASIBILITY_THRESHOLDS.hardDayTotalMin / 60} 小时上限仅余 ${Math.round(
+        bufferRatio * 100,
+      )}% 缓冲，低于 ${Math.round(FEASIBILITY_THRESHOLDS.softBufferRatio * 100)}%`,
     });
   }
 

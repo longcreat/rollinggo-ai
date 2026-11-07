@@ -8,7 +8,7 @@ import { after, describe, it } from 'node:test';
 import { createModels } from '@earendil-works/pi-ai/models';
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { fauxAssistantMessage, fauxProvider, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
-import { defineExtension, defineTool } from '@earendil-works/pi-durable';
+import { defineExtension, defineTask, defineTool } from '@earendil-works/pi-durable';
 import { obj } from '@earendil-works/pi-schema';
 import type { Trip } from '@tripweaver/shared';
 import { AgentBusyError, closeAgentRuntime, getAgentRuntime, runAgentTurn, type AgentStreamEvent } from '../chat/agent/runtime';
@@ -388,6 +388,56 @@ describe('agent runtime', () => {
     assert.equal(chatAgent.tools.length, 1);
     assert.equal(chatAgent.tools[0], chatTool, '对话会话不能解析到生成阶段的同名工具');
     assert.equal(genAgent.tools[0], genTool, '生成会话不能解析到对话的同名工具');
+    await closeAgentRuntime(path);
+  });
+
+  it('工具可以创建并等待一个对话拥有的 durable 子任务', async () => {
+    const { faux, models } = fauxModels();
+    const path = await storage();
+    const runtime = await getAgentRuntime(path);
+    let ran = false;
+    const ChildTask = defineTask<Record<string, never>, { phase: 'run' }, { tripId: string }>({
+      name: 'test.child',
+      version: 1,
+      initial: () => ({ phase: 'run' }),
+      phases: {
+        run: async (_task, taskRuntime, context) => {
+          ran = true;
+          await taskRuntime.commit(
+            () => ({ status: 'terminal', outcome: { status: 'completed', result: { tripId: 'child-trip' } } }),
+            context,
+          );
+        },
+      },
+      abort: async (_task, taskRuntime, context) => {
+        await taskRuntime.commit(() => ({ status: 'terminal', outcome: { status: 'aborted' } }), context);
+      },
+    });
+    runtime.registry.install(defineExtension({ name: 'test-child-task', tasks: [ChildTask] }));
+
+    const runChild = defineTool({
+      name: 'run_child',
+      description: '创建并等待子任务',
+      parameters: obj({}),
+      execute: async (_args, api, context) => {
+        const id = await api.createTask(ChildTask, {}, { ownership: { kind: 'conversation' }, background: true }, context);
+        const settled = await api.waitForTask(id, context);
+        const outcome = settled.state.outcome;
+        return { output: [{ type: 'text' as const, text: JSON.stringify(outcome.status === 'completed' ? outcome.result : { status: outcome.status }) }] };
+      },
+    });
+
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall('run_child', {})], { stopReason: 'toolUse' }),
+      fauxAssistantMessage('子任务已完成'),
+    ]);
+    const result = await runAgentTurn({
+      storagePath: path, models, tools: [runChild], instructions: '测试',
+      model: { provider: 'faux', modelId: 'faux-1' }, prompt: '跑一个子任务',
+    });
+    assert.equal(result.status, 'done');
+    assert.equal(ran, true, '子任务必须真正执行');
+    assert.deepEqual(result.toolCalls, ['run_child']);
     await closeAgentRuntime(path);
   });
 

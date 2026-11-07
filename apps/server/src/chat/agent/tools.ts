@@ -3,7 +3,8 @@
 // 每次请求的工具都是新闭包，绑定当轮的 trip、带预算的数据源与本回合状态。
 import { arr, obj, opt, str } from '@earendil-works/pi-schema';
 import { defineTool } from '@earendil-works/pi-durable';
-import type { ToolRegistration } from '@earendil-works/pi-durable';
+import type { ToolExecutionApi, ToolRegistration } from '@earendil-works/pi-durable';
+import type { Context } from '@earendil-works/chord/context';
 import { Type } from '@sinclair/typebox';
 import type { AgentQuestion, AgentQuestionAnswer, PlanningBriefPatch, Trip } from '@tripweaver/shared';
 import { POI_CATEGORIES, PlanningBriefPatchSchema, type PoiCategory } from '@tripweaver/shared';
@@ -33,8 +34,13 @@ export interface TripToolDeps {
    * 于是「子代理查到的地点」再 add_activity 时不需要重新解析。
    */
   points?: PlacePointCache;
-  /** 本回合跨工具状态：美食候选、追问、Brief 增量、重新生成请求 */
+  /** 本回合跨工具状态：美食候选、追问、Brief 增量、生成结果 */
   state?: AgentTurnState;
+  /**
+   * 按当前 Brief 完整生成一份新行程：作为主会话的 durable 子任务跑完再返回（前台阻塞）。
+   * 由 turn 注入（需要 job / 凭据 / 事务），工具本身只负责调用与把结果写回 state。
+   */
+  generateTrip?: (api: ToolExecutionApi, context: Context) => Promise<{ tripId?: string; error?: string }>;
   /** 当前对话范围（前端选中的某一天）；美食检索默认用它 */
   scopeDayId?: string;
   /** HITL：暂停 Agent，等待用户通过独立接口回答；返回 null 表示超时/取消 */
@@ -370,13 +376,18 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     },
   });
 
-  const startGeneration = defineTool({
-    name: 'start_generation',
-    description: '仅当用户明确要求「按当前条件重新生成一份完整行程」时调用。调用后由系统在条件齐备且额度允许时启动生成；不要在普通咨询或小修改时使用。',
+  // 完整生成是一个前台子代理：主 Agent 等它跑完，再把新行程作为结果交给用户。
+  // 对齐 opencode 的 subagent 工具（默认前台阻塞、返回最终结果），不再由回合末偷偷换页。
+  const generateTrip = defineTool({
+    name: 'generate_trip',
+    description: '按当前出行条件完整生成一份新行程（耗时几分钟，前台等待）。仅当用户明确要求「生成 / 重新规划整份行程」时调用；普通咨询或小修改不要用。',
     parameters: obj({}),
-    execute: async () => {
-      state.startGeneration = true;
-      return { output: text('已记录重新生成请求') };
+    execute: async (_args, api, context) => {
+      if (!deps.generateTrip) return { output: text('错误：当前会话未启用生成'), isError: true };
+      const result = await deps.generateTrip(api, context);
+      if (!result.tripId) return { output: text(result.error ?? '生成没有完成'), isError: true };
+      state.generatedTripId = result.tripId;
+      return { output: text(JSON.stringify({ ok: true, tripId: result.tripId, note: '新行程已生成并保存；直接向用户说明结果，不要再用写工具修改当前行程。' })) };
     },
   });
 
@@ -390,7 +401,7 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     searchFoodTool,
     askUser,
     updateBrief,
-    startGeneration,
+    generateTrip,
     ...createTripWriteTools({ draft: deps.draft, signal, resolvePlace: deps.resolvePlace, cachedPoint: (name) => points.find(name) }),
   ];
 }

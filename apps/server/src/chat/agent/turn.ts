@@ -12,7 +12,7 @@ import { commitOperation } from '../../services/detailOperationService';
 import { assertLatestTrip } from '../../services/tripService';
 import { getTripWeather } from '../../services/tripWeatherService';
 import type { LlmConfig } from '../../services/settingsService';
-import type { AgentPart, AgentStep, ChatAttachment, ChatStreamEvent, DetailChatRequest, GenerateForm, SendMessageResult, Trip } from '@tripweaver/shared';
+import type { AgentPart, AgentStep, ChatAttachment, ChatStreamEvent, DetailChatRequest, SendMessageResult, Trip } from '@tripweaver/shared';
 import { Value } from '@sinclair/typebox/value';
 import { SendMessageResultSchema, briefToGenerateForm, requiredBriefFields } from '@tripweaver/shared';
 import { allowsWebSearch, collectReferences } from '../detailKnowledge';
@@ -20,7 +20,8 @@ import { applyDialogueDecision, briefStatus, syncBriefTripDates } from '../brief
 import { resolveDetailSources } from '../detailSources';
 import { agentModelRef, buildAgentModels } from './models';
 import { runAgentTurn, type AgentStreamEvent } from './runtime';
-import type { ConversationId } from '@earendil-works/pi-durable';
+import type { ConversationId, ToolExecutionApi } from '@earendil-works/pi-durable';
+import type { Context } from '@earendil-works/chord/context';
 import { createTripTools } from './tools';
 import { createTripDraft } from './tripDraft';
 import { createPlacePointCache } from './placePoints';
@@ -31,8 +32,8 @@ import { syncOverviewWithActivities } from './overviewSync';
 import { repairChangedRoutes } from '../../services/tripHistoryService';
 import { createGeoSession } from '../../generation/geoPipeline';
 import { createTrip } from '../../services/tripService';
-import { cancelJob, createJob, getRunningJobId, type Job } from '../../generation/jobManager';
-import { startGenerationTask } from '../../generation/startGeneration';
+import { cancelJob, createJob, getRunningJobId } from '../../generation/jobManager';
+import { GenerationTask, type GenerationTaskInput } from '../../generation/generationTask';
 import { SUBAGENT_READ_ONLY_TOOL_NAMES } from './toolPolicy';
 import { createHitlSession } from './humanInLoop';
 
@@ -50,7 +51,7 @@ const TOOL_LABEL: Record<string, string> = {
   search_food: '找餐厅',
   ask_user: '确认信息',
   update_brief: '更新出行条件',
-  start_generation: '准备重新生成',
+  generate_trip: '生成整份行程',
   add_activity: '往行程里加地点',
   update_activity: '调整这个安排',
   delete_activity: '删掉这个安排',
@@ -87,7 +88,7 @@ async function saveBinding(userId: string, conversationId: string, durableId: nu
 
 const SYSTEM_INSTRUCTIONS = [
   '你是行程详情页里的旅行助手。用中文回答，像和旅行者聊天。使用简洁 Markdown（短标题、列表、加粗、链接）；避免宽表格和长代码块。',
-  '你拥有完整的行程操作能力：读行程、查真实地点、搜全网、查天气、找餐厅、结构化追问、更新出行条件、请求重新生成，以及直接修改行程。',
+  '你拥有完整的行程操作能力：读行程、查真实地点、搜全网、查天气、找餐厅、结构化追问、更新出行条件、生成整份行程，以及直接修改行程。',
   '工作协议（必须遵守）：按「读现状 → 查证 → 决策 → 执行 → 复核 → 总结」推进。用户要求检查、优化或调整时，先调 get_trip / get_day；能直接完成的改动直接做完（补点位、挪顺序、改内容），再用 get_trip / get_day 复核；只有存在真正的取舍（删活动、删天数、明显超出用户要求的范围）才用 ask_user 问一次。不要停在分析或方案，也不要把「要不要我改」当作结束。',
   '需要用户做取舍时调用 ask_user，不要在回复末尾用「要不要我…」「你希望…」「可以吗？」代替问题卡；但不要为了确认而确认，能直接做的小改动先做完。',
   '需要行程事实时先调用工具：安排类问题查 get_trip / get_day，地点类查 search_places，时效与口碑查 web_search，天气查 get_weather。不要凭记忆编造活动、时间、地址或营业信息。',
@@ -97,7 +98,7 @@ const SYSTEM_INSTRUCTIONS = [
   '只改用户明确要求的范围；「按这个片区补齐点位」「把某天排顺」本身就是明确要求，直接执行。删除活动、减少天数必须是在用户明确要求时才做。',
   '调用 ask_user 时给 1–3 个问题和可直接点击的短选项；用户在问题卡回答后你会拿到 tool result 并继续本轮，直接使用答案，不要重复问同一个问题。用户留空表示跳过该问题，不要把它当成许可。',
   'ask_user 的每个问题只问一个决定，问题控制在 60 字内，不要把诊断、依据或编号清单塞进问题；需要解释先在正文里简短说，再调用 ask_user。需要两个决定就发两个问题，选项标签控制在 20 字内。',
-  '用户修改下一次完整生成的条件（日期/天数/人数/节奏/偏好/约束）时用 update_brief；用户明确要求按当前条件重新生成整份行程时用 start_generation。普通咨询或小修改不要调用这两个工具。',
+  '用户修改下一次完整生成的条件（日期/天数/人数/节奏/偏好/约束）时用 update_brief；用户明确要求按当前条件生成或重新生成整份行程时用 generate_trip（它会在本回合内跑完生成并保存新行程）。普通咨询或小修改不要调用这两个工具。',
   '需要同时调研多个主题（多天安排、多个片区、多组候选）时，用 spawn_subagents 并行派发；单点查询直接调 search_places / web_search / search_food，不要为一件小事开子代理。找具体地点用 kind=places，查政策口碑用 kind=notes。',
   '子代理 kind=places 返回的 data.places 带真实坐标：把它加进行程时直接用同一个 name 调 add_activity，系统会复用该坐标，不要自己填经纬度。返回结果是调研材料，引用前核对是否与当前行程一致。',
   '用户要求按片区规划或补点时，先 search_area_places 展开该片区内的真实景点（如西湖→断桥/白堤/苏堤、宽窄巷子→街区内的点），再 search_places 查具体地点；不要把一整片景区当成一个点，也不要只放两三个相距很远的粗点。',
@@ -152,8 +153,42 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     onAnswered: (questionId, answers) => emit({ type: 'question_answered', questionId, answers }),
     onExpired: (questionId, reason) => emit({ type: 'question_expired', questionId, reason }),
   });
+  // 回合内已记录的 Brief 增量 + 库里的 Brief：generate_trip 与回合末落库共用同一份推导。
+  const evidenceSequence = (detail.messages.at(-1)?.sequence ?? 0) + 1;
+  const briefWithPatch = () => state.briefPatch
+    ? applyDialogueDecision(detail.conversation.brief.data, { ...state.briefPatch, intent: 'update_brief' }, evidenceSequence)
+    : detail.conversation.brief.data;
+
+  // 完整生成 = 主 Agent 的前台子任务：条件齐备后创建对话拥有的 durable task，等它跑完再回结果。
+  // background 让它不受本回合 stop / waitForIdle 影响；进程重启后任务照常 resume（与表单入口一致）。
+  const generateTrip = async (api: ToolExecutionApi, context: Context) => {
+    const brief = briefWithPatch();
+    const missing = requiredBriefFields(brief);
+    if (missing.length) return { error: `生成还缺少：${missing.join('、')}。先补齐这些条件再生成。` };
+    const running = getRunningJobId(userId);
+    if (running) return { error: '已有一份行程正在生成，等它结束后再试。' };
+    const job = createJob(userId, { conversationId, kind: 'generation' });
+    const input: GenerationTaskInput = { jobId: job.id, userId, form: briefToGenerateForm(brief), provenance: job.provenance };
+    try {
+      // 对话拥有的后台任务：不随本回合 stop 结束，进程重启后照常 resume。
+      const taskId = await api.createTask(GenerationTask, input, {
+        ownership: { kind: 'conversation' },
+        background: true,
+      }, context);
+      const settled = await api.waitForTask(taskId, context);
+      const outcome = settled.state.outcome;
+      if (outcome.status === 'completed' && outcome.result?.tripId) return { tripId: outcome.result.tripId };
+      if (outcome.status === 'failed') return { error: outcome.error.message };
+      return { error: '生成已取消。' };
+    } catch (error) {
+      cancelJob(job);
+      return { error: error instanceof Error ? error.message : '生成没有完成' };
+    }
+  };
+
   const tools = createTripTools({
     trip, sources, signal, getWeather: getTripWeather, points, draft, resolvePlace, state,
+    generateTrip,
     askUser: (questions) => hitl.ask(questions),
     // 问答记录写入后立刻在有序片段里打点：历史渲染时问答卡片回到它真实发生的位置。
     onQuestionRecorded: (index) => {
@@ -320,96 +355,59 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     ...(state.foodNotes.length && !state.foodCandidates.length ? { notice: state.foodNotes.join(' ').slice(0, 500) } : {}),
   };
 
-  // Brief 增量与重新生成请求都在回合边界统一落地；工具只记录意图，不直接写库。
-  const evidenceSequence = (detail.messages.at(-1)?.sequence ?? 0) + 1;
-  const patchedBrief = state.briefPatch
-    ? applyDialogueDecision(detail.conversation.brief.data, { ...state.briefPatch, intent: 'update_brief' }, evidenceSequence)
-    : detail.conversation.brief.data;
+  // Brief 增量在回合边界统一落地；工具只记录意图，不直接写库。
+  const patchedBrief = briefWithPatch();
   const briefData = next && outcomes.some((outcome) => outcome.kind === 'add_day' || outcome.kind === 'delete_day')
     ? syncBriefTripDates(patchedBrief, next)
     : patchedBrief;
   const nextBriefStatus = briefStatus(briefData, detail.conversation.brief.status);
-  const generationBlocked = state.startGeneration && requiredBriefFields(briefData).length > 0;
-  if (generationBlocked) {
-    attachment.notice = `重新生成还缺少：${requiredBriefFields(briefData).join('、')}。请先补充这些条件。`;
-  }
-  // 用户明确要求重新生成、但系统这次没启动时，必须把原因说出来：
-  // 否则模型仍会回「已提交」，用户看到的就是对话戛然而止。
-  const generationSkipReason = state.startGeneration && !next && !generationBlocked
-    ? getRunningJobId(userId)
-      ? '已有一份行程正在生成，这次没有重复启动；等它结束后可以再让我重新生成。'
-      // 生成额度不限量（测试环境）：原「今日生成次数已用完」跳过分支已移除，恢复点见 quotaService.hasQuota 注释。
-      : null
-    : null;
-  if (generationSkipReason) {
-    attachment.notice = [attachment.notice, generationSkipReason].filter(Boolean).join(' ');
-  }
 
-  let generationJob: Job | undefined;
-  let generationForm: GenerateForm | undefined;
-  let committed: unknown;
-  try {
-    committed = await commitOperation(userId, input.requestId, fingerprint, async (tx) => {
-      signal.throwIfAborted();
-      const latest = await assertLatestTrip(userId, trip.id, input.updatedAt, tx);
-      // 对话额度不限量（测试环境）：原 chatHasQuota 429 复查已移除，恢复点见 chatQuotaService.chatHasQuota 注释。
-      // 行程与消息同事务提交：要么都落，要么都不落（避免「页面说改了、库里没改」）。
-      let savedTrip = trip;
-      let version: number | undefined;
-      if (next) {
-        savedTrip = await createTrip(userId, next, trip.id, tx);
-        version = latest.version + 1;
-        await tx.update(trips).set({ changeSummary: (editedSummary || '对话调整行程').slice(0, 200) })
-          .where(and(eq(trips.id, savedTrip.id), eq(trips.userId, userId)));
-        answer = `${answer}\n\n已保存为 v${version}，${editedSummary}。`.slice(0, 4000);
-      }
-      const savedAttachment: ChatAttachment = {
-        ...attachment,
-        ...(version ? { edit: { version, previousTripId: latest.id, outcomes } } : {}),
-      };
-      const messages = await appendMessages({
-        userId,
-        conversationId,
-        messages: [
-          { role: 'user', content: input.text },
-          { role: 'assistant', content: answer, attachment: savedAttachment, ...(version ? { relatedTripId: savedTrip.id } : {}) },
-        ],
-      }, tx);
-      const brief = await saveBrief(userId, conversationId, briefData, nextBriefStatus, tx);
-      if (!messages?.[0] || !messages[1] || !brief) throw new Error('会话保存失败');
-      // 完整的重新生成请求：条件齐备、没有在跑、额度允许时，在同一回合启动。
-      if (state.startGeneration && !next && !generationBlocked && !generationSkipReason) {
-        generationJob = createJob(userId, { conversationId, kind: 'generation' });
-        generationForm = briefToGenerateForm(briefData);
-      }
-      const intent = outcomes.length
-        ? 'modify_itinerary'
-        : generationJob
-          ? 'confirm'
-          : state.briefPatch
-            ? 'update_brief'
-            : 'travel_qa';
-      const payload = {
-        userMessage: messages[0],
-        replyMessage: messages[1],
-        brief,
-        intent,
-        ...(generationJob ? { autoStartedJobId: generationJob.id } : {}),
-        ...(version ? { editResult: { tripId: savedTrip.id, version, previousTripId: latest.id, outcomes } } : {}),
-      };
-      if (!Value.Check(SendMessageResultSchema, payload)) throw new Error('对话结果无效');
-      return payload;
-    });
-  } catch (error) {
-    if (generationJob) cancelJob(generationJob);
-    throw error;
-  }
+  const committed: unknown = await commitOperation(userId, input.requestId, fingerprint, async (tx) => {
+    signal.throwIfAborted();
+    const latest = await assertLatestTrip(userId, trip.id, input.updatedAt, tx);
+    // 对话额度不限量（测试环境）：原 chatHasQuota 429 复查已移除，恢复点见 chatQuotaService.chatHasQuota 注释。
+    // 行程与消息同事务提交：要么都落，要么都不落（避免「页面说改了、库里没改」）。
+    let savedTrip = trip;
+    let version: number | undefined;
+    if (next) {
+      savedTrip = await createTrip(userId, next, trip.id, tx);
+      version = latest.version + 1;
+      await tx.update(trips).set({ changeSummary: (editedSummary || '对话调整行程').slice(0, 200) })
+        .where(and(eq(trips.id, savedTrip.id), eq(trips.userId, userId)));
+      answer = `${answer}\n\n已保存为 v${version}，${editedSummary}。`.slice(0, 4000);
+    }
+    const savedAttachment: ChatAttachment = {
+      ...attachment,
+      ...(version ? { edit: { version, previousTripId: latest.id, outcomes } } : {}),
+    };
+    const messages = await appendMessages({
+      userId,
+      conversationId,
+      messages: [
+        { role: 'user', content: input.text },
+        { role: 'assistant', content: answer, attachment: savedAttachment, ...(version ? { relatedTripId: savedTrip.id } : {}) },
+      ],
+    }, tx);
+    const brief = await saveBrief(userId, conversationId, briefData, nextBriefStatus, tx);
+    if (!messages?.[0] || !messages[1] || !brief) throw new Error('会话保存失败');
+    const intent = outcomes.length
+      ? 'modify_itinerary'
+      : state.generatedTripId
+        ? 'confirm'
+        : state.briefPatch
+          ? 'update_brief'
+          : 'travel_qa';
+    const payload = {
+      userMessage: messages[0],
+      replyMessage: messages[1],
+      brief,
+      intent,
+      ...(state.generatedTripId ? { generatedTripId: state.generatedTripId } : {}),
+      ...(version ? { editResult: { tripId: savedTrip.id, version, previousTripId: latest.id, outcomes } } : {}),
+    };
+    if (!Value.Check(SendMessageResultSchema, payload)) throw new Error('对话结果无效');
+    return payload;
+  });
   if (!Value.Check(SendMessageResultSchema, committed)) throw new Error('对话结果无效');
-  const jobToStart = generationJob;
-  const formToStart = generationForm;
-  if (jobToStart && formToStart) {
-    void startGenerationTask({ jobId: jobToStart.id, userId, form: formToStart, provenance: jobToStart.provenance })
-      .catch(() => cancelJob(jobToStart));
-  }
   return committed;
 }

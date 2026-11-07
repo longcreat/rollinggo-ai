@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { ACTIVE_JOB_KEY } from '../../hooks/useGenerationRun';
 import { suggestionText, uid, type AgentQuestionAnswer, type DetailChatRequest, type PendingQuestionView, type SendMessageResult, type Trip, type TripOperationResult } from '@tripweaver/shared';
 import { keys, useConversation, useTripVersions } from '../../api/hooks';
 import { answerQuestion, pendingQuestion, recoverChat, rewindVersion, stopChat, streamChat } from '../../api/detailChat';
@@ -102,10 +101,10 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
   const accept = async (result: SendMessageResult) => {
     await qc.invalidateQueries({ queryKey: keys.conversation(conversationId) });
     void qc.invalidateQueries({ queryKey: keys.me });
-    if (result.autoStartedJobId) {
-      sessionStorage.setItem(ACTIVE_JOB_KEY, result.autoStartedJobId);
-      // 直接进直播页：/trips/new 空参会被守卫踢回首页，看起来就是「什么都没发生」。
-      navigate(`/agent/${encodeURIComponent(result.autoStartedJobId)}`);
+    // generate_trip 已把新行程落库：刷新列表后直接进新行程详情。
+    if (result.generatedTripId) {
+      void qc.invalidateQueries({ queryKey: keys.trips });
+      navigate(`/trips/${encodeURIComponent(result.generatedTripId)}`);
     }
     if (result.editResult && result.editResult.tripId !== trip.id) await onTrip(result.editResult.tripId);
     setPending(null);

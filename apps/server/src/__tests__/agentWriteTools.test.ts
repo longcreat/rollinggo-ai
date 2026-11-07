@@ -52,7 +52,7 @@ describe('工具装配', () => {
     const tools = createTripTools({ trip: trip(), sources: sources(), signal: new AbortController().signal, draft });
     assert.deepEqual(tools.map((tool) => tool.name), [
       'get_trip', 'get_day', 'search_places', 'search_area_places', 'web_search', 'get_weather',
-      'search_food', 'ask_user', 'update_brief', 'start_generation',
+      'search_food', 'ask_user', 'update_brief', 'generate_trip',
       'add_activity', 'update_activity', 'delete_activity', 'move_activity', 'reorder_day',
       'add_day', 'update_day', 'delete_day', 'update_trip',
     ]);

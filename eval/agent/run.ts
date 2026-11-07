@@ -47,7 +47,7 @@ export async function runDeterministic(): Promise<CaseResult[]> {
     await record('tool-policy', '子代理只读白名单：写/交互/派生工具一律拒绝', () => {
       assert.deepEqual([...SUBAGENT_READ_ONLY_TOOL_NAMES].sort(), ['get_day', 'get_trip', 'get_weather', 'search_places', 'web_search']);
       assert.doesNotThrow(() => assertSubagentToolNames([...SUBAGENT_READ_ONLY_TOOL_NAMES]));
-      for (const forbidden of ['add_activity', 'delete_day', 'search_food', 'ask_user', 'update_brief', 'start_generation', 'spawn_subagents']) {
+      for (const forbidden of ['add_activity', 'delete_day', 'search_food', 'ask_user', 'update_brief', 'generate_trip', 'spawn_subagents']) {
         assert.throws(() => assertSubagentToolNames(['get_trip', forbidden]), /只读工具/, forbidden);
       }
       return '白名单与拒绝规则符合预期';
@@ -59,8 +59,8 @@ export async function runDeterministic(): Promise<CaseResult[]> {
       const writable = createTripTools({ trip: fixtureTrip, sources: fakeSources().sources, signal, draft })
         .map((tool) => tool.name).sort();
       assert.deepEqual(writable, [
-        'add_activity', 'add_day', 'ask_user', 'delete_activity', 'delete_day', 'get_day', 'get_trip', 'get_weather',
-        'move_activity', 'reorder_day', 'search_area_places', 'search_food', 'search_places', 'start_generation',
+        'add_activity', 'add_day', 'ask_user', 'delete_activity', 'delete_day', 'generate_trip', 'get_day', 'get_trip',
+        'get_weather', 'move_activity', 'reorder_day', 'search_area_places', 'search_food', 'search_places',
         'update_activity', 'update_brief', 'update_day', 'update_trip', 'web_search',
       ]);
       return `${writable.length} 个全量工具`;

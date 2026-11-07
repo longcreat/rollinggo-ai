@@ -1,5 +1,5 @@
-// 启动生成 durable task 的唯一入口：路由与详情对话（start_generation）共用。
-// 失败由调用方决定终态（路由 failJob、对话 cancelJob）。
+// 表单入口启动生成 durable task 的唯一入口（对话里的 generate_trip 直接在工具内创建子任务，以便等待结果）。
+// 失败由调用方决定终态（路由 failJob）。
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { GenerationTask, type GenerationTaskInput } from './generationTask';
 import { agentStoragePath, ensureAgentStorageDir } from './agentStorage';

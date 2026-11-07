@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { AgentQuestion, AgentQuestionAnswer, Trip } from '@tripweaver/shared';
-import { createTripTools } from '../chat/agent/tools';
+import { createTripTools, type TripToolDeps } from '../chat/agent/tools';
 import { createTripDraft } from '../chat/agent/tripDraft';
 import { createAgentTurnState } from '../chat/agent/turnState';
 import type { DetailSources } from '../chat/detailSources';
@@ -44,12 +44,16 @@ function sources(): DetailSources {
   } as unknown as DetailSources;
 }
 
-function build(askUser?: (questions: AgentQuestion[]) => Promise<AgentQuestionAnswer[] | null>) {
+function build(
+  askUser?: (questions: AgentQuestion[]) => Promise<AgentQuestionAnswer[] | null>,
+  generateTrip?: NonNullable<TripToolDeps['generateTrip']>,
+) {
   const state = createAgentTurnState();
   const tools = createTripTools({
     trip, sources: sources(), signal: AbortSignal.timeout(5_000),
     draft: createTripDraft(trip), state, scopeDayId: 'day-1',
     ...(askUser ? { askUser } : {}),
+    ...(generateTrip ? { generateTrip } : {}),
   });
   return { state, tool: (name: string) => tools.find((item) => item.name === name)! };
 }
@@ -128,9 +132,15 @@ describe('主 Agent 全功能工具', () => {
     assert.deepEqual(state.briefPatch!.removeConstraintIds, ['c1'], '删除 id 去重');
   });
 
-  it('start_generation 只记录请求，由回合统一判断条件与额度', async () => {
-    const { state, tool } = build();
-    await run(tool('start_generation'), {});
-    assert.equal(state.startGeneration, true);
+  it('generate_trip 把生成结果写回回合状态，未启用时明确失败', async () => {
+    const { state, tool } = build(undefined, async () => ({ tripId: 'trip-new' }));
+    const result = await run(tool('generate_trip'), {});
+    assert.equal(result.isError, undefined);
+    assert.equal(state.generatedTripId, 'trip-new');
+
+    const disabled = build();
+    const failed = await run(disabled.tool('generate_trip'), {});
+    assert.equal(failed.isError, true);
+    assert.equal(disabled.state.generatedTripId, undefined);
   });
 });

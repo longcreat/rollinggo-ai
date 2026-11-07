@@ -1,6 +1,6 @@
 // 行程投影的领域形状：row = 一天，state = 行程/控制/任务图/用量/交互/可用性（键集合封闭）。
 // 生成中与对话中共用同一形状 —— 「直播」与「对话」读的是同一份投影，不再各自从事件流合成。
-import type { Activity, TransitLeg, Trip } from './types';
+import type { Activity, ResearchPoi, TransitLeg, Trip } from './types';
 import type {
   ProjectionDelta,
   ProjectionFrame,
@@ -60,9 +60,20 @@ export interface TripProjectionRow extends ProjectionRowBase {
   legs: TransitLeg[];
 }
 
+/** 行程头（轻量）：直播中不需要完整 Trip，天由 rows 承载。 */
+export interface TripProjectionHeader {
+  id: string;
+  title: string;
+  destination: string;
+  startDate: string;
+  updatedAt: number;
+  /** 调研候选（概览卡片）；完成后以落库行程为准。 */
+  overview?: ResearchPoi[];
+}
+
 export interface TripProjectionState {
-  /** 当前行程快照（生成中为已规划的部分，完成后与落库一致）。 */
-  trip: Trip | null;
+  /** 当前行程头（生成中为任务标题，完成后 id 换成落库 tripId）。 */
+  trip: TripProjectionHeader | null;
   control: ProjectionControl;
   taskGraph: ProjectionTaskNode[];
   usage: ProjectionUsage | null;

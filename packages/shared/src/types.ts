@@ -184,7 +184,7 @@ export type GenerationCancelReason = 'user' | 'timeout';
 /** SSE 载荷；事件 id 由 jobManager 递增分配，供 Last-Event-ID 重放
  *  兼容说明：xhsEnabled / xhsCalls / usedXhs 为小红书时代的旧前端兼容字段——
  *  xhsEnabled 现语义为「有任一外部调研数据源可用」，xhsCalls 恒 0，usedXhs 恒 false */
-type GenerationEventPayload =
+export type GenerationEventPayload =
   | { type: 'job_start'; destination: string; /** 任务天数（标题回显用）；旧事件与重放可能缺失，缺失时前端退回 URL 草稿值 */ days?: number; /** 起始日期：直播页合成行程用于日期/天气展示，旧事件可能缺失 */ startDate?: string; xhsEnabled: boolean; dataSources: DataSourceKind[] }
   | { type: 'phase_start'; phase: GenerationPhase; round: number; note?: string }
   | { type: 'phase_end'; phase: GenerationPhase; round: number; summary?: string; durationMs?: number }

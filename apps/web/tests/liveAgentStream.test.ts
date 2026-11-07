@@ -1,38 +1,53 @@
-// 直播播报：阶段中文名、工具文案、进行中状态与候选摘要。
+// 投影 → 播报模型：阶段/工具进度来自 state.taskGraph，终态来自 state.control。
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
-import type { GenerationEvent } from '@tripweaver/shared';
-import { buildTimeline } from '../src/lib/generationTimeline';
-import { buildLiveStream } from '../src/lib/liveAgentStream';
+import test from 'node:test';
+import type { TripProjectionSnapshot, TripProjectionState } from '@tripweaver/shared';
+import { buildLiveStreamFromProjection } from '../src/lib/liveAgentStream';
 
-const events: GenerationEvent[] = [
-  { type: 'job_start', destination: '杭州', days: 2, xhsEnabled: true, dataSources: ['amap'] },
-  { type: 'phase_start', phase: 'plan', round: 1, note: 'Agent 规划' },
-  { type: 'thought', phase: 'plan', text: '先看西湖片区的候选' },
-  { type: 'tool_start', phase: 'plan', toolCallId: 'c1', tool: 'list_areas', label: '查看片区', args: '{}' },
-  { type: 'tool_end', phase: 'plan', toolCallId: 'c1', tool: 'list_areas', label: '查看片区', summary: '8 个', isError: false, durationMs: 120 },
-  { type: 'tool_start', phase: 'plan', toolCallId: 'c2', tool: 'plan_day', label: '排定一天', args: '{}' },
-];
+function snapshot(state: Partial<TripProjectionState>, taskGraph: TripProjectionState['taskGraph'] = []): TripProjectionSnapshot {
+  return {
+    seq: 1,
+    rows: { window: [], totalCount: 0, firstRowId: null },
+    state: {
+      trip: { id: 'job-1', title: '成都 · 生成中', destination: '成都', startDate: '', updatedAt: 0, overview: [] },
+      control: { phase: 'idle', status: 'running' },
+      taskGraph,
+      usage: null,
+      pendingInteractions: [],
+      availability: { canSend: true },
+      ...state,
+    },
+  };
+}
 
-test('阶段中文名、工具文案与进行中状态', () => {
-  const stream = buildLiveStream(buildTimeline(events));
-  assert.equal(stream.phases.length, 1);
-  assert.equal(stream.phases[0]!.label, '规划每日行程');
-  assert.equal(stream.phases[0]!.done, false);
-  const texts = stream.phases[0]!.lines.map((line) => line.text);
-  assert.ok(texts.includes('先看西湖片区的候选'));
-  assert.ok(texts.includes('寻找适合游玩的片区完成'));
-  assert.ok(texts.includes('正在安排这一天的路线…'));
-  assert.ok(stream.active, '有进行中的动作');
-  assert.equal(stream.terminal, null);
+test('按阶段分组并给出进行中/完成文案', () => {
+  const stream = buildLiveStreamFromProjection(snapshot({ control: { phase: 'plan', status: 'running' } }, [
+    { id: 'phase:research:1', phase: 'research', label: '调研', status: 'done' },
+    { id: 'c1', phase: 'plan', label: '规划第 1 天', status: 'running' },
+    { id: 'c2', phase: 'plan', label: '校验', status: 'error' },
+  ]));
+  assert.deepEqual(stream.phases.map((phase) => phase.key), ['research', 'plan']);
+  assert.equal(stream.phases[0]!.done, true);
+  assert.equal(stream.phases[1]!.done, false);
+  assert.equal(stream.phases[1]!.lines[0]!.text, '正在规划第 1 天…');
+  assert.equal(stream.phases[1]!.lines[1]!.text, '校验未完成');
+  assert.equal(stream.active?.id, 'c1');
 });
 
-test('终态事件透出，候选按到达顺序保留', () => {
-  const stream = buildLiveStream(buildTimeline([
-    ...events,
-    { type: 'candidate', poi: { id: 'p1', name: '断桥残雪', category: 'attraction', intro: '', reservation: 'unknown', sourceLinks: [] } },
-    { type: 'job_done', tripId: 't1', usedXhs: false, dataSources: [], reviewNotes: [] },
-  ]));
-  assert.equal(stream.candidates.at(-1)?.name, '断桥残雪');
-  assert.equal(stream.terminal?.type, 'job_done');
+test('候选来自行程头，终态来自 control', () => {
+  const candidate = { id: 'p1', name: '武侯祠', category: 'attraction' as const, intro: '', reservation: 'unknown' as const, sourceLinks: [] };
+  const running = buildLiveStreamFromProjection(snapshot({
+    trip: { id: 'job-1', title: '成都', destination: '成都', startDate: '', updatedAt: 0, overview: [candidate] },
+  }));
+  assert.deepEqual(running.candidates.map((poi) => poi.id), ['p1']);
+  assert.equal(running.terminal, null);
+
+  const done = buildLiveStreamFromProjection(snapshot({ control: { phase: 'commit', status: 'done', tripId: 'trip-9' } }));
+  assert.deepEqual(done.terminal, { type: 'job_done', tripId: 'trip-9', usedXhs: false, dataSources: [], reviewNotes: [] });
+
+  const failed = buildLiveStreamFromProjection(snapshot({ control: { phase: 'idle', status: 'error', message: '模型不可用' } }));
+  assert.deepEqual(failed.terminal, { type: 'job_error', message: '模型不可用' });
+
+  const cancelled = buildLiveStreamFromProjection(snapshot({ control: { phase: 'idle', status: 'cancelled', message: 'timeout' } }));
+  assert.deepEqual(cancelled.terminal, { type: 'job_cancelled', reason: 'timeout' });
 });

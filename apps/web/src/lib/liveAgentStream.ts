@@ -1,16 +1,8 @@
-// 直播播报模型：把生成时间线翻译成「阶段 → 一句话动作」，供 Agent 面板逐行渲染。
+// 直播播报模型：直接读服务端投影的 taskGraph，不再归约事件流。
 //
-// 复用 lib/generationTimeline 的事件归并与 lib/generationToolCopy 的用户文案，
-// 这里只做展示剪裁（阶段中文名、进行中/完成文案），不重复计时逻辑。
-import type { ResearchPoi } from '@tripweaver/shared';
-import type { PhaseBlock, TimelineModel } from './generationTimeline';
-import { toolCopy } from './generationToolCopy';
-
-const PHASE_LABEL: Record<PhaseBlock['phase'], string> = {
-  research: '查找地点与资料',
-  plan: '规划每日行程',
-  review: '整理文案与建议',
-};
+// 旧版（buildTimeline + buildLiveStream）随事件归约一起删除：阶段/工具进度已由
+// projectionAdapter 写进 state.taskGraph，文案使用服务端下发的 label。
+import type { DataSourceKind, ProjectionTaskNode, ResearchPoi, TripProjectionSnapshot, TripProjectionState } from '@tripweaver/shared';
 
 export interface LiveLine {
   id: string;
@@ -27,56 +19,69 @@ export interface LivePhase {
   lines: LiveLine[];
 }
 
+export type LiveTerminal =
+  | { type: 'job_done'; tripId: string; usedXhs: boolean; dataSources: DataSourceKind[]; reviewNotes: string[] }
+  | { type: 'job_error'; message: string }
+  | { type: 'job_cancelled'; reason?: 'user' | 'timeout' };
+
 export interface LiveStream {
   phases: LivePhase[];
   candidates: ResearchPoi[];
   /** 最近一条进行中的动作，用于顶部一句话状态 */
   active: LiveLine | null;
-  terminal: TimelineModel['terminal'];
+  terminal: LiveTerminal | null;
 }
 
-function toolLine(item: Extract<PhaseBlock['items'][number], { kind: 'tool' }>): LiveLine {
-  const copy = toolCopy(item.tool);
-  return {
-    id: item.key,
-    kind: 'tool',
-    text: item.running ? `正在${copy}…` : item.isError ? `${copy}未完成` : `${copy}完成`,
-    running: item.running,
-    error: item.isError,
-  };
+const PHASE_LABEL: Record<string, string> = {
+  research: '查找地点与资料',
+  plan: '规划每日行程',
+  review: '整理文案与建议',
+  calibrate: '校准通勤与餐次',
+  write: '整理文案与建议',
+  gate: '行前校验',
+  commit: '保存行程',
+};
+
+function terminalFromControl(control: TripProjectionState['control']): LiveTerminal | null {
+  if (control.status === 'done') {
+    return { type: 'job_done', tripId: control.tripId ?? '', usedXhs: false, dataSources: [], reviewNotes: [] };
+  }
+  if (control.status === 'error') return { type: 'job_error', message: control.message ?? '生成失败' };
+  if (control.status === 'cancelled') {
+    return { type: 'job_cancelled', reason: control.message === 'timeout' ? 'timeout' : 'user' };
+  }
+  return null;
 }
 
-function thoughtLine(item: Extract<PhaseBlock['items'][number], { kind: 'thought' }>, phaseKey: string): LiveLine {
-  const text = item.text.trim().replace(/\s+/g, ' ');
-  return {
-    id: `${phaseKey}-${item.key}`,
-    kind: 'thought',
-    text: text.length > 160 ? `${text.slice(0, 160)}…` : text,
-    running: false,
-    error: false,
-  };
-}
-
-/** 只保留最后的阶段与动作，避免长任务把面板刷爆；全文仍可在刷新后重放。 */
-export function buildLiveStream(model: TimelineModel, maxLinesPerPhase = 8, maxCandidates = 12): LiveStream {
-  const phases: LivePhase[] = model.phases.map((phase) => {
-    const lines: LiveLine[] = [];
-    for (const item of phase.items) {
-      if (item.kind === 'tool') lines.push(toolLine(item));
-      else if (item.kind === 'thought' && item.text.trim()) lines.push(thoughtLine(item, phase.key));
-    }
-    return {
-      key: phase.key,
-      label: PHASE_LABEL[phase.phase],
-      done: phase.done,
-      lines: lines.slice(-maxLinesPerPhase),
-    };
-  });
+/** 投影 → 播报模型：阶段与工具进度来自 state.taskGraph，候选来自行程头。 */
+export function buildLiveStreamFromProjection(
+  snapshot: TripProjectionSnapshot,
+  maxLinesPerPhase = 8,
+  maxCandidates = 12,
+): LiveStream {
+  const groups = new Map<string, ProjectionTaskNode[]>();
+  for (const node of snapshot.state.taskGraph) {
+    const list = groups.get(node.phase) ?? [];
+    list.push(node);
+    groups.set(node.phase, list);
+  }
+  const phases: LivePhase[] = [...groups.entries()].map(([phase, nodes]) => ({
+    key: phase,
+    label: PHASE_LABEL[phase] ?? phase,
+    done: nodes.every((node) => node.status === 'done' || node.status === 'error'),
+    lines: nodes.slice(-maxLinesPerPhase).map((node) => ({
+      id: node.id,
+      kind: 'tool' as const,
+      text: node.status === 'running' ? `正在${node.label}…` : node.status === 'error' ? `${node.label}未完成` : `${node.label}完成`,
+      running: node.status === 'running',
+      error: node.status === 'error',
+    })),
+  }));
   const active = phases.flatMap((phase) => phase.lines).filter((line) => line.running).at(-1) ?? null;
   return {
     phases,
-    candidates: model.candidates.slice(-maxCandidates),
+    candidates: (snapshot.state.trip?.overview ?? []).slice(-maxCandidates),
     active,
-    terminal: model.terminal,
+    terminal: terminalFromControl(snapshot.state.control),
   };
 }

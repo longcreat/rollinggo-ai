@@ -36,6 +36,7 @@ import { cancelJob, createJob, getRunningJobId } from '../../generation/jobManag
 import { GenerationTask, type GenerationTaskInput } from '../../generation/generationTask';
 import { SUBAGENT_READ_ONLY_TOOL_NAMES } from './toolPolicy';
 import { createHitlSession } from './humanInLoop';
+import { claimsUnappliedEdit, withEditCorrection } from './editClaim';
 
 /** 详情对话流式事件（requestId/sequence 由路由统一补）。 */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -94,6 +95,8 @@ const SYSTEM_INSTRUCTIONS = [
   '需要行程事实时先调用工具：安排类问题查 get_trip / get_day，地点类查 search_places，时效与口碑查 web_search，天气查 get_weather。不要凭记忆编造活动、时间、地址或营业信息。',
   '用户问美食、餐厅、午餐或晚餐时调用 search_food：它会把可添加的真实餐厅作为卡片显示在回答下方。不要在回答里逐条复述卡片内容；没有结果就如实说没找到。',
   '用户要求改行程时，直接用写工具改：加地点用 add_activity，改内容用 update_activity，删除用 delete_activity，跨天挪动用 move_activity，当天换顺序用 reorder_day，增删天数用 add_day / delete_day，改标题日期人数预算偏好用 update_trip。',
+  '「已改动」只能来自成功的写工具：读工具（get_trip / get_day / search_* / web_search / get_weather / search_food）不会改动行程。如果本轮没有调用任何写工具，或写工具返回 ok=false，禁止使用「已改动 / 已修好 / 已调整 / 已换成 / 已挪到 / 时间线现在是」这类完成时表述；必须明确说尚未修改，并说明需要用户确认还是由你直接改。',
+  '正文最后一句禁止用「需要我…吗 / 要不要我… / 你希望…」征求许可。要用户做取舍就调用 ask_user；不需要取舍就直接用写工具做完；两者都不适用时用陈述句说明下一步。',
   '改、删、挪某个已存在的活动前，先确认 activityId 来自当前行程（拿不准就调 get_day）；不要猜 id，也不要重复执行同一个修改。',
   '只改用户明确要求的范围；「按这个片区补齐点位」「把某天排顺」本身就是明确要求，直接执行。删除活动、减少天数必须是在用户明确要求时才做。',
   '调用 ask_user 时给 1–3 个问题和可直接点击的短选项；用户在问题卡回答后你会拿到 tool result 并继续本轮，直接使用答案，不要重复问同一个问题。用户留空表示跳过该问题，不要把它当成许可。',
@@ -338,6 +341,10 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     || (state.questionExpired ? '问题等待超时，本轮已结束；需要的话请重新发起。' : '')
     || (state.foodCandidates.length ? `为你找到 ${state.foodCandidates.length} 家可添加的餐厅，卡片见下方。` : '')
     || `已经按你的要求调整行程：${editedSummary}。`).slice(0, 4000);
+  // 模型只读却说「已改好」时由服务端纠正：修改是否生效只认草稿结果与新行程，不认措辞。
+  if (claimsUnappliedEdit(answer, Boolean(next) || Boolean(state.generatedTripId))) {
+    answer = withEditCorrection(answer);
+  }
   const references = collectReferences([
     ...sources.web.map(({ title, url }) => ({ title, url })),
     ...state.foodCandidates.flatMap((candidate) => candidate.sources),

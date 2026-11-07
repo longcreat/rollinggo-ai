@@ -62,6 +62,9 @@ export interface RunAgentResult {
   errorMessage?: string;
 }
 
+/** 阶段运行器策略：默认 pi-agent-core；有 durable 宿主时换成 pi-durable 会话。 */
+export type PhaseAgentRunner = (options: RunAgentOptions) => Promise<RunAgentResult>;
+
 const DEFAULT_MAX_TURNS = 24;
 
 /** 提取工具结果首个文本块作为时间线摘要 */

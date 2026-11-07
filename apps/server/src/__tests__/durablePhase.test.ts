@@ -33,6 +33,8 @@ test('durable 阶段：工具执行、terminate 结束、事件进入 sink', asy
     ]);
 
     const events: string[] = [];
+    const llm: number[] = [];
+    let usageCalls = 0;
     const result = await runDurablePhaseAgent({
       host: { harness, registry, context: BACKGROUND_CONTEXT },
       phaseKey: 'test',
@@ -48,7 +50,8 @@ test('durable 阶段：工具执行、terminate 结束、事件进入 sink', asy
           onThought() {},
           onToolStart(_id, name) { events.push(`start:${name}`); },
           onToolEnd(_id, name, _label, _summary, isError) { events.push(`end:${name}:${isError}`); },
-          onUsage() {},
+          onUsage() { usageCalls += 1; },
+          onLlmResponse(info) { llm.push(info.turn); },
         },
         maxTurns: 3,
       },
@@ -56,6 +59,8 @@ test('durable 阶段：工具执行、terminate 结束、事件进入 sink', asy
 
     assert.equal(applied, true);
     assert.deepEqual(events, ['start:update_titles', 'end:update_titles:false']);
+    assert.ok(llm.length >= 1, '评测依赖 llm_response 计数');
+    assert.ok(usageCalls >= 1, '投影依赖 usage 事件');
     assert.equal(result.aborted, false);
     assert.equal(result.turnLimitExceeded, false);
     assert.equal(result.errorMessage, undefined);

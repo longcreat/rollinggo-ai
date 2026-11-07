@@ -122,16 +122,27 @@ export async function runDurablePhaseAgent(input: DurablePhaseOptions): Promise<
     await live.stop().catch(() => {});
   }
 
-  // usage 从已提交的 assistant entries 累计（durable 不把使用量推给 sink）。
+  // usage 从已提交的 assistant entries 累计，并按消息补发 sink 事件：
+  // 评测依赖 llm_response 计数（plan 阶段必须调用模型），投影依赖 usage 事件。
   const entries = await conversation.entries({ order: 'ascending' }, 400, undefined, host.context).catch(() => undefined);
   let tokensIn = 0;
   let tokensOut = 0;
+  let turn = 0;
   for (const entry of entries?.items ?? []) {
     if (entry.kind !== AssistantEntry.kind) continue;
     for (const message of entry.model ?? []) {
       if (message.role !== 'assistant') continue;
-      tokensIn += message.usage?.input ?? 0;
-      tokensOut += message.usage?.output ?? 0;
+      const input = message.usage?.input ?? 0;
+      const output = message.usage?.output ?? 0;
+      tokensIn += input;
+      tokensOut += output;
+      sink.onUsage(input, output);
+      sink.onLlmResponse?.({
+        turn: (turn += 1),
+        stopReason: message.stopReason,
+        usage: { input, output },
+        errorMessage: message.errorMessage,
+      });
     }
   }
 

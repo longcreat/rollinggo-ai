@@ -62,7 +62,7 @@ import { repairLongHaulMixedDays, verifiedFixNotes, type AppliedFixMove } from '
 import { optimizeCrossDayGrouping, orderUntimedDayRoutes } from './routeCoherence';
 import { buildModel } from './model';
 import { emit, completeJob, failJob, cancelJob, type Job } from './jobManager';
-import { runPhaseAgent, type PhaseEventSink } from './agents/runner';
+import { runPhaseAgent, type PhaseAgentRunner, type PhaseEventSink } from './agents/runner';
 import { runDurablePhaseAgent, type DurablePhaseHost } from './agents/durablePhase';
 import { agentModelRef } from '../chat/agent/models';
 import { GenerationPerformance } from './performance';
@@ -287,6 +287,17 @@ export async function runGeneration(
     if (!modelResult.ok) throw modelResult.error;
     const { model } = modelResult;   // BYOK：使用时二次 ssrfGuard，失败即 job_error
 
+    // 阶段运行器：有 durable 宿主时把工具型阶段跑在 pi-durable 会话上（每阶段独立会话与扩展）。
+    const phaseRunner = (phaseKey: string): PhaseAgentRunner | undefined => {
+      if (!options?.agent) return undefined;
+      const host = options.agent;
+      const modelRef = agentModelRef(cfg.model);
+      return (opts) => runDurablePhaseAgent({ host, phaseKey, modelRef, opts });
+    };
+    const researchRunner = phaseRunner('research');
+    const planRunner = phaseRunner('plan');
+    const adviceRunner = phaseRunner('advice');
+
     // ---------- 阶段 1：调研（可 checkpoint） ----------
     // 调研是最耗时的 LLM 阶段：完成后把候选池/坐标旁路/知识库事实存进 task checkpoint，
     // 进程崩溃重启后直接复用，跳过这一步。
@@ -315,6 +326,7 @@ export async function runGeneration(
       const storedPlaces = createStoredPlaceLookups(form.destination);
       const { research: outcome, result: researchRun } = await runResearchPhase({
         form, model, apiKey: cfg.apiKey, signal, verifiedPlaces, searchWebMax,
+        ...(researchRunner ? { runAgent: researchRunner } : {}),
         poiSource: poi.source, searchSource: search.source,
         amapPhotos: createAmapPoiPhotoLookup(env.amapKey, env.amapPhotoMaxPerTask),
         storedAmapPhoto: storedPlaces.amapPhotoFor,
@@ -446,6 +458,7 @@ export async function runGeneration(
       form,
       draft,
       areas,
+      ...(planRunner ? { runAgent: planRunner } : {}),
       searchArea: async (query, plannerSignal) => {
         if (!env.amapKey) return [];
         return poiAreaGate(() => searchAreaPois(env.amapKey, { city: form.destination, ...query }, plannerSignal));
@@ -644,7 +657,7 @@ export async function runGeneration(
       const adviceRun = await runTripAdviceWriter(completedDraft, evidence, {
         model, apiKey: cfg.apiKey, signal, sink: finalSink,
         recorder: createLlmRequestRecorder({ jobId: job.id, userId: job.userId, phase: 'review', round: 2 }),
-      });
+      }, adviceRunner);
       usage.tokensIn += adviceRun.result.tokensIn;
       usage.tokensOut += adviceRun.result.tokensOut;
       assertAlive(signal);

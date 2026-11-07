@@ -38,6 +38,23 @@ export function isClosedOnDate(openTime: string | undefined | null, dateStr: str
     .some((clause) => labels.some((label) => clause.includes(label)) && CLOSED_KEYWORDS.test(clause));
 }
 
+/**
+ * 从自由文本解析「周X闭馆」的星期集合（0=周日）。
+ * 与 `isClosedOnDate` 共用同一套星期标签与闭馆关键词（含「休息/不开放/停业」），避免两套口径漂移。
+ * 不做节假日豁免 —— 需要按具体日期判定时用 `isClosedOnDate`。
+ */
+export function closedWeekdaysOf(openTime: string | undefined | null): number[] {
+  if (!openTime) return [];
+  const days = new Set<number>();
+  for (const clause of openTime.split(/[；;。\n]/)) {
+    if (!CLOSED_KEYWORDS.test(clause)) continue;
+    for (let day = 0; day < 7; day += 1) {
+      if (WEEKDAY_LABELS[day]!.some((label) => clause.includes(label))) days.add(day);
+    }
+  }
+  return [...days].sort((a, b) => a - b);
+}
+
 /** startDate（YYYY-MM-DD 或空串）+ dayIndex（从 1 开始）→ 当天的 YYYY-MM-DD；startDate 空/非法返回 undefined */
 export function dateForDayIndex(startDate: string | undefined | null, dayIndex: number): string | undefined {
   if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) return undefined;

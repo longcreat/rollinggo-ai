@@ -2,7 +2,7 @@
 //
 // 这里只做纯计算，不读数据库、不发请求；生成链路用它验收，eval 用同一份实现，
 // 避免「线上判定」和「评测口径」两套标准。阈值按节奏给默认值，调用方可覆盖。
-import { haversineMeters, type Trip } from '@tripweaver/shared';
+import { closedWeekdaysOf, haversineMeters, isClosedOnDate, type Trip } from '@tripweaver/shared';
 import { DEFAULT_SUB_POI_POLICY } from '../../services/geofenceImport';
 
 export type PlanPace = 'relaxed' | 'moderate' | 'tight';
@@ -84,19 +84,12 @@ export function weekdayOf(date: string): number | null {
   return Number.isFinite(value) ? value : null;
 }
 
-const WEEKDAY_TEXT: Record<string, number> = { 日: 0, 天: 0, 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6 };
-
-/** 从高德营业时间原文里提取闭馆星期；解析不了就返回空数组（宁可漏判，不误判）。 */
+/**
+ * 从高德营业时间原文里提取闭馆星期；解析不了就返回空数组（宁可漏判，不误判）。
+ * 委托 shared 的 `closedWeekdaysOf`，与 `isClosedOnDate` 共用「周X闭馆 / 休息 / 不开放 / 停业」口径。
+ */
 export function closedWeekdays(openTime: string | undefined): number[] {
-  if (!openTime) return [];
-  const text = openTime.replace(/\s+/g, '');
-  if (/无休|全年开放|每天开放/.test(text)) return [];
-  const days = new Set<number>();
-  for (const match of text.matchAll(/(?:周|星期)([一二三四五六日天])闭馆/g)) {
-    const value = WEEKDAY_TEXT[match[1]!];
-    if (value !== undefined) days.add(value);
-  }
-  return [...days];
+  return closedWeekdaysOf(openTime);
 }
 
 export function measurePlan(trip: Pick<Trip, 'days' | 'startDate'>): PlanMetrics {
@@ -145,11 +138,11 @@ export function measurePlan(trip: Pick<Trip, 'days' | 'startDate'>): PlanMetrics
       daySpanKm.push(round(Math.max(...located.map((activity) => haversineMeters(center, activity) / 1000)), 2));
     }
 
-    const weekday = weekdayOf(dayDate(trip.startDate, day.dayIndex));
-    if (weekday !== null) {
-      for (const activity of day.activities) {
-        if (closedWeekdays(activity.openTime).includes(weekday)) closureViolations += 1;
-      }
+    const date = dayDate(trip.startDate, day.dayIndex);
+    for (const activity of day.activities) {
+      // 与 feasibility / dayPlanner 共用 isClosedOnDate：含「休息/不开放」与法定节假日豁免，
+      // 不再只认「周X闭馆」的单一写法。
+      if (isClosedOnDate(activity.openTime, date)) closureViolations += 1;
     }
   }
 

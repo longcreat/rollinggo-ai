@@ -22,6 +22,12 @@ test('闭馆日解析：周一闭馆 / 无休 / 无法解析', () => {
   assert.deepEqual(closedWeekdays(undefined), []);
 });
 
+test('闭馆日解析与 isClosedOnDate 同口径：「休息 / 不开放」也算闭馆', () => {
+  assert.deepEqual(closedWeekdays('周一休息'), [1]);
+  assert.deepEqual(closedWeekdays('周一、周二不开放；09:00-17:00'), [1, 2]);
+  assert.deepEqual(closedWeekdays('周三停业'), [3]);
+});
+
 test('指标：重复坐标、零段距、杂项、稀疏', () => {
   const trip = {
     startDate: '2026-11-09',

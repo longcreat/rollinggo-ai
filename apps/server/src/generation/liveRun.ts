@@ -149,10 +149,6 @@ export function cancelLiveRun(jobId: string, userId?: string, reason: Generation
   return true;
 }
 
-export function isLiveTerminal(status: GenerationJobStatus): boolean {
-  return status !== 'running';
-}
-
 /** 终态但实时层已过期（重启/超过 TTL）：用持久任务行合成最小投影，供页面完成交接。 */
 export function projectionFromTask(task: GenerationTaskView): TripProjectionSnapshot {
   const state = emptyTripProjectionState();
@@ -174,12 +170,4 @@ export function projectionFromTask(task: GenerationTaskView): TripProjectionSnap
     };
   }
   return emptySnapshot(state);
-}
-
-/** 测试用：清空实时层。 */
-export function resetLiveRuns(): void {
-  for (const run of runs.values()) run.abort.abort();
-  runs.clear();
-  frameListeners.clear();
-  eventListeners.clear();
 }

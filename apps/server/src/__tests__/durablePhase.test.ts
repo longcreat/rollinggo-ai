@@ -68,3 +68,53 @@ test('durable 阶段：工具执行、terminate 结束、事件进入 sink', asy
     await harness.close(BACKGROUND_CONTEXT);
   }
 });
+async function completionRun(responses: ReturnType<typeof fauxAssistantMessage>[]) {
+  const faux = fauxProvider();
+  const models = createModels();
+  models.setProvider(faux.provider);
+  const registry = createRegistry();
+  const harness = await Harness.open(new MemoryStorage(), { models, registry }, BACKGROUND_CONTEXT);
+  try {
+    let submitted = false;
+    const submit = defineTool({
+      name: 'submit_research', label: '提交', description: '提交', parameters: Type.Object({}),
+      execute: async () => {
+        submitted = true;
+        return { content: [{ type: 'text' as const, text: 'ok' }], details: undefined, terminate: true };
+      },
+    });
+    faux.setResponses(responses);
+    const result = await runDurablePhaseAgent({
+      host: { harness, registry, context: BACKGROUND_CONTEXT },
+      phaseKey: 'completion', modelRef: { provider: 'faux', modelId: 'faux-1' },
+      opts: {
+        model: await buildModel({ baseUrl: 'http://127.0.0.1:1/v1', apiKey: 'k', model: 'faux-1', byok: false }),
+        apiKey: 'k', systemPrompt: 's', tools: [submit], userPrompt: 'p',
+        signal: new AbortController().signal, maxTurns: 4,
+        sink: { onThought() {}, onToolStart() {}, onToolEnd() {}, onUsage() {} },
+        completion: { isComplete: () => submitted, reminder: '请提交', errorMessage: '未提交' },
+      },
+    });
+    return { result, submitted };
+  } finally {
+    await harness.close(BACKGROUND_CONTEXT);
+  }
+}
+
+test('未提交时提醒一次，工具提交后完成', async () => {
+  const { result, submitted } = await completionRun([
+    fauxAssistantMessage('正文 JSON 不算提交'),
+    fauxAssistantMessage([fauxToolCall('submit_research', {})], { stopReason: 'toolUse' }),
+  ]);
+  assert.equal(submitted, true);
+  assert.equal(result.errorMessage, undefined);
+});
+
+test('始终不提交 → 如实报告 completion 错误', async () => {
+  const { result, submitted } = await completionRun([
+    fauxAssistantMessage('只有正文'),
+    fauxAssistantMessage('仍然只有正文'),
+  ]);
+  assert.equal(submitted, false);
+  assert.equal(result.errorMessage, '未提交');
+});

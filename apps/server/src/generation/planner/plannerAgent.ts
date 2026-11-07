@@ -3,7 +3,7 @@
 // 与 research 阶段的边界：research 只产出候选池与简介；这里决定每天去哪、按什么顺序、
 // 几点到几点，并在提交前用 validate_plan 自检。失败处理沿用 runPhaseAgent 的 completion 语义。
 import type { GenerateForm } from '@tripweaver/shared';
-import { runPhaseAgent, type PhaseAgentRunner, type RunAgentOptions, type RunAgentResult } from '../agents/runner';
+import type { PhaseAgentRunner, RunAgentOptions, RunAgentResult } from '../agents/phase';
 import type { DraftTrip } from '../draft';
 import { buildPlannerToolsWithStatus, type PlannerArea, type PlannerDeps, type PlannerSeed } from './tools';
 import { plannerSystemPrompt, plannerUserPrompt } from './prompt';
@@ -15,8 +15,8 @@ export interface PlannerPhaseInput extends Omit<RunAgentOptions, 'systemPrompt' 
   searchArea: PlannerDeps['searchArea'];
   webSearch: PlannerDeps['webSearch'];
   onDayPlanned?: PlannerDeps['onDayPlanned'];
-  /** 阶段运行器策略：有 durable 宿主时由调用方注入。 */
-  runAgent?: PhaseAgentRunner;
+  /** 阶段运行器：由调用方注入（durable 会话）。 */
+  runAgent: PhaseAgentRunner;
 }
 
 export async function runPlannerAgent(input: PlannerPhaseInput): Promise<{ result: RunAgentResult; submitted: boolean }> {
@@ -25,7 +25,7 @@ export async function runPlannerAgent(input: PlannerPhaseInput): Promise<{ resul
     searchArea: input.searchArea, webSearch: input.webSearch, signal: input.signal,
     ...(input.onDayPlanned ? { onDayPlanned: input.onDayPlanned } : {}),
   });
-  const result = await (input.runAgent ?? runPhaseAgent)({
+  const result = await input.runAgent({
     model: input.model,
     apiKey: input.apiKey,
     signal: input.signal,

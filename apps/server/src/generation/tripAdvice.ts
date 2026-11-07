@@ -22,7 +22,7 @@ import {
   type Trip,
 } from '@tripweaver/shared';
 import { defineTool } from './tools/defineTool';
-import { runPhaseAgent, type RunAgentOptions } from './agents/runner';
+import type { PhaseAgentRunner, RunAgentOptions } from './agents/phase';
 import type { RetrievedPlace, RetrieveOptions } from './placeRetrieval';
 import { normalizeReservation, purifiedIntro } from './researchQuality';
 
@@ -173,7 +173,7 @@ export function buildTripAdviceTool(trip: Trip, evidence: AdviceEvidence[], onSu
 export async function runTripAdviceWriter(
   trip: Trip, evidence: AdviceEvidence[],
   options: Pick<RunAgentOptions, 'model' | 'apiKey' | 'signal' | 'sink' | 'recorder'>,
-  run = runPhaseAgent,
+  run: PhaseAgentRunner,
 ) {
   let advice: PersonalTripAdvice | undefined;
   const result = await run({ ...options, systemPrompt: TRIP_ADVICE_SYSTEM_PROMPT,

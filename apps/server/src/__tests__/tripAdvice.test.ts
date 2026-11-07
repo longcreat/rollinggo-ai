@@ -4,7 +4,7 @@ import { Value } from '@sinclair/typebox/value';
 import { makeSampleTrip, personalAdviceIsCurrent, PersonalTripAdviceSchema, TripSchema, type PersonalTripAdvice } from '@tripweaver/shared';
 import { buildTripAdviceTool, prepareTripAdviceEvidence, runTripAdviceWriter, tripAdviceUserPrompt } from '../generation/tripAdvice';
 import type { RetrievedPlace } from '../generation/placeRetrieval';
-import type { RunAgentOptions } from '../generation/agents/runner';
+import type { RunAgentOptions } from '../generation/agents/phase';
 
 const signal = () => new AbortController().signal;
 const sample = () => {

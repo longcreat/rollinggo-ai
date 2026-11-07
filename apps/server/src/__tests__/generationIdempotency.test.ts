@@ -26,7 +26,10 @@ test('已提交过的任务重跑直接复用 tripId，不生成新版本', asyn
   const cfg: LlmConfig = { baseUrl: 'http://127.0.0.1:1/v1', apiKey: 'x', model: 'm', byok: false };
 
   try {
-    await runGeneration(job, form, cfg);
+    // 命中幂等分支前不会触碰 durable 宿主，传占位即可。
+    await runGeneration(job, form, cfg, undefined, {
+      agent: { harness: {} as never, registry: {} as never, context: {} as never },
+    });
     assert.equal(job.status, 'done');
     assert.equal(job.tripId, 'trip-existing');
   } finally {

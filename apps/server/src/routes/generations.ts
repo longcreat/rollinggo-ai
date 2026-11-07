@@ -19,12 +19,11 @@ import { resolveLlmConfig } from '../services/settingsService';
 import { getConversation } from '../services/conversationService';
 import { getTrip } from '../services/tripService';
 import { hasSiteLlm } from '../env';
-import { createJob, getJob, getRunningJobId, jobView, subscribeProjection } from '../generation/jobManager';
-import { runGeneration } from '../generation/orchestrator';
-import { GenerationTask, type GenerationTaskInput } from '../generation/generationTask';
+import { createJob, failJob, getJob, getRunningJobId, jobView, subscribeProjection } from '../generation/jobManager';
+import type { GenerationTaskInput } from '../generation/generationTask';
+import { startGenerationTask } from '../generation/startGeneration';
 import { generationStoragePath, ensureAgentStorageDir } from '../generation/agentStorage';
 import { getAgentRuntime } from '../chat/agent/runtime';
-import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { getGenerationResult } from '../services/notificationService';
 
 const HEARTBEAT_MS = 25_000;
@@ -105,18 +104,11 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
     // 任务输入携带重建上下文所需的非敏感数据：进程重启后 resume 也能重建 Job 并续跑。
     const taskInput: GenerationTaskInput = { jobId: job.id, userId, form: request.body, provenance: job.provenance };
     try {
-      await ensureAgentStorageDir();
-      const runtime = await getAgentRuntime(generationStoragePath(userId));
-      const root = await runtime.harness.root(BACKGROUND_CONTEXT);
-      await root.commit(
-        (tx) => tx.createTask(GenerationTask, taskInput, { ownership: { kind: 'conversation' } }),
-        BACKGROUND_CONTEXT,
-      );
-      runtime.harness.resume();
+      await startGenerationTask(taskInput);
     } catch (error) {
-      // durable 骨架不可用时退回直接运行：生成不能因为 harness 故障而丢。
-      app.log.warn(error, 'generation task 创建失败，回退直接运行');
-      runGeneration(job, request.body, cfg, app.log).catch((err) => app.log.error(err, 'runGeneration 未捕获异常'));
+      // durable 是唯一执行路径：任务创建失败即失败该任务，不回退旧 runner。
+      app.log.error(error, 'generation task 创建失败');
+      failJob(job, '生成运行时不可用，请稍后重试');
     }
     return reply.code(202).send({ jobId: job.id });
   });

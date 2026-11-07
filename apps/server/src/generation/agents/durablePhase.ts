@@ -15,7 +15,7 @@ import {
 import type { Context } from '@earendil-works/chord/context';
 import type { AgentTool } from '@earendil-works/pi-agent-core';
 import { uid } from '@tripweaver/shared';
-import type { RunAgentOptions, RunAgentResult } from './runner';
+import type { PhaseEventSink, RunAgentOptions, RunAgentResult } from './phase';
 
 export interface DurablePhaseHost {
   harness: Harness;

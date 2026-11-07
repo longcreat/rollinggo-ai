@@ -62,7 +62,7 @@ import { repairLongHaulMixedDays, verifiedFixNotes, type AppliedFixMove } from '
 import { optimizeCrossDayGrouping, orderUntimedDayRoutes } from './routeCoherence';
 import { buildModel } from './model';
 import { emit, completeJob, failJob, cancelJob, type Job } from './jobManager';
-import { runPhaseAgent, type PhaseAgentRunner, type PhaseEventSink } from './agents/runner';
+import type { PhaseAgentRunner, PhaseEventSink } from './agents/phase';
 import { runDurablePhaseAgent, type DurablePhaseHost } from './agents/durablePhase';
 import { agentModelRef } from '../chat/agent/models';
 import { GenerationPerformance } from './performance';
@@ -110,16 +110,16 @@ export interface GenerationRunOptions {
   resume?: ResearchCheckpoint;
   /** 调研完成后保存 checkpoint（durable task 用它落 task state）。 */
   onCheckpoint?: (checkpoint: ResearchCheckpoint) => Promise<void>;
-  /** durable 宿主：有则把支持的工具型阶段迁到 pi-durable 会话执行。 */
-  agent?: DurablePhaseHost;
+  /** durable 宿主：所有 LLM 阶段都在 pi-durable 会话上执行（唯一路径）。 */
+  agent: DurablePhaseHost;
 }
 
 export async function runGeneration(
   job: Job,
   form: GenerateForm,
   cfg: LlmConfig,
-  logger?: Pick<FastifyBaseLogger, 'info' | 'error'>,
-  options?: GenerationRunOptions,
+  logger: Pick<FastifyBaseLogger, 'info' | 'error'> | undefined,
+  options: GenerationRunOptions,
 ): Promise<void> {
   const signal = job.abort.signal;
   const usage = { tokensIn: 0, tokensOut: 0 };
@@ -288,8 +288,7 @@ export async function runGeneration(
     const { model } = modelResult;   // BYOK：使用时二次 ssrfGuard，失败即 job_error
 
     // 阶段运行器：有 durable 宿主时把工具型阶段跑在 pi-durable 会话上（每阶段独立会话与扩展）。
-    const phaseRunner = (phaseKey: string): PhaseAgentRunner | undefined => {
-      if (!options?.agent) return undefined;
+    const phaseRunner = (phaseKey: string): PhaseAgentRunner => {
       const host = options.agent;
       const modelRef = agentModelRef(cfg.model);
       return (opts) => runDurablePhaseAgent({ host, phaseKey, modelRef, opts });
@@ -326,7 +325,7 @@ export async function runGeneration(
       const storedPlaces = createStoredPlaceLookups(form.destination);
       const { research: outcome, result: researchRun } = await runResearchPhase({
         form, model, apiKey: cfg.apiKey, signal, verifiedPlaces, searchWebMax,
-        ...(researchRunner ? { runAgent: researchRunner } : {}),
+        runAgent: researchRunner,
         poiSource: poi.source, searchSource: search.source,
         amapPhotos: createAmapPoiPhotoLookup(env.amapKey, env.amapPhotoMaxPerTask),
         storedAmapPhoto: storedPlaces.amapPhotoFor,
@@ -458,7 +457,7 @@ export async function runGeneration(
       form,
       draft,
       areas,
-      ...(planRunner ? { runAgent: planRunner } : {}),
+      runAgent: planRunner,
       searchArea: async (query, plannerSignal) => {
         if (!env.amapKey) return [];
         return poiAreaGate(() => searchAreaPois(env.amapKey, { city: form.destination, ...query }, plannerSignal));
@@ -497,10 +496,8 @@ export async function runGeneration(
       maxTurns: 3,
       recorder: createLlmRequestRecorder({ jobId: job.id, userId: job.userId, phase: 'review', round: 1 }),
     };
-    // 有 durable 宿主时走 pi-durable 会话（第 6 项起），否则退回 pi-agent-core runner。
-    const writerPromise = (options?.agent
-      ? runDurablePhaseAgent({ host: options.agent, phaseKey: 'writer', modelRef: agentModelRef(cfg.model), opts: writerOpts })
-      : runPhaseAgent(writerOpts)).catch((err: unknown) => {
+    // 所有 LLM 阶段都在 durable 会话上执行。
+    const writerPromise = runDurablePhaseAgent({ host: options.agent, phaseKey: 'writer', modelRef: agentModelRef(cfg.model), opts: writerOpts }).catch((err: unknown) => {
       // 并行段若因取消/排程异常先抛出，这个 Promise 仍会 settle：必须立刻挂 catch，
       // 否则它的 rejection 无人接收（Node 视为 unhandledRejection）。
       console.warn(`[writer] 文案阶段异常：${err instanceof Error ? err.message : String(err)}`);

@@ -160,22 +160,19 @@ export async function startLive(options: {
           }
         });
         try {
-          // 让 live 也走 durable 阶段（writer），真实验证第 6 项的迁移。
-          let agentHost: GenerationRunOptions['agent'];
-          try {
-            const [{ getAgentRuntime }, { buildAgentModels }, { generationStoragePath }, { BACKGROUND_CONTEXT }] = await Promise.all([
-              import('../apps/server/src/chat/agent/runtime'),
-              import('../apps/server/src/chat/agent/models'),
-              import('../apps/server/src/generation/agentStorage'),
-              import('@earendil-works/chord/context'),
-            ]);
-            const runtime = await getAgentRuntime(generationStoragePath('eval-user'));
-            runtime.holder.current = await buildAgentModels(config);
-            agentHost = { harness: runtime.harness, registry: runtime.registry, context: BACKGROUND_CONTEXT };
-          } catch {
-            agentHost = undefined;
-          }
-          await runGeneration(job, gc.form, config, undefined, agentHost ? { agent: agentHost } : {});
+          // durable 是唯一执行路径：宿主创建失败即失败该用例。
+          const [{ getAgentRuntime }, { buildAgentModels }, { generationStoragePath }, { BACKGROUND_CONTEXT }] = await Promise.all([
+            import('../apps/server/src/chat/agent/runtime'),
+            import('../apps/server/src/chat/agent/models'),
+            import('../apps/server/src/generation/agentStorage'),
+            import('@earendil-works/chord/context'),
+          ]);
+          const runtime = await getAgentRuntime(generationStoragePath('eval-user'));
+          runtime.holder.current = await buildAgentModels(config);
+          const agentHost: GenerationRunOptions['agent'] = {
+            harness: runtime.harness, registry: runtime.registry, context: BACKGROUND_CONTEXT,
+          };
+          await runGeneration(job, gc.form, config, undefined, { agent: agentHost });
           if (!job.tripId || job.status !== 'done') throw new Error(terminalError || `生成终态：${job.status}（可能已取消或超时）`);
           const trip = await getTrip('eval-user', job.tripId);
           if (!trip) throw new Error('生成已完成，但读回行程失败');

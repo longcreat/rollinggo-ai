@@ -32,7 +32,7 @@ import { repairChangedRoutes } from '../../services/tripHistoryService';
 import { createGeoSession } from '../../generation/geoPipeline';
 import { createTrip } from '../../services/tripService';
 import { cancelJob, createJob, getRunningJobId, type Job } from '../../generation/jobManager';
-import { runGeneration } from '../../generation/orchestrator';
+import { startGenerationTask } from '../../generation/startGeneration';
 import { SUBAGENT_READ_ONLY_TOOL_NAMES } from './toolPolicy';
 import { createHitlSession } from './humanInLoop';
 
@@ -408,7 +408,8 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
   const jobToStart = generationJob;
   const formToStart = generationForm;
   if (jobToStart && formToStart) {
-    void runGeneration(jobToStart, formToStart, cfg).catch(() => cancelJob(jobToStart));
+    void startGenerationTask({ jobId: jobToStart.id, userId, form: formToStart, provenance: jobToStart.provenance })
+      .catch(() => cancelJob(jobToStart));
   }
   return committed;
 }

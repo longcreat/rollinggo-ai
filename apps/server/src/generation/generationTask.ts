@@ -40,7 +40,7 @@ export interface GenerationTaskResult {
  * 重建运行上下文并跑完整条流水线。
  * `runGeneration` 自己负责终态（completeJob/failJob/cancelJob）与投影事件。
  */
-async function runFromInput(input: GenerationTaskInput, options?: GenerationRunOptions): Promise<GenerationRunResult> {
+async function runFromInput(input: GenerationTaskInput, options?: Omit<GenerationRunOptions, 'agent'>): Promise<GenerationRunResult> {
   const job = rehydrateJob(input.jobId, input.userId, input.provenance);
   const cfg = await resolveLlmConfig(input.userId);
   if (!cfg) {
@@ -48,7 +48,7 @@ async function runFromInput(input: GenerationTaskInput, options?: GenerationRunO
     failJob(job, message);
     return { status: 'error', tripId: null, message };
   }
-  // durable 宿主：支持的工具型阶段迁到 pi-durable 会话执行。动态导入避免与 chat runtime 形成静态循环。
+  // durable 宿主是唯一路径：创建失败即失败任务，不回退旧 runner。
   let agent: GenerationRunOptions['agent'];
   try {
     const [{ getAgentRuntime }, { buildAgentModels }, { generationStoragePath }, { BACKGROUND_CONTEXT }] = await Promise.all([
@@ -61,9 +61,11 @@ async function runFromInput(input: GenerationTaskInput, options?: GenerationRunO
     runtime.holder.current = await buildAgentModels(cfg);
     agent = { harness: runtime.harness, registry: runtime.registry, context: BACKGROUND_CONTEXT };
   } catch {
-    agent = undefined;
+    const message = '生成运行时不可用，请稍后重试';
+    failJob(job, message);
+    return { status: 'error', tripId: null, message };
   }
-  await runGeneration(job, input.form, cfg, undefined, { ...options, ...(agent ? { agent } : {}) });
+  await runGeneration(job, input.form, cfg, undefined, { ...options, agent });
   const status = job.status === 'running' ? 'error' : job.status;
   return { status, tripId: job.tripId };
 }

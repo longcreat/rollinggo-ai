@@ -1,5 +1,5 @@
 import type { GenerateForm } from '@tripweaver/shared';
-import { runPhaseAgent, type PhaseAgentRunner, type RunAgentOptions } from './agents/runner';
+import type { PhaseAgentRunner, RunAgentOptions } from './agents/phase';
 import { buildResearchTools, type ResearchOutcome, type ResearchToolDeps } from './tools/researchTools';
 import { formBrief, researchSystemPrompt } from './prompts';
 import { renderRetrievedPlaces } from './researchContext';
@@ -7,14 +7,14 @@ import { isFoodFocused } from './mealPlanning';
 
 type ResearchPhaseInput = Omit<RunAgentOptions, 'systemPrompt' | 'userPrompt' | 'tools'>
   & Omit<ResearchToolDeps, 'outcome' | 'destination' | 'foodSearch'>
-  & { form: GenerateForm; context?: string; runAgent?: PhaseAgentRunner };
+  & { form: GenerateForm; context?: string; runAgent: PhaseAgentRunner };
 
 /** 生成与对话追加共用调研工具、来源规则、提交协议；调用方负责排程和事务。 */
 export async function runResearchPhase(input: ResearchPhaseInput) {
   const research: ResearchOutcome = { summary: '', pool: [], locations: new Map() };
   const places = input.verifiedPlaces ?? [];
   const foodSearch = isFoodFocused(input.form.preferences);
-  const result = await (input.runAgent ?? runPhaseAgent)({
+  const result = await input.runAgent({
     model: input.model, apiKey: input.apiKey, signal: input.signal, sink: input.sink,
     maxTurns: input.maxTurns ?? 16, recorder: input.recorder,
     completion: {

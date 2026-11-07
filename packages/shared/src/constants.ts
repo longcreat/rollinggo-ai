@@ -47,6 +47,16 @@ export const LONG_HAUL_THRESHOLDS = {
   longHaulMin: 60,     // 单程通勤 ≥60 分钟：长途级
   exclusiveMin: 90,    // 单程通勤 ≥90 分钟：强独占级
 } as const;
+
+/**
+ * 远郊编排里两个「近邻」阈值语义不同，**故意不合并**（曾经注释声称对齐，实际一边 30 一边 45）：
+ * - nearStopoverMaxMin（45）：远郊日里与长途点通勤 ≤45min 的点视为同景区 / 回程顺路，可留在同一天（修复器用）。
+ * - mixedCityMaxMin（30）：体检判定「远郊与市区混排」时，同天市区点距最近长途点 >30min 且更靠中心，即算混排。
+ */
+export const LONG_HAUL_STOPOVER = {
+  nearStopoverMaxMin: 45,
+  mixedCityMaxMin: 30,
+} as const;
 // 出行方式基调（ST3）：生成输入与 Trip 持久化共用；缺省 transit。>1.5km 的通勤段按此基调估算
 export const TRANSPORT_MODES = ['transit', 'drive', 'walk'] as const;
 // 真实路径规划来源：如实标注是哪家服务商（09-25 加入天地图），不要用 amap 指代“真实数据”

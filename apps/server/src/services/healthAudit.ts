@@ -1,14 +1,15 @@
 // 行程体检 Pass 1a（纯确定性审计）：feasibility 全量规则 + 远郊混排 → 结构化 Finding。
 // 本模块零依赖（只 import shared 纯函数）——单测不需要 DB 与环境变量。
 import { uid, type Trip, type HealthFinding } from '@tripweaver/shared';
-import { simulateTrip, suggestionFromViolation, estimateTransit, effectiveLegMode } from '@tripweaver/shared';
+import { simulateTrip, suggestionFromViolation, estimateTransit, effectiveLegMode, LONG_HAUL_THRESHOLDS, LONG_HAUL_STOPOVER } from '@tripweaver/shared';
 
 // ---------- 远郊混排检测（体检场景版） ----------
 // 生成链路的 classifyLongHaulPois 走 ResearchPoi 池；这里直接用行程活动坐标：
 // 长途点 = 距当日活动中位中心估算单程 ≥ exclusiveMin(90min)；混排 = 同天还有距长途点 > 30min 且更靠中心的市区点。
+// 注意：这里的 30min（混排判定）与修复器的 45min（景区近邻保留）语义不同，见 shared 的 LONG_HAUL_STOPOVER。
 
-const LONG_HAUL_EXCLUSIVE_MIN = 90;   // 与 LONG_HAUL_THRESHOLDS.exclusiveMin 一致
-const NEAR_STOPOVER_MAX_MIN = 30;     // 与 longHaulFixer 的 NEAR_STOPOVER_MAX_MIN 对齐
+const LONG_HAUL_EXCLUSIVE_MIN = LONG_HAUL_THRESHOLDS.exclusiveMin;
+const NEAR_STOPOVER_MAX_MIN = LONG_HAUL_STOPOVER.mixedCityMaxMin;
 
 function median(values: number[]): number {
   const sorted = [...values].sort((a, b) => a - b);

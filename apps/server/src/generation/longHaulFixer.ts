@@ -12,6 +12,7 @@
 // 绝不「修出更烂的行程」。任何意外异常回滚到入场状态并按「未修复」返回（生成不失败原则）。
 import {
   FEASIBILITY_THRESHOLDS,
+  LONG_HAUL_STOPOVER,
   LONG_HAUL_THRESHOLDS,
   effectiveLegMode,
   estimateTransit,
@@ -27,8 +28,8 @@ import type { DraftTrip } from './draft';
 /** 草稿天形状（DraftTrip.mutableDays 的元素）：修复器与单测共用 */
 export type DraftDay = ReturnType<DraftTrip['mutableDays']>[number];
 
-/** 景区近邻判定：与长途点估算通勤 ≤45 分钟视为同景区/回程顺路点，保留在远郊日 */
-export const NEAR_STOPOVER_MAX_MIN = 45;
+/** 景区近邻判定：与长途点估算通勤 ≤45 分钟视为同景区/回程顺路点，保留在远郊日（shared 单一来源） */
+export const NEAR_STOPOVER_MAX_MIN = LONG_HAUL_STOPOVER.nearStopoverMaxMin;
 /** 时间槽晚间边界：被挪活动的结束时间不得晚于 23:00，压线则顺延下一候选天 */
 export const EVENING_LIMIT_MIN = 23 * 60;
 /** 时间槽取整粒度：起始时间向后取整到 :00/:30 */

@@ -5,6 +5,7 @@
 import { Type } from 'typebox';
 import type { AgentTool } from '@earendil-works/pi-agent-core';
 import type { GenerateForm, LegMode, PlanDayEventStop, PoiCategory } from '@tripweaver/shared';
+import { effectiveLegMode } from '@tripweaver/shared';
 import { defineTool } from '../tools/defineTool';
 import type { DraftTrip } from '../draft';
 import type { GeoPoint, SourcedPoi } from '../../integrations/geoContracts';
@@ -259,7 +260,9 @@ export function buildPlannerTools(deps: PlannerDeps): AgentTool[] {
         startAt,
         pace: (deps.form.pace ?? 'moderate') as PlanPace,
         stops: orderedStops,
-        travelMinutes: async (from, to) => estimateLeg(from, to, mode).durationMin,
+        // 与 geoPipeline 的真实 legs 同口径：短距离自动降为步行/骑行，避免 plan_day 用基础模式高估通勤、
+        // 让模型据此做出错误的顺路排序。
+        travelMinutes: async (from, to) => estimateLeg(from, to, effectiveLegMode(from, to, mode)).durationMin,
       });
 
       // 闭馆是硬冲突：不要先写进草稿再等最后校验拦下来（那样整单会失败）。

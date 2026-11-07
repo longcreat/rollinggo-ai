@@ -68,6 +68,9 @@ import { createLlmRequestRecorder } from './llmRequestLog';
 import { runResearchPhase } from './researchPhase';
 import { loadPlaceFacts, saveAmapPhoto } from './scheduling/placeFacts';
 import { createStoredPlaceLookups } from './storedPlaceLookups';
+import { serializeResearch, type ResearchCheckpoint } from './checkpoint';
+import type { ResearchOutcome } from './tools/researchTools';
+import type { PlaceFacts } from './scheduling/placeFacts';
 import { createAmapPoiPhotoLookup } from '../integrations/amap/poiPhotos';
 import { env } from '../env';
 
@@ -100,11 +103,19 @@ function researchNote(sources: DataSourceKind[]): string | undefined {
     : `全网搜索不可用，本次基于高德地点数据 + 模型知识调研`;
 }
 
+export interface GenerationRunOptions {
+  /** 上次运行保存的调研 checkpoint：有则跳过 LLM 调研，直接复用候选池与知识库事实。 */
+  resume?: ResearchCheckpoint;
+  /** 调研完成后保存 checkpoint（durable task 用它落 task state）。 */
+  onCheckpoint?: (checkpoint: ResearchCheckpoint) => Promise<void>;
+}
+
 export async function runGeneration(
   job: Job,
   form: GenerateForm,
   cfg: LlmConfig,
   logger?: Pick<FastifyBaseLogger, 'info' | 'error'>,
+  options?: GenerationRunOptions,
 ): Promise<void> {
   const signal = job.abort.signal;
   const usage = { tokensIn: 0, tokensOut: 0 };
@@ -263,36 +274,61 @@ export async function runGeneration(
     if (!modelResult.ok) throw modelResult.error;
     const { model } = modelResult;   // BYOK：使用时二次 ssrfGuard，失败即 job_error
 
-    // ---------- 阶段 1：调研 ----------
-    startPhase('research', 1, researchNote(enabledSources));
-    // R3（09-25）：未覆盖城市放宽 search_web 上限（2→6），SEARCH_DAILY_BUDGET 日预算闸门不受影响
-    const searchWebMax = searchWebMaxFor(await cityCoverage(form.destination));
-    const verifiedPlaces = await runSystemTask('research', 'prefetch_verified_places', '筛选行程地点', () =>
-      prepareResearchContext(form, retrieveContext, signal));
-    assertAlive(signal);
-    // 封面来源接线（2026-11-05 收敛）：只用高德 POI 图片 —— search_pois 旁路 → 库内回写 → 实时查询。
-    const storedPlaces = createStoredPlaceLookups(form.destination);
-    const { research, result: researchRun } = await runResearchPhase({
-      form, model, apiKey: cfg.apiKey, signal, verifiedPlaces, searchWebMax,
-      poiSource: poi.source, searchSource: search.source,
-      amapPhotos: createAmapPoiPhotoLookup(env.amapKey, env.amapPhotoMaxPerTask),
-      storedAmapPhoto: storedPlaces.amapPhotoFor,
-      saveAmapPhoto: (name, url) => {
-        void saveAmapPhoto(form.destination, name, url).catch((error: unknown) =>
-          console.warn(`[amap-photo] 回写失败（不影响生成）：${error instanceof Error ? error.message : String(error)}`));
-      },
-      onCandidate: (candidate) => emit(job, { type: 'candidate', poi: candidate }),
-      sink: sinkFor('research'),
-      recorder: createLlmRequestRecorder({ jobId: job.id, userId: job.userId, phase: 'research', round: 1 }),
-    });
-    usage.tokensIn += researchRun.tokensIn;
-    usage.tokensOut += researchRun.tokensOut;
-    assertAlive(signal, researchRun.errorMessage);
-    endPhase('research', 1, `候选 ${research.pool.length} 个｜${research.summary.slice(0, 160)}`);
-    geo.useResearchPlaces(research.pool, research.locations);
-
-    // 知识库事实（坐标/开放时间/类目）：规划 Agent 的片区种子与后续修复共用同一份，不重复查询。
-    const placeFacts = await loadPlaceFacts(research.pool.map((poi) => poi.name), form.destination);
+    // ---------- 阶段 1：调研（可 checkpoint） ----------
+    // 调研是最耗时的 LLM 阶段：完成后把候选池/坐标旁路/知识库事实存进 task checkpoint，
+    // 进程崩溃重启后直接复用，跳过这一步。
+    let research: ResearchOutcome;
+    let placeFacts: Map<string, PlaceFacts>;
+    if (options?.resume) {
+      research = {
+        summary: options.resume.summary,
+        pool: options.resume.pool,
+        locations: new Map(options.resume.locations),
+      };
+      placeFacts = new Map(options.resume.placeFacts);
+      geo.useResearchPlaces(research.pool, research.locations);
+      // 重建直播：job_start 已发出，补发候选与调研阶段边界。
+      startPhase('research', 1, '复用上次调研结果');
+      for (const poi of research.pool) emit(job, { type: 'candidate', poi });
+      endPhase('research', 1, `候选 ${research.pool.length} 个｜复用上次调研`);
+    } else {
+      startPhase('research', 1, researchNote(enabledSources));
+      // R3（09-25）：未覆盖城市放宽 search_web 上限（2→6），SEARCH_DAILY_BUDGET 日预算闸门不受影响
+      const searchWebMax = searchWebMaxFor(await cityCoverage(form.destination));
+      const verifiedPlaces = await runSystemTask('research', 'prefetch_verified_places', '筛选行程地点', () =>
+        prepareResearchContext(form, retrieveContext, signal));
+      assertAlive(signal);
+      // 封面来源接线（2026-11-05 收敛）：只用高德 POI 图片 —— search_pois 旁路 → 库内回写 → 实时查询。
+      const storedPlaces = createStoredPlaceLookups(form.destination);
+      const { research: outcome, result: researchRun } = await runResearchPhase({
+        form, model, apiKey: cfg.apiKey, signal, verifiedPlaces, searchWebMax,
+        poiSource: poi.source, searchSource: search.source,
+        amapPhotos: createAmapPoiPhotoLookup(env.amapKey, env.amapPhotoMaxPerTask),
+        storedAmapPhoto: storedPlaces.amapPhotoFor,
+        saveAmapPhoto: (name, url) => {
+          void saveAmapPhoto(form.destination, name, url).catch((error: unknown) =>
+            console.warn(`[amap-photo] 回写失败（不影响生成）：${error instanceof Error ? error.message : String(error)}`));
+        },
+        onCandidate: (candidate) => emit(job, { type: 'candidate', poi: candidate }),
+        sink: sinkFor('research'),
+        recorder: createLlmRequestRecorder({ jobId: job.id, userId: job.userId, phase: 'research', round: 1 }),
+      });
+      usage.tokensIn += researchRun.tokensIn;
+      usage.tokensOut += researchRun.tokensOut;
+      assertAlive(signal, researchRun.errorMessage);
+      endPhase('research', 1, `候选 ${outcome.pool.length} 个｜${outcome.summary.slice(0, 160)}`);
+      geo.useResearchPlaces(outcome.pool, outcome.locations);
+      research = outcome;
+      // 知识库事实（坐标/开放时间/类目）：规划 Agent 的片区种子与后续修复共用同一份，不重复查询。
+      placeFacts = await loadPlaceFacts(research.pool.map((poi) => poi.name), form.destination);
+      await options?.onCheckpoint?.(serializeResearch({
+        summary: research.summary,
+        pool: research.pool,
+        locations: research.locations,
+        placeFacts,
+        enabledSources,
+      }));
+    }
 
     // ---------- 规划 Agent，随后并发运行地理增强与标题文案 ----------
     const draft = new DraftTrip(form);

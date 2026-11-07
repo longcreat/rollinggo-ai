@@ -9,8 +9,9 @@
 import { defineTask } from '@earendil-works/pi-durable';
 import type { GenerateForm } from '@tripweaver/shared';
 import { rehydrateJob, failJob, type JobProvenance } from './jobManager';
-import { runGeneration } from './orchestrator';
+import { runGeneration, type GenerationRunOptions } from './orchestrator';
 import { resolveLlmConfig } from '../services/settingsService';
+import type { ResearchCheckpoint } from './checkpoint';
 
 export interface GenerationTaskInput {
   jobId: string;
@@ -21,6 +22,8 @@ export interface GenerationTaskInput {
 
 export interface GenerationTaskState {
   phase: 'run';
+  /** 调研完成后的 checkpoint：重启后复用，跳过最耗时的 LLM 调研。 */
+  research?: ResearchCheckpoint;
 }
 
 export interface GenerationRunResult {
@@ -37,7 +40,7 @@ export interface GenerationTaskResult {
  * 重建运行上下文并跑完整条流水线。
  * `runGeneration` 自己负责终态（completeJob/failJob/cancelJob）与投影事件。
  */
-async function runFromInput(input: GenerationTaskInput): Promise<GenerationRunResult> {
+async function runFromInput(input: GenerationTaskInput, options?: GenerationRunOptions): Promise<GenerationRunResult> {
   const job = rehydrateJob(input.jobId, input.userId, input.provenance);
   const cfg = await resolveLlmConfig(input.userId);
   if (!cfg) {
@@ -45,7 +48,7 @@ async function runFromInput(input: GenerationTaskInput): Promise<GenerationRunRe
     failJob(job, message);
     return { status: 'error', tripId: null, message };
   }
-  await runGeneration(job, input.form, cfg);
+  await runGeneration(job, input.form, cfg, undefined, options);
   const status = job.status === 'running' ? 'error' : job.status;
   return { status, tripId: job.tripId };
 }
@@ -67,7 +70,12 @@ export const GenerationTask = defineTask<GenerationTaskInput, GenerationTaskStat
   phases: {
     run: async (task, runtime, context) => {
       try {
-        const result = await runFromInput(task.input);
+        const result = await runFromInput(task.input, {
+          ...(task.state.checkpoint.research ? { resume: task.state.checkpoint.research } : {}),
+          onCheckpoint: async (research) => {
+            await runtime.commit(() => ({ status: 'running', checkpoint: { phase: 'run', research } }), context);
+          },
+        });
         await runtime.commit(() => taskOutcome(result), context);
       } catch (error) {
         await runtime.commit(

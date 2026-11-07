@@ -13,7 +13,7 @@ import type { GeoPoint, SourcedPoi } from '../../integrations/geoContracts';
 import { classifySubPoi } from '../../services/geofenceImport';
 import { estimateLeg } from '../legEstimator';
 import { optimizeRouteOrder } from '../scheduling/routeOrder';
-import { planDay, type PlanDayStop } from '../scheduling/dayPlanner';
+import { planDay, parseClock, type PlanDayStop } from '../scheduling/dayPlanner';
 import { dayDate, measurePlan, planViolations, PLAN_POLICY, type PlanPace, type PlanViolation } from './validator';
 
 export interface PlannerSeed {
@@ -246,45 +246,50 @@ export function buildPlannerTools(deps: PlannerDeps): AgentTool[] {
       });
       const ordered = optimizeRouteOrder(stops).map((stop) => stop.name);
       const orderedStops = ordered.map((name) => stops.find((stop) => stop.name === name)!).filter(Boolean);
-      const startAt = /^\d{1,2}:\d{2}$/.test(params.startAt ?? '') ? params.startAt! : '09:00';
-      const plan = await planDay({
-        dayIndex: params.dayIndex,
-        startDate: deps.form.startDate ?? '',
-        startAt,
-        pace: (deps.form.pace ?? 'moderate') as PlanPace,
-        stops: orderedStops,
-        // 与 geoPipeline 的真实 legs 同口径：短距离自动降为步行/骑行，避免 plan_day 用基础模式高估通勤、
-        // 让模型据此做出错误的顺路排序。
-        travelMinutes: async (from, to) => estimateLeg(from, to, effectiveLegMode(from, to, mode)).durationMin,
-      });
-
-      // 与最终可行性闸门同源：闭馆、景点密度、每日时长都在 plan_day 就拒绝，
-      // 否则模型会提交一份最终被判 hard 的行程（实测排出过 14.6 小时的一天）。
+      const requestedStart = /^\d{1,2}:\d{2}$/.test(params.startAt ?? '') ? params.startAt! : '09:00';
+      // startAt 是当天首个活动的到达时刻：晚于 10:00 会把一天拖到午夜后（实测 23:14 出发 → 次日 00:29 结束）。
+      const startAt = (parseClock(requestedStart) ?? 9 * 60) > 10 * 60 ? '09:00' : requestedStart;
       const pace = (deps.form.pace ?? 'moderate') as PlanPace;
       const sightMax = DAILY_SIGHT_LIMITS[pace].max;
       // 餐次由后处理插入（约 1h/餐）；美食偏好时预留两餐，避免排完刚好顶到 14h 上限。
       const mealReserveMin = (deps.form.preferences ?? []).includes('美食') ? 2 * 60 : 0;
-      const blockers = [
-        ...plan.issues.filter((issue) => issue.includes('闭馆')),
-        ...(orderedStops.length > sightMax
-          ? [`当天 ${orderedStops.length} 个景点，超过 ${pace} 节奏上限 ${sightMax} 个`]
-          : []),
-        ...(plan.totalMinutes + mealReserveMin > FEASIBILITY_THRESHOLDS.hardDayTotalMin
-          ? [`当天占用约 ${((plan.totalMinutes + mealReserveMin) / 60).toFixed(1)} 小时，超过 ${FEASIBILITY_THRESHOLDS.hardDayTotalMin / 60} 小时上限`]
-          : []),
-      ];
-      if (blockers.length) {
+      // 与 geoPipeline 的真实 legs 同口径：短距离自动降为步行/骑行，避免 plan_day 用基础模式高估通勤、
+      // 让模型据此做出错误的顺路排序。
+      const travelMinutes = async (from: PlanDayStop, to: PlanDayStop) =>
+        estimateLeg(from, to, effectiveLegMode(from, to, mode)).durationMin;
+      const planStops = (stops: PlanDayStop[]) => planDay({
+        dayIndex: params.dayIndex,
+        startDate: deps.form.startDate ?? '',
+        startAt,
+        pace,
+        stops,
+        travelMinutes,
+      });
+
+      // 越过每日上限时**确定性裁剪**（按模型给出的顺序保留前 N 个），而不是返回错误逼模型重试：
+      // 实测反复拒绝会把轮次烧满导致整单失败。闭馆仍交给模型换点。
+      let selected = orderedStops.slice(0, sightMax);
+      let plan = await planStops(selected);
+      while (plan.totalMinutes + mealReserveMin > FEASIBILITY_THRESHOLDS.hardDayTotalMin && selected.length > 2) {
+        selected = selected.slice(0, -1);
+        plan = await planStops(selected);
+      }
+
+      // 闭馆是硬冲突：不能替模型决定换哪个点。
+      const closures = plan.issues.filter((issue) => issue.includes('闭馆'));
+      if (closures.length) {
         return {
-          content: text(`错误：${blockers.join('；')}。请减少当天点位，或把部分点位换到别的天，再重新 plan_day。`),
+          content: text(`错误：${closures.join('；')}。请换掉闭馆地点后重新 plan_day（同一天可先用已候选里的其它点）。`),
           isError: true,
-          details: { blockers: blockers.length },
+          details: { closures: closures.length },
         };
       }
+      const trimmed = orderedStops.length - selected.length;
 
       const day = deps.draft.mutableDays()[params.dayIndex - 1]!;
       day.activities.length = 0;
       const timed = new Map(plan.timed.map((item) => [item.id, item]));
-      for (const stop of orderedStops) {
+      for (const stop of selected) {
         const item = pool.get(stop.name)!;
         const slot = timed.get(stop.name);
         deps.draft.addActivity(params.dayIndex, {
@@ -304,7 +309,7 @@ export function buildPlannerTools(deps: PlannerDeps): AgentTool[] {
       }
       deps.onDayPlanned?.({
         dayIndex: params.dayIndex,
-        stops: orderedStops.map((stop) => {
+        stops: selected.map((stop) => {
           const item = pool.get(stop.name)!;
           const slot = timed.get(stop.name);
           return {
@@ -319,8 +324,9 @@ export function buildPlannerTools(deps: PlannerDeps): AgentTool[] {
           itinerary: plan.timed.map((item) => ({ name: item.name, arrive: item.arrive, leave: item.leave, travelMin: item.travelMin })),
           endAt: plan.endAt,
           issues: plan.issues,
+          ...(trimmed ? { trimmedTo: selected.length } : {}),
         })),
-        details: { stops: orderedStops.length, issues: plan.issues.length },
+        details: { stops: selected.length, issues: plan.issues.length, trimmed },
       };
     },
   });

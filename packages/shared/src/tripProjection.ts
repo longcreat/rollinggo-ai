@@ -107,3 +107,35 @@ export function rowsFromTrip(trip: Pick<Trip, 'days'>): TripProjectionRow[] {
     legs: day.legs ?? [],
   }));
 }
+
+/**
+ * 投影 → 直播用的合成 Trip（只读）：编辑器与地图需要 Trip 形状，但真相在投影里。
+ * 完成后页面会用落库的正式行程替换，这里的 id 只在直播期使用。
+ */
+export function tripFromProjection(snapshot: TripProjectionSnapshot): Trip | null {
+  const header = snapshot.state.trip;
+  if (!header) return null;
+  return {
+    id: header.id,
+    title: header.title,
+    destination: header.destination,
+    startDate: header.startDate,
+    budgetLevel: '舒适',
+    totalBudget: 0,
+    preferences: [],
+    partySize: 2,
+    extraNotes: '',
+    transportMode: 'transit',
+    days: snapshot.rows.window.map((row) => ({
+      id: `proj-day-${row.rowId}`,
+      dayIndex: row.dayIndex,
+      title: row.title,
+      activities: row.activities,
+      ...(row.legs.length ? { legs: row.legs } : {}),
+    })),
+    ...(header.overview?.length ? { overview: header.overview } : {}),
+    meta: { usedXhs: false, reviewNotes: [] },
+    createdAt: 0,
+    updatedAt: header.updatedAt,
+  };
+}

@@ -1,10 +1,10 @@
 // 直播页的数据入口：接管指定 job 的 SSE，同时产出合成行程与播报模型。
 import { useEffect, useMemo } from 'react';
-import type { Trip } from '@tripweaver/shared';
+import { tripFromProjection, type Trip } from '@tripweaver/shared';
 import { useGenerationRun } from './useGenerationRun';
+import { useGenerationProjection } from './useGenerationProjection';
 import { buildTimeline } from '../lib/generationTimeline';
 import { buildLiveStream, type LiveStream } from '../lib/liveAgentStream';
-import { buildLiveTrip } from '../lib/liveTrip';
 
 export interface LiveTripState {
   trip: Trip | null;
@@ -30,10 +30,15 @@ export function useLiveTrip(jobId: string | undefined): LiveTripState {
   }, [adopt, jobId]);
 
   const model = useMemo(() => buildTimeline(run.events), [run.events]);
-  const trip = useMemo(() => (enabled ? buildLiveTrip(run.events) : null), [enabled, run.events]);
+  // 行程的真相来自服务端投影（行/快照），不再由前端重放事件合成。
+  const projection = useGenerationProjection(enabled ? jobId : undefined);
+  const trip = useMemo(
+    () => (projection.snapshot ? tripFromProjection(projection.snapshot) : null),
+    [projection.snapshot],
+  );
   const stream = useMemo(() => buildLiveStream(model), [model]);
   const terminal = run.events.find((event) => event.type === 'job_error' || event.type === 'job_cancelled');
-  const lost = terminal?.type === 'job_error' && terminal.message.includes('任务已丢失');
+  const lost = projection.lost || (terminal?.type === 'job_error' && terminal.message.includes('任务已丢失'));
 
   return {
     trip,

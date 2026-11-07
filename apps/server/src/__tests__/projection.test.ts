@@ -7,9 +7,12 @@ import {
   coalesceFrames,
   emptySnapshot,
   isContiguous,
+  reduceProjectionMessage,
+  tripFromProjection,
   type ProjectionDelta,
   type ProjectionFrame,
   type ProjectionSnapshot,
+  type TripProjectionSnapshot,
 } from '@tripweaver/shared';
 
 type Row = { rowId: number; label: string; text?: string };
@@ -148,5 +151,50 @@ describe('黄金不变量：applyFrames(s, coalesceFrames(fs)) === applyFrames(s
       const merged = applyFrames(base(), coalesceFrames(framesList));
       assert.deepEqual(merged, direct, `seed=${seed}`);
     }
+  });
+});
+describe('客户端归约（三铁律）与直播 Trip 组装', () => {
+  it('快照整体替换；衔接帧应用；断档要求重订阅；重复帧丢弃', () => {
+    const snapshot = applyFrames(emptySnapshot<Row, State>({ trip: { days: [] }, cursor: 0, phase: 'idle' }), frames([
+      { op: 'state.updated', patch: { phase: 'plan' } },
+    ]));
+    const replaced = reduceProjectionMessage(null, { kind: 'snapshot', snapshot });
+    assert.equal(replaced.kind, 'applied');
+
+    const applied = reduceProjectionMessage(snapshot, {
+      kind: 'delta',
+      frame: { fromSeq: snapshot.seq, toSeq: snapshot.seq + 1, delta: { op: 'row.appended', row: { rowId: 1, label: 'd1' } } },
+    });
+    assert.equal(applied.kind, 'applied');
+    assert.equal(applied.snapshot?.rows.window.length, 1);
+
+    const gap = reduceProjectionMessage(snapshot, {
+      kind: 'delta',
+      frame: { fromSeq: snapshot.seq + 5, toSeq: snapshot.seq + 6, delta: { op: 'state.updated', patch: { phase: 'x' } } },
+    });
+    assert.equal(gap.kind, 'resync');
+
+    const duplicate = reduceProjectionMessage(snapshot, {
+      kind: 'delta',
+      frame: { fromSeq: 0, toSeq: 1, delta: { op: 'state.updated', patch: { phase: 'x' } } },
+    });
+    assert.equal(duplicate.kind, 'ignored');
+  });
+
+  it('tripFromProjection 用头 + 行组装直播行程', () => {
+    const snapshot: TripProjectionSnapshot = {
+      seq: 2,
+      rows: { window: [{ rowId: 1, kind: 'day', dayIndex: 1, title: '市区', activities: [], legs: [] }], totalCount: 1, firstRowId: 1 },
+      state: {
+        trip: { id: 'job-1', title: '成都 · 生成中', destination: '成都', startDate: '2026-11-10', updatedAt: 0 },
+        control: { phase: 'plan', status: 'running' },
+        taskGraph: [], usage: null, pendingInteractions: [], availability: { canSend: true },
+      },
+    };
+    const trip = tripFromProjection(snapshot)!;
+    assert.equal(trip.id, 'job-1');
+    assert.equal(trip.destination, '成都');
+    assert.deepEqual(trip.days.map((day) => day.dayIndex), [1]);
+    assert.equal(tripFromProjection({ ...snapshot, state: { ...snapshot.state, trip: null } }), null);
   });
 });

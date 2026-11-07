@@ -18,6 +18,7 @@ export * from './sample';
 export * from './utils';
 export * from './weather';
 export * from './projection';
+export * from './projectionClient';
 export * from './tripProjection';
 export * from './tripAdvice';
 export { placeNameKey, samePlaceReference, uniquePlaceReferences, type PlaceIdentityReference } from './placeIdentity';

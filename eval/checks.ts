@@ -65,8 +65,10 @@ function checkStructural(trip: Trip, form: GenerateForm): string[] {
   for (const day of trip.days) {
     const d = `第 ${day.dayIndex} 天`;
     if (day.activities.length === 0) problems.push(`${d}为空天`);
-    if (day.activities.length > FEASIBILITY_THRESHOLDS.softMaxActivities) {
-      problems.push(`${d}活动数 ${day.activities.length} 超上限 ${FEASIBILITY_THRESHOLDS.softMaxActivities}`);
+    // 密度只数景点：餐次 / 住宿 / 交通是排程项，不构成「一天过载」（与 draft.validate / plan_day 同口径）。
+    const sights = day.activities.filter((a) => a.category !== '美食' && a.category !== '住宿' && a.category !== '交通').length;
+    if (sights > FEASIBILITY_THRESHOLDS.softMaxActivities) {
+      problems.push(`${d}景点数 ${sights} 超上限 ${FEASIBILITY_THRESHOLDS.softMaxActivities}`);
     }
     for (const a of day.activities) {
       for (const t of [a.startTime, a.endTime]) {

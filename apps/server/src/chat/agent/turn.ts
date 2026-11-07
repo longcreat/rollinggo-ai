@@ -5,7 +5,7 @@
 // 一轮对话只产生一个版本：中途失败不会留下半成品，历史面板也不会被刷屏。
 import { and, eq } from 'drizzle-orm';
 import { db } from '../../db/client';
-import { agentConversations, trips } from '../../db/schema';
+import { trips } from '../../db/schema';
 import { agentStoragePath, ensureAgentStorageDir } from '../../generation/agentStorage';
 import { appendMessages, getConversationDetail, saveBrief } from '../../services/conversationService';
 import { commitOperation } from '../../services/detailOperationService';
@@ -14,7 +14,7 @@ import { getTripWeather } from '../../services/tripWeatherService';
 import type { LlmConfig } from '../../services/settingsService';
 import type { AgentPart, AgentStep, ChatAttachment, ChatStreamEvent, DetailChatRequest, SendMessageResult, Trip } from '@tripweaver/shared';
 import { Value } from '@sinclair/typebox/value';
-import { SendMessageResultSchema, briefToGenerateForm, requiredBriefFields } from '@tripweaver/shared';
+import { SendMessageResultSchema } from '@tripweaver/shared';
 import { allowsWebSearch, collectReferences } from '../detailKnowledge';
 import { applyDialogueDecision, briefStatus, syncBriefTripDates } from '../brief';
 import { resolveDetailSources } from '../detailSources';
@@ -32,39 +32,18 @@ import { syncOverviewWithActivities } from './overviewSync';
 import { repairChangedRoutes } from '../../services/tripHistoryService';
 import { createGeoSession } from '../../generation/geoPipeline';
 import { createTrip } from '../../services/tripService';
-import { cancelJob, createJob, getJob, getRunningJobId } from '../../generation/jobManager';
-import { GenerationTask, type GenerationTaskInput } from '../../generation/generationTask';
+import { GenerationTask } from '../../generation/generationTask';
+import { delegateGeneration, readGenerationStatus } from './delegate';
 import { SUBAGENT_READ_ONLY_TOOL_NAMES } from './toolPolicy';
 import { createHitlSession } from './humanInLoop';
 import { claimsUnappliedEdit, withEditCorrection } from './editClaim';
+import { readBinding, saveBinding } from './binding';
+import { TOOL_LABEL } from './labels';
 
 /** 详情对话流式事件（requestId/sequence 由路由统一补）。 */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 export type DetailChatEmitEvent = DistributiveOmit<ChatStreamEvent, 'requestId' | 'sequence'>;
 export type DetailChatEmit = (event: DetailChatEmitEvent) => void;
-
-const TOOL_LABEL: Record<string, string> = {
-  get_trip: '读行程',
-  get_day: '看当天的安排',
-  search_places: '查地点',
-  web_search: '搜资料',
-  get_weather: '查天气',
-  search_food: '找餐厅',
-  ask_user: '确认信息',
-  update_brief: '更新出行条件',
-  generate_trip: '委派生成行程',
-  generation_status: '查看生成进度',
-  add_activity: '往行程里加地点',
-  update_activity: '调整这个安排',
-  delete_activity: '删掉这个安排',
-  move_activity: '挪动安排',
-  reorder_day: '调整当天顺序',
-  add_day: '增加一天',
-  update_day: '改当天主题',
-  delete_day: '删除一天',
-  update_trip: '更新行程信息',
-  spawn_subagents: '并行调研',
-};
 
 /** 子代理（探索型）：只读、独立上下文，只回结论。参考出发鸭 explore_sub_*。 */
 const SUBAGENT_INSTRUCTIONS = [
@@ -74,19 +53,6 @@ const SUBAGENT_INSTRUCTIONS = [
   '只输出与本任务有关的事实：地点名、片区、营业/预约、通勤耗时、需要避开的坑。不要寒暄，不要复述任务，不要输出 Markdown 标题。',
   '输出格式（必须严格遵守）：最后只输出一个 JSON 对象，不要代码块、不要解释。kind=places 用 {"places":[{"name","address","lat","lng","category","reason","openTime","rating","cost","sourceUrl"}]}（lat/lng 取自 search_places，最多 6 个）；kind=notes 用 {"notes":[{"topic","detail","sourceUrl"}],"cautions":[{"topic","detail"}]}（各最多 5 条）。没有把握的地点不要放进 places。',
 ].join('\n');
-
-async function readBinding(userId: string, conversationId: string): Promise<number | null> {
-  const [row] = await db.select({ durableId: agentConversations.durableId })
-    .from(agentConversations)
-    .where(and(eq(agentConversations.userId, userId), eq(agentConversations.conversationId, conversationId)));
-  return row?.durableId ?? null;
-}
-
-async function saveBinding(userId: string, conversationId: string, durableId: number): Promise<void> {
-  await db.insert(agentConversations)
-    .values({ userId, conversationId, durableId, createdAt: new Date() })
-    .onConflictDoNothing();
-}
 
 const SYSTEM_INSTRUCTIONS = [
   '你是行程详情页里的旅行助手。用中文回答，像和旅行者聊天。使用简洁 Markdown（短标题、列表、加粗、链接）；避免宽表格和长代码块。',
@@ -165,44 +131,17 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
 
   // 对齐 openmuse 的 delegate_task：只负责把后台任务建起来并立即返回任务 id，不阻塞对话。
   // background 让它不受本回合 stop / waitForIdle 影响；进程重启后任务照常 resume（与表单入口一致）。
-  const generateTrip = async (api: ToolExecutionApi, context: Context) => {
-    const brief = briefWithPatch();
-    const missing = requiredBriefFields(brief);
-    if (missing.length) return { error: `生成还缺少：${missing.join('、')}。先补齐这些条件再生成。` };
-    const running = getRunningJobId(userId);
-    if (running) return { error: '已有一份行程正在生成，等它结束后再试。' };
-    const job = createJob(userId, { conversationId, kind: 'generation' });
-    const input: GenerationTaskInput = { jobId: job.id, userId, form: briefToGenerateForm(brief), provenance: job.provenance };
-    try {
+  const generateTrip = (api: ToolExecutionApi, context: Context) => delegateGeneration({
+    userId,
+    conversationId,
+    brief: briefWithPatch(),
+    onRunning: 'error',
+    createTask: async (input) => {
       await api.createTask(GenerationTask, input, { ownership: { kind: 'conversation' }, background: true }, context);
-      return { jobId: job.id };
-    } catch (error) {
-      cancelJob(job);
-      return { error: error instanceof Error ? error.message : '生成任务没有启动' };
-    }
-  };
+    },
+  });
 
-  // 主 Agent 读任务状态：运行中的任务优先，其次本轮委派过的任务（完成 30 分钟内仍在内存）。
-  const generationStatus = () => {
-    const activeId = getRunningJobId(userId);
-    const job = (activeId ? getJob(activeId, userId) : null)
-      ?? (state.startedGenerationJobId ? getJob(state.startedGenerationJobId, userId) : null);
-    if (!job) return { running: false };
-    const snapshot = job.projection.channel.snapshot;
-    return {
-      running: job.status === 'running',
-      jobId: job.id,
-      status: job.status,
-      ...(job.tripId ? { tripId: job.tripId } : {}),
-      destination: job.destination,
-      days: job.days,
-      phase: snapshot.state.control.phase,
-      steps: snapshot.state.taskGraph
-        .filter((node) => node.status === 'done' || node.status === 'running')
-        .slice(-8)
-        .map((node) => `${node.label}:${node.status}`),
-    };
-  };
+  const generationStatus = () => readGenerationStatus(userId, state.startedGenerationJobId);
 
   const tools = createTripTools({
     trip, sources, signal, getWeather: getTripWeather, points, draft, resolvePlace, state,
@@ -376,6 +315,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     references,
     ...(state.questions.length ? { questions: state.questions } : {}),
     ...(state.foodNotes.length && !state.foodCandidates.length ? { notice: state.foodNotes.join(' ').slice(0, 500) } : {}),
+    ...(state.startedGenerationJobId ? { task: { jobId: state.startedGenerationJobId } } : {}),
   };
 
   // Brief 增量在回合边界统一落地；工具只记录意图，不直接写库。

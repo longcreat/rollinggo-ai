@@ -33,6 +33,15 @@ export const NotificationQuerySchema = Type.Object({
   limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 50, default: 20 })),
 });
 export const NotificationReadAllSchema = Type.Object({ through: sequence });
+/** 生成过程中的软/硬问题：任务卡与主 Agent 都能如实展示，不再只拼进 reviewNotes 文本。 */
+export const GenerationWarningSchema = Type.Object({
+  severity: Type.Union([Type.Literal('hard'), Type.Literal('soft')]),
+  code: Type.String({ maxLength: 80 }),
+  dayIndex: Type.Optional(Type.Integer({ minimum: 1 })),
+  message: Type.String({ maxLength: 300 }),
+});
+export type GenerationWarning = Static<typeof GenerationWarningSchema>;
+
 export const GenerationJobViewSchema = Type.Object({
   jobId: Type.String(),
   status: Type.Union([Type.Literal('running'), Type.Literal('done'), Type.Literal('error'), Type.Literal('cancelled')]),
@@ -41,4 +50,14 @@ export const GenerationJobViewSchema = Type.Object({
   destination: Type.Optional(Type.String()),
   days: Type.Optional(Type.Number()),
   message: Type.Optional(Type.String()),
+  /** 运行中任务的当前阶段与已完成步骤（来自内存投影；重启后可能缺省）。 */
+  phase: Type.Optional(Type.String()),
+  steps: Type.Optional(Type.Array(Type.String(), { maxItems: 12 })),
+  /** 终态摘要：来自持久化任务行，重启后仍可读。 */
+  summary: Type.Optional(Type.String({ maxLength: 2000 })),
+  reviewNotes: Type.Optional(Type.Array(Type.String({ maxLength: 300 }), { maxItems: 20 })),
+  warnings: Type.Optional(Type.Array(GenerationWarningSchema, { maxItems: 40 })),
+  dataSources: Type.Optional(Type.Array(Type.String({ maxLength: 40 }), { maxItems: 4 })),
+  conversationId: Type.Optional(Type.String()),
+  finishedAt: Type.Optional(Type.Number()),
 });

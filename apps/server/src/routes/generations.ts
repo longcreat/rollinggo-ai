@@ -13,7 +13,7 @@
  */
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
-import { GenerateFormSchema } from '@tripweaver/shared';
+import { GENERATION_TIMEOUT_MINUTES, GenerateFormSchema } from '@tripweaver/shared';
 import { requireAuth } from '../auth/guard';
 import { resolveLlmConfig } from '../services/settingsService';
 import { getConversation } from '../services/conversationService';
@@ -25,8 +25,49 @@ import { startGenerationTask } from '../generation/startGeneration';
 import { agentStoragePath, ensureAgentStorageDir } from '../generation/agentStorage';
 import { getAgentRuntime } from '../chat/agent/runtime';
 import { getGenerationResult } from '../services/notificationService';
+import {
+  beginGenerationTask,
+  finalizeGenerationTask,
+  getGenerationTask,
+  getLatestGenerationTask,
+  markGenerationTaskFailed,
+  type GenerationTaskView,
+} from '../generation/taskStore';
 
 const HEARTBEAT_MS = 25_000;
+/** running 行超过单任务上限仍没有终态：视作中断，让任务卡给出重试出口而不是永远转圈。 */
+const STALE_TASK_MS = GENERATION_TIMEOUT_MINUTES * 60_000;
+
+/** 持久任务 → 接口视图（与内存 jobView 同形；终态额外带摘要/告警）。 */
+function taskView(task: GenerationTaskView) {
+  return {
+    jobId: task.jobId,
+    status: task.status,
+    tripId: task.tripId,
+    createdAt: task.createdAt,
+    ...(task.destination ? { destination: task.destination } : {}),
+    ...(task.days !== undefined ? { days: task.days } : {}),
+    ...(task.summary ? { summary: task.summary } : {}),
+    ...(task.reviewNotes?.length ? { reviewNotes: task.reviewNotes } : {}),
+    ...(task.warnings?.length ? { warnings: task.warnings } : {}),
+    ...(task.dataSources?.length ? { dataSources: task.dataSources } : {}),
+    ...(task.conversationId ? { conversationId: task.conversationId } : {}),
+    ...(task.finishedAt ? { finishedAt: task.finishedAt } : {}),
+    ...(task.error ? { message: task.error } : {}),
+  };
+}
+
+/** 内存任务缺失时读持久行；running 且已超时的行标记为中断，避免永久 running。 */
+async function persistedJob(userId: string, jobId: string) {
+  const task = await getGenerationTask(userId, jobId);
+  if (!task) return null;
+  if (task.status === 'running' && Date.now() - task.createdAt > STALE_TASK_MS) {
+    const message = '任务已中断，请重新生成';
+    await markGenerationTaskFailed(userId, jobId, message).catch(() => {});
+    return taskView({ ...task, status: 'error', error: message, finishedAt: Date.now() });
+  }
+  return taskView(task);
+}
 
 // 生成入参 = 既有表单 + 对话来源标注。标注字段全部可选：表单入口不传，行为与以前一致。
 // kind 用显式字面量 Union（不用 map 构造）：map 会让 TS 把联合坍缩成单个字面量。
@@ -103,31 +144,40 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
     });
     // 任务输入携带重建上下文所需的非敏感数据：进程重启后 resume 也能重建 Job 并续跑。
     const taskInput: GenerationTaskInput = { jobId: job.id, userId, form: request.body, provenance: job.provenance };
+    await beginGenerationTask(job, request.body);
     try {
       await startGenerationTask(taskInput);
     } catch (error) {
       // durable 是唯一执行路径：任务创建失败即失败该任务，不回退旧 runner。
       app.log.error(error, 'generation task 创建失败');
-      failJob(job, '生成运行时不可用，请稍后重试');
+      const message = '生成运行时不可用，请稍后重试';
+      failJob(job, message);
+      await finalizeGenerationTask(job, 'error', null, { error: message }).catch(() => {});
     }
     return reply.code(202).send({ jobId: job.id });
   });
 
   // 快照：刷新恢复时先查状态，再决定是否重连 SSE
   app.get('/current', async (request) => {
-    const id = getRunningJobId(request.user!.id);
-    const job = id ? getJob(id, request.user!.id) : null;
-    return job ? jobView(job) : null;
+    const userId = request.user!.id;
+    const id = getRunningJobId(userId);
+    const job = id ? getJob(id, userId) : null;
+    if (job) return jobView(job);
+    // 进程重启后内存任务为空：持久行里仍在跑且未超时的任务就是当前任务。
+    const latest = await getLatestGenerationTask(userId);
+    if (latest && latest.status === 'running' && Date.now() - latest.createdAt <= STALE_TASK_MS) return taskView(latest);
+    return null;
   });
 
   app.get('/:jobId', async (request, reply) => {
     const { jobId } = request.params as { jobId: string };
-    const job = await resolveJob(jobId, request.user!.id);
-    if (!job) {
-      const result = await getGenerationResult(request.user!.id, jobId);
-      return result ?? reply.code(404).send({ error: '任务不存在或已过期' });
-    }
-    return jobView(job);
+    const userId = request.user!.id;
+    const job = await resolveJob(jobId, userId);
+    if (job) return jobView(job);
+    const persisted = await persistedJob(userId, jobId);
+    if (persisted) return persisted;
+    const result = await getGenerationResult(userId, jobId);
+    return result ?? reply.code(404).send({ error: '任务不存在或已过期' });
   });
 
   /**
@@ -201,7 +251,8 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
 
   app.post('/:jobId/cancel', async (request, reply) => {
     const { jobId } = request.params as { jobId: string };
-    const job = getJob(jobId, request.user!.id);
+    // 重启后任务在内存里不存在；resolveJob 会 resume 成可取消的内存任务。
+    const job = await resolveJob(jobId, request.user!.id);
     if (!job) return reply.code(404).send({ error: '任务不存在或已过期' });
     if (job.status !== 'running') return { ok: false, status: job.status };
     job.cancelReason = 'user';             // 用户主动取消：事件携带 reason，前端区分展示

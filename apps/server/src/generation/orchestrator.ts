@@ -34,12 +34,12 @@ import {
   type GenerateForm,
   type GenerationJobStatus,
   type GenerationPhase,
+  type GenerationWarning,
 } from '@tripweaver/shared';
 import type { FastifyBaseLogger } from 'fastify';
 import { db } from '../db/client';
 import { getTripWeather } from '../services/tripWeatherService';
-import { generations } from '../db/schema';
-import { uid } from '@tripweaver/shared';
+import { finalizeGenerationTask } from './taskStore';
 import type { LlmConfig } from '../services/settingsService';
 import { searchBudgetRemaining } from '../services/quotaService';
 import { createTrip } from '../services/tripService';
@@ -114,19 +114,32 @@ export interface GenerationRunOptions {
   agent: DurablePhaseHost;
 }
 
+/** 生成结束时可回传给主 Agent / 任务视图的摘要（不改变行程本身）。 */
+export interface GenerationRunSummary {
+  status: GenerationJobStatus;
+  tripId: string | null;
+  summary?: string;
+  reviewNotes: string[];
+  dataSources: DataSourceKind[];
+  warnings: GenerationWarning[];
+  message?: string;
+}
+
 export async function runGeneration(
   job: Job,
   form: GenerateForm,
   cfg: LlmConfig,
   logger: Pick<FastifyBaseLogger, 'info' | 'error'> | undefined,
   options: GenerationRunOptions,
-): Promise<void> {
+): Promise<GenerationRunSummary> {
   const signal = job.abort.signal;
   const usage = { tokensIn: 0, tokensOut: 0 };
   // 餐次/餐宿要求的开关（09-21 D3/D6）：只在偏好含「美食」时强制午晚餐与餐次兜底
   const timing = new GenerationPerformance(job.createdAt);
   let terminalStatus: GenerationJobStatus = 'error';
-  // 成功通知的推送事件：事务提交后再发，避免前端回查到未提交的行
+  /** 最终可行性检查的结构化告警：随任务结果持久化，供任务卡与主 Agent 展示。 */
+  let runWarnings: GenerationWarning[] = [];
+  /** 成功通知的推送事件：事务提交后再发，避免前端回查到未提交的行 */
   let doneNotification: NotificationEvent | undefined;
   let systemTaskSeq = 0;
   const timeout = setTimeout(() => {
@@ -221,24 +234,24 @@ export async function runGeneration(
     }
   };
 
-  const record = async (status: 'done' | 'error' | 'cancelled', tripId: string | null, writer: Pick<typeof db, 'insert'> = db) => {
-    await writer.insert(generations)
-      .values({
-        id: uid(),
-        userId: job.userId,
-        tripId,
-        conversationId: job.provenance.conversationId ?? null,
-        kind: job.provenance.kind,
-        targetTripId: job.provenance.targetTripId ?? null,
-        status,
-        usedXhs: false,   // 列保留供旧数据读取；新生成恒 false
-        usedByok: cfg.byok,
+  /** 任务行终态：原地更新 running 行，摘要/告警/用量一次写入。 */
+  const finalizeTask = async (
+    status: 'done' | 'error' | 'cancelled',
+    tripId: string | null,
+    details: { summary?: string; reviewNotes?: string[]; dataSources?: DataSourceKind[]; error?: string } = {},
+    writer: Pick<typeof db, 'insert'> = db,
+  ) => {
+    await finalizeGenerationTask(job, status, tripId, {
+      ...details,
+      warnings: runWarnings,
+      usage: {
         tokensIn: usage.tokensIn,
         tokensOut: usage.tokensOut,
         ...providerCallCounts(),
         searchCalls: search.stats.calls,
-        createdAt: new Date(),
-      });
+      },
+      usedByok: cfg.byok,
+    }, writer);
   };
 
   try {
@@ -246,9 +259,10 @@ export async function runGeneration(
     // 若进程在提交后、durable 记录终态前崩溃，重跑时这里直接复用已提交结果，绝不生成第二个版本。
     const committed = await getGenerationResult(job.userId, job.id);
     if (committed?.status === 'done' && committed.tripId) {
+      await finalizeTask('done', committed.tripId);
       completeJob(job, committed.tripId, [], []);
       terminalStatus = 'done';
-      return;
+      return { status: 'done', tripId: committed.tripId, reviewNotes: [], dataSources: [], warnings: [] };
     }
 
     assertAlive(signal);
@@ -615,6 +629,7 @@ export async function runGeneration(
     const finalFeasibility = draft.feasibility();
     const finalClosures = scheduleClosureConflicts(draft.mutableDays().map((day) => day.activities), form.startDate);
     if (finalClosures.length) throw new ScheduleDateConflictError(finalClosures, 'post_processing');
+    runWarnings = finalFeasibility.violations.map(({ severity, code, dayIndex, message }) => ({ severity, code, dayIndex, message }));
     const feasibilityNotes = feasibilityReviewNotes(finalFeasibility);
     if (feasibilityNotes.length) {
       reviewNotes = [...new Set([...reviewNotes, ...feasibilityNotes])].slice(0, 8);
@@ -675,7 +690,7 @@ export async function runGeneration(
         tx,
       );
       assertAlive(signal);
-      await record('done', saved.id, tx);
+      await finalizeTask('done', saved.id, { summary: research.summary, reviewNotes, dataSources }, tx);
       // publish: false —— 事务未提交时推送会让前端回查到空列表；提交后再发
       doneNotification = await recordGenerationNotification({
         userId: job.userId, jobId: job.id, kind: 'success', tripId: saved.id,
@@ -689,12 +704,15 @@ export async function runGeneration(
     completeJob(job, trip.id, dataSources, reviewNotes);
     publishNotification(job.userId, doneNotification!);
     terminalStatus = 'done';
+    return { status: 'done', tripId: trip.id, summary: research.summary, reviewNotes, dataSources, warnings: runWarnings };
   } catch (err) {
+    let failureMessage: string | undefined;
     if (signal.aborted) {
       cancelJob(job);
       terminalStatus = 'cancelled';
     } else {
-      failJob(job, err instanceof GenerationFailure || err instanceof ScheduleDateConflictError ? err.message : '生成失败，请稍后重试');
+      failureMessage = err instanceof GenerationFailure || err instanceof ScheduleDateConflictError ? err.message : '生成失败，请稍后重试';
+      failJob(job, failureMessage);
       terminalStatus = 'error';
       logger?.error({ jobId: job.id, errorType: err instanceof Error ? err.name : 'unknown' }, 'generation failed');
     }
@@ -710,10 +728,18 @@ export async function runGeneration(
       } catch { logger?.error({ jobId: job.id }, 'generation notification write failed'); }
     }
     try {
-      await record(terminalStatus, null);
+      await finalizeTask(terminalStatus as Exclude<GenerationJobStatus, 'running'>, null, failureMessage ? { error: failureMessage } : {});
     } catch {
       logger?.error({ jobId: job.id, status: terminalStatus }, 'generation audit write failed');
     }
+    return {
+      status: terminalStatus as Exclude<GenerationJobStatus, 'running'>,
+      tripId: null,
+      reviewNotes: [],
+      dataSources: [],
+      warnings: runWarnings,
+      ...(failureMessage ? { message: failureMessage } : {}),
+    };
   } finally {
     clearTimeout(timeout);
     logger?.info(

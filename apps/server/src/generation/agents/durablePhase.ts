@@ -10,6 +10,7 @@ import {
   defineTool,
   type Harness,
   type Registry,
+  type TaskId,
   type ToolRegistration,
 } from '@earendil-works/pi-durable';
 import type { Context } from '@earendil-works/chord/context';
@@ -21,6 +22,8 @@ export interface DurablePhaseHost {
   harness: Harness;
   registry: Registry;
   context: Context;
+  /** 生成任务 id：phase 会话归属到任务，随任务级联 abort，避免无主会话堆积。 */
+  taskId?: TaskId;
 }
 
 export interface DurablePhaseOptions {
@@ -63,7 +66,8 @@ export async function runDurablePhaseAgent(input: DurablePhaseOptions): Promise<
   host.registry.install(extension);
 
   const conversation = await host.harness.createConversation({
-    ownership: { kind: 'ownerless' },
+    // 有任务 id 时归属任务；旧调用点不传时退回 ownerless（兼容测试与历史路径）。
+    ownership: host.taskId ? { kind: 'task', taskId: host.taskId } : { kind: 'ownerless' },
     agent: {
       instructions: opts.systemPrompt,
       model: modelRef,

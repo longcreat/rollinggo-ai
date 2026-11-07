@@ -6,8 +6,8 @@
 //
 // 下一步：把 runGeneration 拆成 research/plan/calibrate/write/gate/commit 多 phase，在每个边界
 // checkpoint，崩溃后从上一个阶段续跑（当前是整条流水线一个 phase，重跑代价是重新调研）。
-import { defineTask } from '@earendil-works/pi-durable';
-import type { GenerateForm } from '@tripweaver/shared';
+import { defineTask, type TaskId } from '@earendil-works/pi-durable';
+import type { DataSourceKind, GenerateForm, GenerationWarning } from '@tripweaver/shared';
 import { rehydrateJob, failJob, type JobProvenance } from './jobManager';
 import { runGeneration, type GenerationRunOptions } from './orchestrator';
 import { resolveLlmConfig } from '../services/settingsService';
@@ -29,18 +29,31 @@ export interface GenerationTaskState {
 export interface GenerationRunResult {
   status: 'done' | 'error' | 'cancelled';
   tripId: string | null;
+  /** 任务结果的持久摘要：重启后主 Agent / 任务卡仍能解释「做了什么、有什么要注意」。 */
+  summary?: string;
+  reviewNotes?: string[];
+  dataSources?: DataSourceKind[];
+  warnings?: GenerationWarning[];
   message?: string;
 }
 
 export interface GenerationTaskResult {
   tripId: string | null;
+  summary?: string;
+  reviewNotes: string[];
+  dataSources: DataSourceKind[];
+  warnings: GenerationWarning[];
 }
 
 /**
  * 重建运行上下文并跑完整条流水线。
  * `runGeneration` 自己负责终态（completeJob/failJob/cancelJob）与投影事件。
  */
-async function runFromInput(input: GenerationTaskInput, options?: Omit<GenerationRunOptions, 'agent'>): Promise<GenerationRunResult> {
+async function runFromInput(
+  input: GenerationTaskInput,
+  options?: Omit<GenerationRunOptions, 'agent'>,
+  taskId?: TaskId,
+): Promise<GenerationRunResult> {
   const job = rehydrateJob(input.jobId, input.userId, input.provenance);
   const cfg = await resolveLlmConfig(input.userId);
   if (!cfg) {
@@ -59,23 +72,49 @@ async function runFromInput(input: GenerationTaskInput, options?: Omit<Generatio
     ]);
     const runtime = await getAgentRuntime(agentStoragePath(input.userId));
     runtime.holder.current = await buildAgentModels(cfg);
-    agent = { harness: runtime.harness, registry: runtime.registry, context: BACKGROUND_CONTEXT };
+    agent = {
+      harness: runtime.harness,
+      registry: runtime.registry,
+      context: BACKGROUND_CONTEXT,
+      ...(taskId ? { taskId } : {}),
+    };
   } catch {
     const message = '生成运行时不可用，请稍后重试';
     failJob(job, message);
     return { status: 'error', tripId: null, message };
   }
-  await runGeneration(job, input.form, cfg, undefined, { ...options, agent });
-  const status = job.status === 'running' ? 'error' : job.status;
-  return { status, tripId: job.tripId };
+  const summary = await runGeneration(job, input.form, cfg, undefined, { ...options, agent });
+  const status = summary.status === 'running' ? 'error' : summary.status;
+  return {
+    status,
+    tripId: summary.tripId,
+    ...(summary.summary ? { summary: summary.summary } : {}),
+    reviewNotes: summary.reviewNotes,
+    dataSources: summary.dataSources,
+    warnings: summary.warnings,
+  };
 }
 
 /** 运行结果 → durable 任务终态（纯函数，便于单测）。 */
 export function taskOutcome(result: GenerationRunResult):
-  | { status: 'terminal'; outcome: { status: 'completed'; result: { tripId: string | null } } }
+  | { status: 'terminal'; outcome: { status: 'completed'; result: GenerationTaskResult } }
   | { status: 'terminal'; outcome: { status: 'aborted' } }
   | { status: 'terminal'; outcome: { status: 'failed'; error: { message: string } } } {
-  if (result.status === 'done') return { status: 'terminal', outcome: { status: 'completed', result: { tripId: result.tripId } } };
+  if (result.status === 'done') {
+    return {
+      status: 'terminal',
+      outcome: {
+        status: 'completed',
+        result: {
+          tripId: result.tripId,
+          ...(result.summary ? { summary: result.summary } : {}),
+          reviewNotes: result.reviewNotes ?? [],
+          dataSources: result.dataSources ?? [],
+          warnings: result.warnings ?? [],
+        },
+      },
+    };
+  }
   if (result.status === 'cancelled') return { status: 'terminal', outcome: { status: 'aborted' } };
   return { status: 'terminal', outcome: { status: 'failed', error: { message: result.message ?? '生成失败' } } };
 }
@@ -92,7 +131,7 @@ export const GenerationTask = defineTask<GenerationTaskInput, GenerationTaskStat
           onCheckpoint: async (research) => {
             await runtime.commit(() => ({ status: 'running', checkpoint: { phase: 'run', research } }), context);
           },
-        });
+        }, task.id);
         await runtime.commit(() => taskOutcome(result), context);
       } catch (error) {
         await runtime.commit(

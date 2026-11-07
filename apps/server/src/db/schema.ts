@@ -1,5 +1,5 @@
 import { bigserial, boolean, doublePrecision, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, vector } from 'drizzle-orm/pg-core';
-import type { TripShareImageStyle } from '@tripweaver/shared';
+import type { DataSourceKind, GenerationWarning, TripShareImageStyle } from '@tripweaver/shared';
 
 export const amapServiceUsage = pgTable('amap_service_usage', {
   day: text('day').notNull(),
@@ -114,7 +114,18 @@ export const generations = pgTable('generations', {
   conversationId: text('conversation_id'),
   kind: text('kind').notNull().default('generation'),   // generation | revision
   targetTripId: text('target_trip_id'),                 // kind=revision 时指向被修订的行程
-  status: text('status').notNull(),               // done | error | cancelled
+  // 任务视图（11-07）：running 行在开始时就写入，重启后仍能读进度/结果。
+  jobId: text('job_id'),
+  requestId: text('request_id'),
+  destination: text('destination'),
+  days: integer('days'),
+  finishedAt: timestamp('finished_at', { withTimezone: true }),
+  error: text('error'),
+  summary: text('summary'),
+  reviewNotes: jsonb('review_notes').$type<string[]>(),
+  dataSources: jsonb('data_sources').$type<DataSourceKind[]>(),
+  warnings: jsonb('warnings').$type<GenerationWarning[]>(),
+  status: text('status').notNull(),               // running | done | error | cancelled
   usedXhs: boolean('used_xhs').notNull().default(false),   // 小红书时代旧数据；新生成恒 false
   usedByok: boolean('used_byok').notNull().default(false),
   tokensIn: integer('tokens_in').notNull().default(0),

@@ -42,7 +42,7 @@ export interface TripToolDeps {
    */
   generateTrip?: (api: ToolExecutionApi, context: Context) => Promise<{ jobId?: string; error?: string }>;
   /** 当前/最近一次生成任务的状态与阶段进度（供主 Agent 回答「生成到哪了」）。 */
-  generationStatus?: () => unknown;
+  generationStatus?: () => unknown | Promise<unknown>;
   /** 当前对话范围（前端选中的某一天）；美食检索默认用它 */
   scopeDayId?: string;
   /** HITL：暂停 Agent，等待用户通过独立接口回答；返回 null 表示超时/取消 */
@@ -94,6 +94,13 @@ export function tripSnapshot(trip: Trip, dayIndex?: number) {
     preferences: trip.preferences,
     extraNotes: trip.extraNotes,
     lodging: trip.lodging,
+    // 生成结果摘要与候选：让主 Agent 能解释「为什么这么排 / 有什么要注意」，不用再翻任务表。
+    meta: {
+      reviewNotes: trip.meta.reviewNotes,
+      dataSources: trip.meta.dataSources ?? [],
+      ...(trip.meta.advice ? { advice: trip.meta.advice } : {}),
+    },
+    ...(trip.overview?.length ? { overview: trip.overview.slice(0, 20).map((poi) => poi.name) } : {}),
     days: trip.days
       .filter((day) => dayIndex === undefined || day.dayIndex === dayIndex)
       .map((day) => ({
@@ -125,6 +132,60 @@ export function tripSnapshot(trip: Trip, dayIndex?: number) {
 
 function normalizeCategory(value: string | undefined): PoiCategory {
   return (POI_CATEGORIES as readonly string[]).includes(value ?? '') ? value as PoiCategory : 'attraction';
+}
+
+/** 条件更新 + 生成委派 + 任务状态：行程内对话与行前回合共用同一实现。 */
+function delegationTools(
+  state: AgentTurnState,
+  deps: Pick<TripToolDeps, 'generateTrip' | 'generationStatus'>,
+) {
+  const updateBrief = defineTool({
+    name: 'update_brief',
+    description: '更新「下一次完整生成」使用的出行条件（目的地、日期、天数、人数、节奏、偏好、约束、住宿、备注）。修改当前行程本身请用 update_trip，不要用它。',
+    parameters: PlanningBriefPatchSchema,
+    execute: async (args) => {
+      // merge 而不是覆盖：一轮里模型可能多次 update_brief（先改日期、再补约束），
+      // 标量字段仅当本次有定义才覆盖；约束增删按数组拼接去重（见 mergeBriefPatch）。
+      state.briefPatch = mergeBriefPatch(state.briefPatch, args as PlanningBriefPatch);
+      return { output: text('已记录出行条件更新') };
+    },
+  });
+
+  // 生成是后台任务（personal agent 的 delegate_task）：立即返回任务 id，用户在任务页看进度，
+  // 完成后通知并落到新行程；主 Agent 不阻塞，也不假装结果已经出来。
+  const generateTrip = defineTool({
+    name: 'generate_trip',
+    description: '按当前出行条件委派一次完整行程生成（后台任务，立即返回任务 id，通常需要几分钟）。仅当用户明确要求「生成 / 重新规划整份行程」时调用；调用后告诉用户已在后台开始，不要等结果、不要说已完成。',
+    parameters: obj({}),
+    execute: async (_args, api, context) => {
+      if (!deps.generateTrip) return { output: text('错误：当前会话未启用生成'), isError: true };
+      const result = await deps.generateTrip(api, context);
+      if (!result.jobId) return { output: text(result.error ?? '生成任务没有启动'), isError: true };
+      state.startedGenerationJobId = result.jobId;
+      return { output: text(JSON.stringify({ ok: true, jobId: result.jobId, status: 'running', note: '后台生成已开始。告诉用户可以在任务页查看进度；完成时会通知。不要声称行程已经生成好。' })) };
+    },
+  });
+
+  const generationStatus = defineTool({
+    name: 'generation_status',
+    description: '读取当前或最近一次生成任务的状态、阶段与已完成步骤。用于回答「生成到哪了 / 好了吗」；不要用它代替用户打开任务页，也不要在没有任务时编造进度。',
+    parameters: obj({}),
+    execute: async () => {
+      if (!deps.generationStatus) return { output: text(JSON.stringify({ running: false })) };
+      return { output: text(JSON.stringify(await deps.generationStatus())) };
+    },
+  });
+
+  return { updateBrief, generateTrip, generationStatus };
+}
+
+/** 行前回合（还没有行程）：只给条件更新与生成委派，不带读/写行程与交互工具。 */
+export function createPlanningTools(
+  deps: Pick<TripToolDeps, 'state' | 'generateTrip' | 'generationStatus'>,
+): ToolRegistration[] {
+  const state = deps.state ?? createAgentTurnState();
+  const { updateBrief, generateTrip, generationStatus } = delegationTools(state, deps);
+  return [updateBrief, generateTrip, generationStatus];
 }
 
 export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
@@ -366,42 +427,7 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     },
   });
 
-  const updateBrief = defineTool({
-    name: 'update_brief',
-    description: '更新「下一次完整生成」使用的出行条件（目的地、日期、天数、人数、节奏、偏好、约束、住宿、备注）。修改当前行程本身请用 update_trip，不要用它。',
-    parameters: PlanningBriefPatchSchema,
-    execute: async (args) => {
-      // merge 而不是覆盖：一轮里模型可能多次 update_brief（先改日期、再补约束），
-      // 标量字段仅当本次有定义才覆盖；约束增删按数组拼接去重（见 mergeBriefPatch）。
-      state.briefPatch = mergeBriefPatch(state.briefPatch, args as PlanningBriefPatch);
-      return { output: text('已记录出行条件更新') };
-    },
-  });
-
-  // 生成是后台任务（personal agent 的 delegate_task）：立即返回任务 id，用户在任务页看进度，
-  // 完成后通知并落到新行程；主 Agent 不阻塞，也不假装结果已经出来。
-  const generateTrip = defineTool({
-    name: 'generate_trip',
-    description: '按当前出行条件委派一次完整行程生成（后台任务，立即返回任务 id，通常需要几分钟）。仅当用户明确要求「生成 / 重新规划整份行程」时调用；调用后告诉用户已在后台开始，不要等结果、不要说已完成。',
-    parameters: obj({}),
-    execute: async (_args, api, context) => {
-      if (!deps.generateTrip) return { output: text('错误：当前会话未启用生成'), isError: true };
-      const result = await deps.generateTrip(api, context);
-      if (!result.jobId) return { output: text(result.error ?? '生成任务没有启动'), isError: true };
-      state.startedGenerationJobId = result.jobId;
-      return { output: text(JSON.stringify({ ok: true, jobId: result.jobId, status: 'running', note: '后台生成已开始。告诉用户可以在任务页查看进度；完成时会通知。不要声称行程已经生成好。' })) };
-    },
-  });
-
-  const generationStatus = defineTool({
-    name: 'generation_status',
-    description: '读取当前或最近一次生成任务的状态、阶段与已完成步骤。用于回答「生成到哪了 / 好了吗」；不要用它代替用户打开任务页，也不要在没有任务时编造进度。',
-    parameters: obj({}),
-    execute: async () => {
-      if (!deps.generationStatus) return { output: text(JSON.stringify({ running: false })) };
-      return { output: text(JSON.stringify(deps.generationStatus())) };
-    },
-  });
+  const { updateBrief, generateTrip, generationStatus } = delegationTools(state, deps);
 
   return [
     getTrip,

@@ -6,10 +6,33 @@ import { taskOutcome } from '../generation/generationTask';
 import { serializeResearch } from '../generation/checkpoint';
 
 describe('生成任务终态映射', () => {
-  it('done → completed 带 tripId', () => {
+  it('done → completed 带 tripId 与任务摘要', () => {
+    assert.deepEqual(taskOutcome({
+      status: 'done',
+      tripId: 'trip-1',
+      summary: '成都市区 3 天',
+      reviewNotes: ['建议优化：第 1 天偏满'],
+      dataSources: ['amap'],
+      warnings: [{ severity: 'soft', code: 'overpacked', dayIndex: 1, message: '几乎排满' }],
+    }), {
+      status: 'terminal',
+      outcome: {
+        status: 'completed',
+        result: {
+          tripId: 'trip-1',
+          summary: '成都市区 3 天',
+          reviewNotes: ['建议优化：第 1 天偏满'],
+          dataSources: ['amap'],
+          warnings: [{ severity: 'soft', code: 'overpacked', dayIndex: 1, message: '几乎排满' }],
+        },
+      },
+    });
+  });
+
+  it('done 缺摘要字段时补空数组，不丢 tripId', () => {
     assert.deepEqual(taskOutcome({ status: 'done', tripId: 'trip-1' }), {
       status: 'terminal',
-      outcome: { status: 'completed', result: { tripId: 'trip-1' } },
+      outcome: { status: 'completed', result: { tripId: 'trip-1', reviewNotes: [], dataSources: [], warnings: [] } },
     });
   });
 

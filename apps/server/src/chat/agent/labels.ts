@@ -1,0 +1,23 @@
+// 工具名 → 用户可读标签：详情对话与行前回合共用，避免两套进度文案漂移。
+export const TOOL_LABEL: Record<string, string> = {
+  get_trip: '读行程',
+  get_day: '看当天的安排',
+  search_places: '查地点',
+  web_search: '搜资料',
+  get_weather: '查天气',
+  search_food: '找餐厅',
+  ask_user: '确认信息',
+  update_brief: '更新出行条件',
+  generate_trip: '委派生成行程',
+  generation_status: '查看生成进度',
+  add_activity: '往行程里加地点',
+  update_activity: '调整这个安排',
+  delete_activity: '删掉这个安排',
+  move_activity: '挪动安排',
+  reorder_day: '调整当天顺序',
+  add_day: '增加一天',
+  update_day: '改当天主题',
+  delete_day: '删除一天',
+  update_trip: '更新行程信息',
+  spawn_subagents: '并行调研',
+};

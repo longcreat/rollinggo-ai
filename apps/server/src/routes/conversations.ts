@@ -17,12 +17,14 @@ import { requireAuth } from '../auth/guard';
 import { applyDialogueDecision, briefStatus } from '../chat/brief';
 import { createConversation, getConversationDetail, saveBrief } from '../services/conversationService';
 import { detailChatRoutes } from './detailChat';
+import { planningRoutes } from './planning';
 
 const IdParams = Type.Object({ id: Type.String() });
 
 export const conversationRoutes: FastifyPluginAsyncTypebox = async (app) => {
   app.addHook('preHandler', requireAuth);
   await app.register(detailChatRoutes);
+  await app.register(planningRoutes);
 
   app.post('/', { schema: { body: ConversationCreateSchema } }, async (request, reply) => {
     const conversation = await createConversation(request.user!.id, request.body.title);

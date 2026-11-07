@@ -115,6 +115,8 @@ export const ChatAttachmentSchema = Type.Object({
     previousTripId: Type.Optional(Type.String()),
     outcomes: Type.Array(EditOpOutcomeSchema, { minItems: 1, maxItems: 10 }),
   })),
+  /** 本轮委派的后台生成任务：消息里持久化 jobId，刷新后任务卡仍能读真实状态。 */
+  task: Type.Optional(Type.Object({ jobId: Type.String({ minLength: 1, maxLength: 100 }) })),
 });
 export type ChatAttachment = Static<typeof ChatAttachmentSchema>;
 export const DetailChatRequestSchema = Type.Object({
@@ -126,6 +128,15 @@ export const DetailChatRequestSchema = Type.Object({
   suggestion: Type.Optional(StringEnum(CHAT_SUGGESTION_KINDS)),
 });
 export type DetailChatRequest = Static<typeof DetailChatRequestSchema>;
+
+/** 行前回合（还没有行程，只有会话与 Brief）：表单入口交给主 Agent 的第一条消息。 */
+export const PlanningTurnRequestSchema = Type.Object({
+  requestId: Type.String({ minLength: 8, maxLength: 100 }),
+  text: Type.String({ minLength: 1, maxLength: 1000 }),
+  /** 表单「开始规划」：即使模型没调用 generate_trip，也要确定性启动一次。 */
+  autostart: Type.Optional(Type.Boolean()),
+});
+export type PlanningTurnRequest = Static<typeof PlanningTurnRequestSchema>;
 export const TripOperationRequestSchema = Type.Object({
   operationId: Type.String({ minLength: 8, maxLength: 100 }),
   expectedTripId: Type.String({ minLength: 1, maxLength: 100 }),

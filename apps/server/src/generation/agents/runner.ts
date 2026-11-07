@@ -17,6 +17,7 @@ import {
   createAssistantMessageEventStream,
   streamSimple,
   type Api,
+  type AssistantMessage,
   type AssistantMessageEvent,
   type AssistantMessageEventStream,
   type Context,
@@ -24,6 +25,7 @@ import {
   type SimpleStreamOptions,
 } from '@earendil-works/pi-ai/compat';
 import { getSystemMessageText } from '@earendil-works/pi-ai';
+import { isRetryableAssistantError } from '@earendil-works/pi-ai/utils/retry';
 import type { LlmRequestRecorder } from '../llmRequestLog';
 
 export interface PhaseEventSink {
@@ -33,8 +35,6 @@ export interface PhaseEventSink {
   onToolStart(toolCallId: string, tool: string, label: string, args: unknown): void;
   onToolEnd(toolCallId: string, tool: string, label: string, summary: string, isError: boolean): void;
   onUsage(tokensIn: number, tokensOut: number): void;
-  /** LLM 请求上下文快照（09-20 调试视图）：每次 API 请求发出前推送完整上下文 */
-  onLlmRequest?(info: { turn: number; model: string; systemPrompt: string; messages: unknown[]; tools: unknown[] }): void;
   /** 该 turn 响应结束（message_end）时回填结果 */
   onLlmResponse?(info: { turn: number; stopReason?: string; usage?: { input: number; output: number }; errorMessage?: string }): void;
 }
@@ -78,12 +78,16 @@ function summarizeToolResult(result: unknown): string {
 // 实测文案阶段一次长响应跑到 62s 后被切断，因不在白名单而硬失败（文案降级），已纳入。
 const LLM_RETRY_DELAYS_MS = [1000, 3000] as const;
 
-const RETRYABLE_UPSTREAM_ERROR =
-  /model is unavailable|upstream request failed|rate ?limit|too many requests|overloaded|temporarily unavailable|try again|timed? ?out|fetch failed|socket hang up|terminated|ECONNRESET|ETIMEDOUT|EPIPE|bad gateway|service unavailable|gateway time-?out|internal server error|\b50[234]\b/i;
+/**
+ * 只认「换一次请求就可能成功」的错误：主分类交给 pi-ai 的瞬态错误分类器
+ * （overloaded / 429 / 5xx / 网络中断，并明确排除 quota/billing 这类确定性失败）；
+ * 上游未覆盖的厂商文案（实测「Model is unavailable」）在下面补一条。
+ */
+const VENDOR_TRANSIENT_ERROR = /model is unavailable/i;
 
-/** 只认「换一次请求就可能成功」的错误，其余照常判死，避免把真实配置错误拖成三次慢失败 */
 export function isRetryableUpstreamError(message: string): boolean {
-  return RETRYABLE_UPSTREAM_ERROR.test(message);
+  if (VENDOR_TRANSIENT_ERROR.test(message)) return true;
+  return isRetryableAssistantError({ stopReason: 'error', errorMessage: message } as AssistantMessage);
 }
 
 /** 网关 HTML 不作为模型诊断正文透出；保留 HTTP 状态便于区分网络故障。 */
@@ -201,8 +205,8 @@ export async function runPhaseAgent(opts: RunAgentOptions): Promise<RunAgentResu
   const result: RunAgentResult = { tokensIn: 0, tokensOut: 0, aborted: false, turnLimitExceeded: false };
   let turns = 0;
 
-  // 请求上下文快照：recorder 落库 / onLlmRequest 实时推送，任一存在即包装默认 streamSimple；
-  // requestSeq 为阶段内请求序号（从 1 递增），pendingRowId/pendingTurn 供 message_end 回写响应。
+  // 请求上下文快照：recorder 落库（llm_request_logs）供排查；requestSeq 为阶段内请求序号（从 1 递增），
+  // pendingRowId/pendingTurn 供 message_end 回写响应。
   let requestSeq = 0;
   let pendingRowId: string | null = null;
   let pendingTurn = 0;
@@ -214,7 +218,6 @@ export async function runPhaseAgent(opts: RunAgentOptions): Promise<RunAgentResu
     const leading = context.messages?.find((message) => message.role === 'system');
     const systemPrompt = leading && leading.role === 'system' ? getSystemMessageText(leading) : '';
     const tools = (context.messages ?? []).flatMap((message) => message.role === 'system' ? message.toolsAdded ?? [] : []);
-    opts.sink.onLlmRequest?.({ turn, model: model.id, systemPrompt, messages, tools });
     pendingRowId = opts.recorder
       ? await opts.recorder.recordRequest({ turn, model: model.id, systemPrompt, messages, tools })
       : null;

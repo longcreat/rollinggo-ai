@@ -161,13 +161,13 @@ export async function startLive(options: {
         });
         try {
           // durable 是唯一执行路径：宿主创建失败即失败该用例。
-          const [{ getAgentRuntime }, { buildAgentModels }, { generationStoragePath }, { BACKGROUND_CONTEXT }] = await Promise.all([
+          const [{ getAgentRuntime }, { buildAgentModels }, { agentStoragePath }, { BACKGROUND_CONTEXT }] = await Promise.all([
             import('../apps/server/src/chat/agent/runtime'),
             import('../apps/server/src/chat/agent/models'),
             import('../apps/server/src/generation/agentStorage'),
             import('@earendil-works/chord/context'),
           ]);
-          const runtime = await getAgentRuntime(generationStoragePath('eval-user'));
+          const runtime = await getAgentRuntime(agentStoragePath('eval-user'));
           runtime.holder.current = await buildAgentModels(config);
           const agentHost: GenerationRunOptions['agent'] = {
             harness: runtime.harness, registry: runtime.registry, context: BACKGROUND_CONTEXT,

@@ -51,13 +51,13 @@ async function runFromInput(input: GenerationTaskInput, options?: Omit<Generatio
   // durable 宿主是唯一路径：创建失败即失败任务，不回退旧 runner。
   let agent: GenerationRunOptions['agent'];
   try {
-    const [{ getAgentRuntime }, { buildAgentModels }, { generationStoragePath }, { BACKGROUND_CONTEXT }] = await Promise.all([
+    const [{ getAgentRuntime }, { buildAgentModels }, { agentStoragePath }, { BACKGROUND_CONTEXT }] = await Promise.all([
       import('../chat/agent/runtime'),
       import('../chat/agent/models'),
       import('./agentStorage'),
       import('@earendil-works/chord/context'),
     ]);
-    const runtime = await getAgentRuntime(generationStoragePath(input.userId));
+    const runtime = await getAgentRuntime(agentStoragePath(input.userId));
     runtime.holder.current = await buildAgentModels(cfg);
     agent = { harness: runtime.harness, registry: runtime.registry, context: BACKGROUND_CONTEXT };
   } catch {

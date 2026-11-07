@@ -12,6 +12,7 @@ import {
   defineExtension,
   type ConversationId,
   type EntryId,
+  type Extension,
   type Registry,
   type ToolRegistration,
 } from '@earendil-works/pi-durable';
@@ -86,10 +87,9 @@ const runtimes = new Map<string, Promise<Runtime>>();
  * 取不到锁直接 409：排队会让用户在几十秒后拿到一份基于旧行程快照的回答，比明确失败更糟。
  * 锁是进程内的，前提与既有 startDetailTurn 一致：单实例部署；多副本需要换成分布式锁。
  *
- * 为什么不能用上游的 `submit({ whenBusy: "reject" })` 取代：那是**会话级**判忙，
- * 而 `configure({ tools })` 只把工具**名字**落盘（durable/harness/agent.ts 的 `names()`），
- * 执行时仍从 Harness 共享 registry 解析 —— 同一份存储上两个会话的工具闭包照样互相覆盖。
- * 只要工具还是每轮闭包，这把存储级锁就仍有必要；等工具改为无闭包的纯配置驱动再考虑删。
+ * 工具扩展现在按会话命名（`trip-tools-<conversationId>`）并写进该会话的扩展选择，
+ * 不同会话不再互相覆盖闭包；但同一会话的两个并发回合仍会重装同名扩展，所以按存储串行仍是最省心的边界。
+ * 等工具闭包能按会话隔离到执行期，再考虑把锁收窄到会话级。
  */
 const activeStorages = new Set<string>();
 
@@ -176,9 +176,6 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
     runtime.holder.current = options.models;
     const { harness, registry } = runtime;
 
-    // 工具是每轮闭包（绑定当轮行程与数据源），同名替换即可，会话里的工具选择按名字延续。
-    registry.install(defineExtension({ name: 'trip-tools', tools: options.tools }));
-
     let conversationId = options.conversationId ?? null;
     if (conversationId === null) {
       const conversation = await harness.createConversation({
@@ -191,14 +188,12 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
     const conversation = await harness.conversation(conversationId, context);
     if (!conversation) throw new Error(`durable 会话 ${conversationId} 不存在`);
 
-    // 模型、系统指令与轮次上限按轮写回：用户切换模型后旧会话跟着换；
-    // 提示词更新也必须应用到已经存在的 durable 会话，否则老行程会一直用旧 instructions。
-    // maxTurns 未设置时传 null：harness 的默认是无上限，同时清掉旧会话里曾经写死的上限。
-    await conversation.configure({
-      model: options.model,
-      instructions: options.instructions,
-      maxTurns: options.maxTurns ?? null,
-    }, context);
+    // 工具是每轮闭包（绑定当轮行程与数据源）。扩展名按会话唯一，并把这份选择写进会话：
+    // 同一份存储里还有生成阶段的 gen-* 扩展，若让 resolveAgent 用默认「全部已安装」，
+    // 同名工具（search_area_places / web_search）会被后安装的扩展覆盖。
+    const toolsExtension = defineExtension({ name: `trip-tools-${conversationId}`, tools: options.tools });
+    registry.install(toolsExtension);
+    const selected: Extension[] = [toolsExtension];
 
     // 子代理扩展依赖当前会话 id（子会话按「父会话 + 槽位」复用），只能在会话确定后装配。
     if (options.subagent) {
@@ -206,8 +201,8 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
       assertSubagentToolNames(options.subagent.childTools);
       const allowed = new Set(options.subagent.childTools);
       const childTools = toolsForRole(options.tools, 'subagent').filter((tool) => allowed.has(tool.name));
-      registry.install(defineExtension({
-        name: 'subagents',
+      const subagents = defineExtension({
+        name: `subagents-${conversationId}`,
         tools: [createSubagentTool({
           harness,
           context,
@@ -215,13 +210,26 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
           model: options.model,
           instructions: options.subagent.instructions,
           childTools,
+          childExtensions: [toolsExtension],
           maxTurns: options.subagent.maxTurns ?? 6,
           maxTasks: options.subagent.maxTasks ?? 3,
           ...(options.subagent.onPlaces ? { onPlaces: options.subagent.onPlaces } : {}),
           ...(options.signal ? { signal: options.signal } : {}),
         })],
-      }));
+      });
+      registry.install(subagents);
+      selected.push(subagents);
     }
+
+    // 模型、系统指令、轮次上限与工具扩展按轮写回：用户切换模型后旧会话跟着换；
+    // 提示词更新也必须应用到已经存在的 durable 会话，否则老行程会一直用旧 instructions。
+    // maxTurns 未设置时传 null：harness 的默认是无上限，同时清掉旧会话里曾经写死的上限。
+    await conversation.configure({
+      model: options.model,
+      instructions: options.instructions,
+      maxTurns: options.maxTurns ?? null,
+      extensions: selected,
+    }, context);
 
     // 用低层 LiveDoc 而非 `conversation.watch()`：后者的 ConversationView 只有
     // conversation/entries/before/docs，不含 tools 与 generation 流式快照，拿不到进度事件。

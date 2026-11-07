@@ -8,7 +8,7 @@ import { after, describe, it } from 'node:test';
 import { createModels } from '@earendil-works/pi-ai/models';
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { fauxAssistantMessage, fauxProvider, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
-import { defineTool } from '@earendil-works/pi-durable';
+import { defineExtension, defineTool } from '@earendil-works/pi-durable';
 import { obj } from '@earendil-works/pi-schema';
 import type { Trip } from '@tripweaver/shared';
 import { AgentBusyError, closeAgentRuntime, getAgentRuntime, runAgentTurn, type AgentStreamEvent } from '../chat/agent/runtime';
@@ -357,6 +357,38 @@ describe('agent runtime', () => {
       model: { provider: 'faux', modelId: 'faux-1' }, prompt: '新问题',
     });
     assert.equal(next.text, '停止后的新回答');
+  });
+
+  it('同一份存储里对话与生成阶段的同名工具按会话隔离', async () => {
+    const path = await storage();
+    const runtime = await getAgentRuntime(path);
+    const tool = (text: string) => defineTool({
+      name: 'search_area_places',
+      description: `同名工具：${text}`,
+      parameters: obj({}),
+      execute: async () => ({ output: [{ type: 'text' as const, text }] }),
+    });
+    const chatTool = tool('对话');
+    const genTool = tool('生成');
+    const chatExt = defineExtension({ name: 'trip-tools-chat', tools: [chatTool] });
+    const genExt = defineExtension({ name: 'gen-plan', tools: [genTool] });
+    runtime.registry.install(chatExt);
+    runtime.registry.install(genExt);
+
+    // 与真实接线一致：先建会话，再按会话写扩展选择（不依赖注册表默认的「全部已安装」）。
+    const chat = await runtime.harness.createConversation({ ownership: { kind: 'ownerless' } }, BACKGROUND_CONTEXT);
+    const gen = await runtime.harness.createConversation({ ownership: { kind: 'ownerless' } }, BACKGROUND_CONTEXT);
+    await chat.configure({ extensions: [chatExt] }, BACKGROUND_CONTEXT);
+    await gen.configure({ extensions: [genExt] }, BACKGROUND_CONTEXT);
+
+    const [chatAgent, genAgent] = await Promise.all([
+      chat.agent(BACKGROUND_CONTEXT),
+      gen.agent(BACKGROUND_CONTEXT),
+    ]);
+    assert.equal(chatAgent.tools.length, 1);
+    assert.equal(chatAgent.tools[0], chatTool, '对话会话不能解析到生成阶段的同名工具');
+    assert.equal(genAgent.tools[0], genTool, '生成会话不能解析到对话的同名工具');
+    await closeAgentRuntime(path);
   });
 
   it('Harness 关闭后从缓存摘除，下一次请求重新打开', async () => {

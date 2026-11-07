@@ -1,7 +1,7 @@
 // 把一个生成阶段跑在 pi-durable 会话上（第 6 项：逐步取代 pi-agent-core 的 runner）。
 //
-// 与 detail-chat 的 runtime 同样的做法：工具是每阶段闭包，但 pi-durable 按名字从 registry 解析，
-// 所以生成侧使用**独立存储**（generationStoragePath），且每次安装唯一命名的扩展，避免与其它阶段/对话串写。
+// 工具是每阶段闭包，pi-durable 按名字从 registry 解析；与对话共用存储后，
+// 靠「每次安装唯一命名的扩展 + 会话显式选择它」隔离，而不是靠分文件。
 // 阶段是顺序执行的，工具闭包在阶段生命周期内稳定。
 import {
   AssistantEntry,
@@ -59,7 +59,8 @@ export async function runDurablePhaseAgent(input: DurablePhaseOptions): Promise<
   const tools = opts.tools.map((tool) => toDurableTool(tool, signal));
   if (!tools.length) throw new Error(`durable 阶段 ${phaseKey} 至少需要一个工具`);
   // 扩展名按阶段固定：同名 replace 不会在 registry 里累积（生成任务单用户串行，闭包在阶段内稳定）。
-  host.registry.install(defineExtension({ name: `gen-${phaseKey}`, tools }));
+  const extension = defineExtension({ name: `gen-${phaseKey}`, tools });
+  host.registry.install(extension);
 
   const conversation = await host.harness.createConversation({
     ownership: { kind: 'ownerless' },
@@ -67,6 +68,8 @@ export async function runDurablePhaseAgent(input: DurablePhaseOptions): Promise<
       instructions: opts.systemPrompt,
       model: modelRef,
       maxTurns: opts.maxTurns ?? 16,
+      // 显式只选本阶段的扩展：与对话共用存储后，默认「全部已安装」会串进主 Agent 的工具。
+      extensions: [extension],
       tools,
       modelTools: tools,
     },

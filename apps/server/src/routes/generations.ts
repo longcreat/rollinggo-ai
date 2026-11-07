@@ -22,7 +22,7 @@ import { hasSiteLlm } from '../env';
 import { createJob, failJob, getJob, getRunningJobId, jobView, subscribeProjection } from '../generation/jobManager';
 import type { GenerationTaskInput } from '../generation/generationTask';
 import { startGenerationTask } from '../generation/startGeneration';
-import { generationStoragePath, ensureAgentStorageDir } from '../generation/agentStorage';
+import { agentStoragePath, ensureAgentStorageDir } from '../generation/agentStorage';
 import { getAgentRuntime } from '../chat/agent/runtime';
 import { getGenerationResult } from '../services/notificationService';
 
@@ -48,7 +48,7 @@ async function resolveJob(jobId: string, userId: string): Promise<ReturnType<typ
   if (existing) return existing;
   try {
     await ensureAgentStorageDir();
-    const runtime = await getAgentRuntime(generationStoragePath(userId));
+    const runtime = await getAgentRuntime(agentStoragePath(userId));
     runtime.harness.resume();
   } catch {
     return null;

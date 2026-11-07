@@ -18,7 +18,7 @@
 // 工具面在创建时按 toolPolicy 收敛为只读白名单。
 // 缓存有界：slotChains 只保留在跑的链（结束即删），childConversations 超过上限按插入序淘汰最旧的，
 // 否则单实例长期运行会随会话数无限增长。
-import { AssistantEntry, defineTool, type ConversationId, type Harness, type ToolRegistration } from '@earendil-works/pi-durable';
+import { AssistantEntry, defineTool, type ConversationId, type Extension, type Harness, type ToolRegistration } from '@earendil-works/pi-durable';
 import { arr, obj, opt, str } from '@earendil-works/pi-schema';
 import { assertSubagentToolNames } from './toolPolicy';
 
@@ -67,6 +67,8 @@ export interface SubagentToolOptions {
   instructions: string;
   /** 子代理模型可见的工具（白名单，传注册对象本身）；不含写工具与 spawn_subagents */
   childTools: readonly ToolRegistration[];
+  /** 子会话显式选择的扩展（父会话的工具扩展）：避免默认「全部已安装」把生成阶段工具也选进来。 */
+  childExtensions?: readonly Extension[];
   maxTurns: number;
   /** 单次最多并行几个子任务 */
   maxTasks: number;
@@ -159,7 +161,12 @@ export function createSubagentTool(options: SubagentToolOptions): ToolRegistrati
       const existing = await harness.conversation(known, context);
       if (existing) {
         // 复用的子会话跟随父会话的模型/指令更新；否则用户切换模型后子代理仍走旧模型。
-        await existing.configure({ model: options.model, instructions: options.instructions, maxTurns: options.maxTurns }, context);
+        await existing.configure({
+          model: options.model,
+          instructions: options.instructions,
+          maxTurns: options.maxTurns,
+          ...(options.childExtensions ? { extensions: options.childExtensions } : {}),
+        }, context);
         return existing;
       }
     }
@@ -169,6 +176,7 @@ export function createSubagentTool(options: SubagentToolOptions): ToolRegistrati
         instructions: options.instructions,
         model: options.model,
         maxTurns: options.maxTurns,
+        ...(options.childExtensions ? { extensions: [...options.childExtensions] } : {}),
         // 只有这些工具对子代理的模型可见：写工具与派发工具都被挡在外面（深度恒为 1）。
         // 终态工具是 deferred 的，必须在创建时显式列出才可见。
         modelTools: [...options.childTools],

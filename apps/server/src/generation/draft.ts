@@ -2,6 +2,7 @@
 // 完整性校验是 R2（小参数模型工具调用弱）的兜底 —— 校验失败信息回给 Agent 自愈。
 import {
   ACTIVITY_CATEGORIES,
+  DAILY_SIGHT_LIMITS,
   LODGING_SENTINEL,
   MAX_OVERVIEW_POIS,
   MAX_SOURCE_NOTES,
@@ -21,6 +22,9 @@ import {
 } from '@tripweaver/shared';
 import { isFoodFocused, mealCoverageProblems } from './mealPlanning';
 import { type DraftActivity, type PlaceHint } from './placeLookup';
+
+/** 排程项类目：不计入每日景点密度（餐次/住宿/交通本来就会叠加在景点之上）。 */
+const SCHEDULE_ONLY_CATEGORIES = new Set<string>(['美食', '住宿', '交通']);
 
 export interface DraftActivityInput extends PlaceHint {
   name: string;
@@ -220,9 +224,12 @@ export class DraftTrip {
     if (this.days.length !== this.form.days) {
       problems.push(`天数不符：要求 ${this.form.days} 天，当前 ${this.days.length} 天`);
     }
+    const maxSights = DAILY_SIGHT_LIMITS[this.form.pace ?? 'moderate'].max;
     this.days.forEach((day, i) => {
       if (!day.activities.length) problems.push(`第 ${i + 1} 天没有任何活动`);
-      if (day.activities.length > 8) problems.push(`第 ${i + 1} 天活动过多（${day.activities.length} 个，应 ≤8）`);
+      // 密度只数景点：餐次 / 住宿 / 交通是排程项，计划再细也不该让这一天显得过载。
+      const sights = day.activities.filter((activity) => !SCHEDULE_ONLY_CATEGORIES.has(activity.category)).length;
+      if (sights > maxSights) problems.push(`第 ${i + 1} 天景点过多（${sights} 个，节奏上限 ${maxSights}）`);
     });
     const visited = new Set<string>();
     for (const activity of this.days.flatMap(day => day.activities)) {

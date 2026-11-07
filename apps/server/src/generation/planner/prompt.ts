@@ -2,12 +2,17 @@
 //
 // 与旧「调研 Agent」的区别：调研只产出候选池，定天/定序/定时长全部由本 Agent 决定；
 // 但所有距离、通勤、时刻仍来自工具，模型不自己算。
-import type { GenerateForm } from '@tripweaver/shared';
+import { DAILY_SIGHT_LIMITS, type GenerateForm } from '@tripweaver/shared';
+
+const range = (pace: keyof typeof DAILY_SIGHT_LIMITS) => {
+  const { min, max } = DAILY_SIGHT_LIMITS[pace];
+  return `${min}–${max}`;
+};
 
 const DENSITY: Record<string, string> = {
-  relaxed: '每天 4–6 个景点，景点之间尽量步行可达',
-  moderate: '每天 6–8 个景点，同一天集中在同一片区，跨片区不超过一次',
-  tight: '每天 8–10 个景点，高密度但仍按同一片区串联',
+  relaxed: `每天 ${range('relaxed')} 个景点，景点之间尽量步行可达`,
+  moderate: `每天 ${range('moderate')} 个景点，同一天集中在同一片区，跨片区不超过一次`,
+  tight: `每天 ${range('tight')} 个景点，高密度但仍按同一片区串联`,
 };
 
 export function plannerSystemPrompt(form: GenerateForm): string {

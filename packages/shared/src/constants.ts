@@ -67,6 +67,16 @@ export const PACE_LABELS: Record<(typeof PACE_OPTIONS)[number], string> = {
   tight: '特种兵打卡',
 };
 
+/**
+ * 每日景点密度区间（按节奏）。规划 Agent 的提示词与草稿完整性校验共用这一份，
+ * 不再各写一套；餐次 / 住宿 / 交通是排程项，不计入景点数。
+ */
+export const DAILY_SIGHT_LIMITS: Record<(typeof PACE_OPTIONS)[number], { min: number; max: number }> = {
+  relaxed: { min: 4, max: 6 },
+  moderate: { min: 6, max: 8 },
+  tight: { min: 8, max: 10 },
+};
+
 /** 旅行约束分类（11 枚举，确认卡分组标签） */
 export const CONSTRAINT_CATEGORIES = [
   'attraction_preference',

@@ -1,7 +1,7 @@
 // 直播页的数据入口：只连一条统一投影 SSE。
 //
 // 行程、播报、终态全部来自服务端投影（快照/行），不再由前端重放事件合成，
-// 也不再额外开第二条事件 SSE —— 任务生命周期由 GenerationProvider 全局负责。
+// 也不再额外开第二条事件 SSE —— 任务生命周期由持久任务行与投影共同表达。
 import { useMemo } from 'react';
 import { tripFromProjection, type Trip } from '@tripweaver/shared';
 import { useGenerationProjection } from './useGenerationProjection';

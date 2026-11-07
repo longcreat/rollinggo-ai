@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useMatch, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Value } from '@sinclair/typebox/value';
-import { keys, useHealthCheck, useMe, useLogout, useTrip, useTripConversation, useTripVersions } from '../api/hooks';
+import { keys, useGenerationTask, useHealthCheck, useMe, useLogout, useTrip, useTripConversation, useTripVersions } from '../api/hooks';
 import { HealthCheckSheet } from '../components/editor/HealthCheckSheet';
 import { api } from '../api/client';
 import { useEditorSave } from '../hooks/useEditorSave';
@@ -38,6 +38,10 @@ export function TripEditorPage() {
   const liveJobId = useMatch('/agent/:jobId')?.params.jobId;
   const live = Boolean(liveJobId);
   const liveState = useLiveTrip(liveJobId);
+  // 投影在任务过期/重启后可能缺席；持久任务行仍能告诉我们终态与 tripId，交接不依赖内存。
+  const liveTask = useGenerationTask(liveJobId);
+  const completedTripId = liveState.completedTripId
+    ?? (liveTask.data?.status === 'done' ? liveTask.data.tripId : null);
   const tripQuery = useTrip(id, !live);
   const weatherQuery = useTripWeather(live ? '' : id, tripQuery.data);
   const versions = useTripVersions(live ? '' : id);
@@ -124,7 +128,6 @@ export function TripEditorPage() {
 
   // 完成：先把正式行程写进缓存再原地切到 /trips/:id，避免闪屏。
   useEffect(() => {
-    const completedTripId = liveState.completedTripId;
     if (!live || !completedTripId) return;
     let alive = true;
     void qc.fetchQuery({
@@ -140,7 +143,7 @@ export function TripEditorPage() {
       navigate(`/trips/${completedTripId}`, { replace: true });
     }).catch(() => {});
     return () => { alive = false; };
-  }, [live, liveState.completedTripId, qc, load, navigate]);
+  }, [live, completedTripId, qc, load, navigate]);
 
   useEffect(() => { useEditorStore.getState().setReadOnly(readOnly || busy); }, [readOnly, busy]);
   const begin = async () => {

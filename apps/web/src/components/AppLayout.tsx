@@ -2,10 +2,9 @@ import { LoginDialogProvider, useLoginDialog } from './LoginDialogProvider';
 import { useEffect, type MouseEvent } from 'react';
 import { setShareImageUser } from '../lib/shareImageJobs';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useLogout, useMe } from '../api/hooks';
+import { useCurrentGeneration, useLogout, useMe } from '../api/hooks';
 import { Button, IconButton, Spinner } from './ui/Button';
 import { TravelPreferencesProvider, useTravelPreferencesDraft } from './TravelPreferencesProvider';
-import { GenerationProvider, useActiveGeneration } from './GenerationProvider';
 import { NavigationProvider, useAppNavigation } from './NavigationProvider';
 import { NotificationCenter } from './NotificationCenter';
 import { NavigationIcon } from './NavigationIcon';
@@ -14,7 +13,7 @@ export function AppLayout() {
   const me = useMe();
   const userId = me.data?.id ?? '';
   return <LoginDialogProvider><TravelPreferencesProvider key={userId} userId={userId}>
-    <NavigationProvider><GenerationProvider userId={userId}><AppLayoutContent userId={userId} /></GenerationProvider></NavigationProvider>
+    <NavigationProvider><AppLayoutContent userId={userId} /></NavigationProvider>
   </TravelPreferencesProvider></LoginDialogProvider>;
 }
 
@@ -32,14 +31,15 @@ function AppLayoutContent({ userId }: { userId: string }) {
 
   const preferences = useTravelPreferencesDraft();
   const navigation = useAppNavigation();
-  const generation = useActiveGeneration();
+  const current = useCurrentGeneration(userId, Boolean(userId));
+  const runningJobId = current.data?.status === 'running' ? current.data.jobId : null;
   const follow = (event: MouseEvent<HTMLAnchorElement>, to: string) => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
     void navigation.go(to);
   };
-  const generationLink = generation.running && generation.jobId ? `/agent/${encodeURIComponent(generation.jobId)}` : null;
-  const progress = (mobile: boolean) => generationLink && <NavLink to={generationLink} onClick={(event) => follow(event, generationLink)} className={`generation-nav items-center justify-center gap-2 rounded-full border border-solid border-brand/10 bg-brand/[0.07] px-4 text-[13px] font-medium text-brand transition-colors hover:bg-brand/10 focus-visible:outline-2 focus-visible:outline-brand ${mobile ? 'mt-2 flex min-h-10 w-full min-[601px]:hidden' : 'mr-3 flex min-h-10 max-w-[240px] max-[600px]:hidden'}`}><Spinner /><span className="truncate">{generation.destination ? `${generation.destination} · ` : ''}生成中</span><NavigationIcon name="arrow" className="h-4 w-4 shrink-0" /></NavLink>;
+  const generationLink = runningJobId ? `/agent/${encodeURIComponent(runningJobId)}` : null;
+  const progress = (mobile: boolean) => generationLink && <NavLink to={generationLink} onClick={(event) => follow(event, generationLink)} className={`generation-nav items-center justify-center gap-2 rounded-full border border-solid border-brand/10 bg-brand/[0.07] px-4 text-[13px] font-medium text-brand transition-colors hover:bg-brand/10 focus-visible:outline-2 focus-visible:outline-brand ${mobile ? 'mt-2 flex min-h-10 w-full min-[601px]:hidden' : 'mr-3 flex min-h-10 max-w-[240px] max-[600px]:hidden'}`}><Spinner /><span className="truncate">{current.data?.destination ? `${current.data.destination} · ` : ''}生成中</span><NavigationIcon name="arrow" className="h-4 w-4 shrink-0" /></NavLink>;
 
   return <div className={`app-layout flex flex-col [background:var(--color-canvas)_url('/home-bg.webp')_center_/_cover_no-repeat] ${isTripEditor ? 'h-dvh max-h-dvh overflow-hidden min-h-0' : 'min-h-dvh'} [&:has(.home-page-root)_.app-main]:p-0 [@media_screen]:[&:has(.editor-page)]:h-dvh [@media_screen]:[&:has(.editor-page)]:min-h-0 [@media_screen]:[&:has(.editor-page)]:overflow-hidden [@media_screen]:[&:has(.editor-page)_.app-main]:overflow-hidden [@media_screen]:[&_.editor-page]:flex-1 [@media_screen]:[&_.editor-page]:h-auto [@media_screen]:[&_.editor-page]:max-h-none`}>
     {!isTripEditor && (

@@ -3,8 +3,7 @@ import { useLoginDialog } from '../components/LoginDialogProvider';
 import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCoveredCities, useUsage, useMe } from '../api/hooks';
-import { useActiveGeneration } from '../components/GenerationProvider';
+import { useCoveredCities, useUsage, useMe, useCurrentGeneration } from '../api/hooks';
 import { ChinaMap, type MapCityDot } from '../components/home/ChinaMap';
 import type { HomeTripDraft } from '../components/home/HomeCapsule';
 import { CITY_GEO, projectToSvg } from '../lib/chinaMap';
@@ -18,8 +17,8 @@ const HEADLINE = '想去哪座城市？';
 export function HomePage() {
   const covered = useCoveredCities();
   const navigate = useNavigate();
-  const generation = useActiveGeneration();
   const me = useMe();
+  const current = useCurrentGeneration(me.data?.id ?? '', Boolean(me.data?.id));
   const openLogin = useLoginDialog();
   const usage = useUsage(Boolean(me.data));
   const [selected, setSelected] = useState<string | null>(null);
@@ -45,10 +44,12 @@ export function HomePage() {
     [cities],
   );
 
-  const start = (draft: HomeTripDraft, targetCity?: string) => {
+  const start = (draft: HomeTripDraft, targetCity?: string, text?: string) => {
     if (!me.isSuccess) return;
     const dest = targetCity?.trim() || selected?.trim() || '成都';
     const params = new URLSearchParams({ city: dest, start: draft.startDate, end: draft.endDate });
+    // 用户原话随首条消息进入主 Agent 会话；表单字段只是结构化条件。
+    if (text?.trim()) params.set('text', text.trim().slice(0, 1000));
     if (draft.pace) params.set('pace', draft.pace);
     if (draft.partySize !== 2) params.set('partySize', String(draft.partySize));
     if (draft.preferences.length > 0) params.set('preferences', draft.preferences.join(','));
@@ -107,10 +108,10 @@ export function HomePage() {
       {/* 底部交互区：AI Agent 自然语言对话入口（完全移除原手动四段选择器胶囊） */}
       <div className="relative z-20 mt-4 px-5 pb-6 max-lg:mx-auto max-lg:box-border max-lg:w-full max-lg:max-w-2xl lg:absolute lg:right-[15%] lg:bottom-[calc(24*var(--ui))] lg:left-[15%] lg:mt-0 lg:px-0 lg:pb-0 flex flex-col gap-3">
         {/* 如果后台正有规划任务在运行，提供快捷恢复卡片 */}
-        {generation.running && generation.jobId && (
+        {current.data?.status === 'running' && (
           <button
             type="button"
-            onClick={() => navigate(`/agent/${encodeURIComponent(generation.jobId!)}`)}
+            onClick={() => { const jobId = current.data?.jobId; if (jobId) navigate(`/agent/${encodeURIComponent(jobId)}`); }}
             className="flex items-center justify-between rounded-xl border border-brand/30 bg-white/90 px-4 py-2 text-xs font-medium text-brand shadow-sm backdrop-blur-md hover:bg-white transition-all cursor-pointer"
           >
             <span className="flex items-center gap-2">

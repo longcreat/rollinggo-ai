@@ -12,7 +12,9 @@ import type {
   PasswordResetBody,
   PlanningBriefPatch,
   PlanningBriefView,
+  PlanningTurnRequest,
   RegisterBody,
+  SendMessageResult,
   SettingsPut,
   Trip,
   TripExport,
@@ -23,7 +25,7 @@ import type {
   TravelPreferences,
   UsageView,
 } from '@tripweaver/shared';
-import { TRIP_LIST_PAGE_SIZE, TravelPreferencesSchema, NotificationPageSchema, GenerationJobViewSchema, type HealthCheckView, type HealthDecisionsRequest } from '@tripweaver/shared';
+import { TRIP_LIST_PAGE_SIZE, TravelPreferencesSchema, NotificationPageSchema, GenerationJobViewSchema, SendMessageResultSchema, type HealthCheckView, type HealthDecisionsRequest } from '@tripweaver/shared';
 import { Value } from '@sinclair/typebox/value';
 import { api, resetAuthState, shouldRetryQuery } from './client';
 
@@ -62,6 +64,7 @@ export const keys = {
   usage: ['usage'] as const,
   notifications: (userId: string) => ['notifications', userId] as const,
   currentGeneration: (userId: string) => ['current-generation', userId] as const,
+  generationTask: (jobId: string) => ['generation-task', jobId] as const,
   coveredCities: ['covered-cities'] as const,
   trips: ['trips'] as const,
   trip: (id: string) => ['trips', id] as const,
@@ -401,6 +404,31 @@ export function useCurrentGeneration(userId: string, enabled = true) {
     // 轮询不生效，生成全程零请求。
     refetchInterval: 60_000,
     refetchOnWindowFocus: true,
+  });
+}
+
+/** 任务卡的状态来源：运行中 3s 轮询，终态停止。 */
+export function useGenerationTask(jobId: string | undefined) {
+  return useQuery({
+    queryKey: keys.generationTask(jobId ?? ''),
+    queryFn: async ({ signal }) => {
+      const data = await api.get<unknown>(`/api/generations/${encodeURIComponent(jobId!)}`, { signal });
+      if (!Value.Check(GenerationJobViewSchema, data)) throw new Error('任务状态格式异常，请重试');
+      return data;
+    },
+    enabled: Boolean(jobId),
+    refetchInterval: (query) => (query.state.data?.status === 'running' || !query.state.data ? 3_000 : false),
+  });
+}
+
+/** 行前回合（表单入口）：主 Agent 确认条件后委派后台生成，返回 SendMessageResult。 */
+export function useStartPlanning() {
+  return useMutation({
+    mutationFn: async ({ id, input }: { id: string; input: PlanningTurnRequest }) => {
+      const data = await api.post<unknown>(`/api/conversations/${encodeURIComponent(id)}/planning?stream=0`, input);
+      if (!Value.Check(SendMessageResultSchema, data)) throw new Error('规划结果格式异常，请重试');
+      return data as SendMessageResult;
+    },
   });
 }
 

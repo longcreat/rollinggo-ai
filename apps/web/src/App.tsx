@@ -17,7 +17,6 @@ const unsubscribe = onUnauthorized(() => {
   void queryClient.cancelQueries();
   queryClient.setQueryData(keys.me, null);
   queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== keys.me[0] });
-  sessionStorage.removeItem('tw.activeJobId');
   void router.navigate('/', { replace: true, state: { login: true, from: pathname + search + hash } });
 });
 if (import.meta.hot) import.meta.hot.dispose(unsubscribe);

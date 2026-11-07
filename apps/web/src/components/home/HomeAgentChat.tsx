@@ -11,7 +11,7 @@ import {
 } from './HomeIcons';
 
 interface HomeAgentChatProps {
-  onStart: (draft: HomeTripDraft, targetCity?: string) => void;
+  onStart: (draft: HomeTripDraft, targetCity?: string, text?: string) => void;
   currentCity: string | null;
   onCityChanged: (city: string) => void;
 }
@@ -70,6 +70,7 @@ export function HomeAgentChat({
           extraNotes: res.extraNotes,
         },
         res.destination,
+        text,
       );
     } catch (err) {
       console.error('Failed to parse prompt for direct launch:', err);

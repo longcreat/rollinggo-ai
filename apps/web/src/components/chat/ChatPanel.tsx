@@ -1,7 +1,6 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
-import { ACTIVE_JOB_KEY } from '../../hooks/useGenerationRun';
+import { TaskCard } from './TaskCard';
 import { suggestionText, uid, type AgentQuestionAnswer, type DetailChatRequest, type PendingQuestionView, type SendMessageResult, type Trip, type TripOperationResult } from '@tripweaver/shared';
 import { keys, useConversation, useTripVersions } from '../../api/hooks';
 import { answerQuestion, pendingQuestion, recoverChat, rewindVersion, stopChat, streamChat } from '../../api/detailChat';
@@ -28,7 +27,6 @@ const initialSuggestions = ['food', 'explore', 'pace'] as const;
 
 export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, end, onTrip }: Props) {
   const qc = useQueryClient();
-  const navigate = useNavigate();
   const detail = useConversation(conversationId);
   const versions = useTripVersions(trip.id);
   const versionIds = versions.data ? new Set(versions.data.versions.map((version) => version.id)) : null;
@@ -102,11 +100,6 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
   const accept = async (result: SendMessageResult) => {
     await qc.invalidateQueries({ queryKey: keys.conversation(conversationId) });
     void qc.invalidateQueries({ queryKey: keys.me });
-    // generate_trip 是后台委派：进入任务直播页看进度，完成后由直播页交接行程。
-    if (result.startedGenerationJobId) {
-      sessionStorage.setItem(ACTIVE_JOB_KEY, result.startedGenerationJobId);
-      navigate(`/agent/${encodeURIComponent(result.startedGenerationJobId)}`);
-    }
     if (result.editResult && result.editResult.tripId !== trip.id) await onTrip(result.editResult.tripId);
     setPending(null);
     setRecovered(null);
@@ -325,6 +318,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
           </>}
         {!hasQuestionParts && legacyAnchor < 0 && questionsCard(questionRecords, `q-${message.id}-tail`)}
         {message.attachment?.notice && <p className="mb-0 mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">{message.attachment.notice}</p>}
+        {message.attachment?.task && <TaskCard jobId={message.attachment.task.jobId} />}
         {message.attachment?.candidates.map((candidate) => <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />)}
         {message.role === 'assistant' && message.attachment?.clarification && <div className="chat-answer-options mt-3 flex flex-wrap gap-1.5" role="group" aria-label={message.attachment.clarification.question}>
           {message.attachment.clarification.options.map((option) => <button type="button" key={option} className="rounded-full border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-left text-xs font-medium text-slate-800 transition-colors cursor-pointer shadow-2xs" disabled={busy || readOnly || running || message.id !== messages.at(-1)?.id} onClick={() => void send(option, undefined, undefined, message.attachment?.dayId ?? null)}>{option}</button>)}

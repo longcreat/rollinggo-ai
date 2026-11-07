@@ -1,24 +1,32 @@
-// 新建行程（09-27 收尾）：首页已完成全部信息收集并带 autostart=1 直达，本页不再渲染表单，
-// 只负责「发起生成 → 生成中 / 启动失败」这一段；缺 autostart 或参数不完整时回首页重选
-// （首页是唯一的收集入口，见 .trellis/tasks/archive/2026-10/09-27-home-followups/prd.md）。
-// 提交链路：惰性建会话 → PATCH 写入 Brief 快照（编辑器内嵌对话靠会话关联反查）→ POST /api/generations。
-// Brief → GenerateForm 的映射复用 shared 的 briefToGenerateForm，前端不另写一套。
+// 新建行程（P0 收口）：首页收集完条件后带 autostart=1 直达。本页不再直接开 job，
+// 而是「建会话 → 写 Brief → 把首条消息交给主 Agent（POST /planning）」；Agent 调 generate_trip 委派后台生成。
+// 刷新恢复：会话与 requestId 存在 sessionStorage，重发同一 requestId 由服务端幂等裁决。
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   MAX_TRIP_DAYS,
   PACE_OPTIONS,
   PREFERENCE_OPTIONS,
   TRANSPORT_MODES,
-  briefToGenerateForm,
   requiredBriefFields,
+  uid,
   type PlanningBriefData,
   type PlanningBriefPatch,
   type TransportMode,
   type TripPace,
 } from '@tripweaver/shared';
-import { useCoveredCities, useCreateConversation, useSaveBriefSnapshot, useUsage } from '../api/hooks';
-import { useActiveGeneration } from '../components/GenerationProvider';
+import {
+  keys,
+  useCoveredCities,
+  useCreateConversation,
+  useCurrentGeneration,
+  useMe,
+  useSaveBriefSnapshot,
+  useStartPlanning,
+  useUsage,
+} from '../api/hooks';
+import { clearPlanningEntry, readPlanningEntry, resolvePlanningEntry, writePlanningEntry } from '../lib/planningEntry';
 import { daysBetween, isISODate, isoDateAfter } from '../lib/dates';
 
 type Preference = (typeof PREFERENCE_OPTIONS)[number];
@@ -63,20 +71,30 @@ function parseDraft(params: URLSearchParams): TripDraft {
 
 export function NewTripPage() {
   const [params, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
 
   const covered = useCoveredCities();
   const usage = useUsage();
+  const me = useMe();
+  const userId = me.data?.id ?? '';
   const createConversation = useCreateConversation();
   const patchBrief = useSaveBriefSnapshot();
+  const startPlanning = useStartPlanning();
+  const current = useCurrentGeneration(userId, Boolean(userId));
 
   const draft = useMemo(() => parseDraft(params), [params]);
+  const text = (params.get('text') ?? '').trim().slice(0, 1000);
   // 到站时是否带了 autostart。守卫会把该参数从 URL 里清掉，所以后续渲染必须靠快照判断，
-  // 否则清参数的瞬间就把自己判成「非直达访问」踢回首页（start 还在建会话/写 Brief）。
+  // 否则清参数的瞬间就把自己判成「非直达访问」踢回首页。
   const autostartRequested = useRef(params.get('autostart') === '1').current;
   const [error, setError] = useState<string | null>(null);
-  const run = useActiveGeneration();
-  const completedAtEntry = useRef(run.completed?.jobId);
-  const doneTripId = run.completed && run.completed.jobId !== completedAtEntry.current ? run.completed.tripId : null;
+  const [starting, setStarting] = useState(false);
+  const paramsKey = useMemo(() => {
+    const p = new URLSearchParams(params);
+    p.delete('autostart');
+    return p.toString();
+  }, [params]);
 
   const briefData = useMemo<PlanningBriefData>(
     () => ({
@@ -96,20 +114,31 @@ export function NewTripPage() {
 
   const ready = requiredBriefFields(briefData).length === 0;
   const generationExhausted = usage.data?.remaining === 0;
-  const busy = createConversation.isPending || patchBrief.isPending || run.starting;
   /** 挡住自动发起的原因；有值时把原因本身当提示文案用 */
   const blocked = !ready
     ? '选择信息不完整，没有可选的目的地或节奏，请回首页重新选择。'
     : generationExhausted
       ? '今日生成次数已用完，明天再来（已有行程仍可继续编辑）。'
       : null;
+  const busy = starting || createConversation.isPending || patchBrief.isPending || startPlanning.isPending;
+  const runningJobId = current.data?.status === 'running' ? current.data.jobId : null;
 
-  const submit = async () => {
-    if (!ready || busy || generationExhausted) return;
+  const start = async (action: 'fresh' | 'resume') => {
+    if (busy) return;
+    setStarting(true);
     setError(null);
     try {
-      const conversation = await createConversation.mutateAsync(`${draft.city} · ${draft.days}天行程`);
-      // Brief 快照：整包写入（一次 PATCH = 一条对话记录，留档生成输入）
+      const stored = action === 'resume' ? readPlanningEntry() : null;
+      const reusable = stored && stored.params === paramsKey ? stored : null;
+      let conversationId = reusable?.conversationId ?? '';
+      let requestId = reusable?.requestId ?? uid();
+      if (!conversationId) {
+        const conversation = await createConversation.mutateAsync(`${draft.city} · ${draft.days}天行程`);
+        conversationId = conversation.id;
+        requestId = uid();
+      }
+      writePlanningEntry({ conversationId, requestId, params: paramsKey });
+
       const patch: PlanningBriefPatch = {
         destination: draft.city,
         startDate: draft.startDate,
@@ -121,25 +150,37 @@ export function NewTripPage() {
       if (draft.pace) patch.pace = draft.pace;
       if (draft.preferences.length > 0) patch.preferences = draft.preferences;
       if (draft.transportMode) patch.transportMode = draft.transportMode;
-      await patchBrief.mutateAsync({ id: conversation.id, patch });
+      await patchBrief.mutateAsync({ id: conversationId, patch });
+
       // 留一份表单参数：生成失败后「重新生成」直接回本页自动重发，不用重填。
       const replay = new URLSearchParams(params);
       replay.delete('autostart');
       sessionStorage.setItem('tw.lastTripDraftParams', replay.toString());
-      run.start({ ...briefToGenerateForm(briefData), conversationId: conversation.id });
+
+      const result = await startPlanning.mutateAsync({
+        id: conversationId,
+        input: { requestId, text: text || `规划${draft.city}${draft.days}天行程`, autostart: true },
+      });
+      if (result.startedGenerationJobId) {
+        clearPlanningEntry();
+        void qc.invalidateQueries({ queryKey: keys.currentGeneration(userId) });
+        navigate(`/agent/${encodeURIComponent(result.startedGenerationJobId)}`, { replace: true });
+        return;
+      }
+      setError(result.replyMessage.content || '生成没有启动，请回首页重试。');
     } catch (err) {
-      setError(err instanceof Error ? err.message : '创建失败，请稍后重试');
+      setError(err instanceof Error ? err.message : '启动失败，请稍后重试');
+    } finally {
+      setStarting(false);
     }
   };
 
-  // autostart 守卫：到站即提交，不再让用户点第二次开始生成；提交后清掉该参数，
-  // 避免刷新页面又跑一次生成。restoring 期间先等快照（上次任务的恢复可能直接跳走），
-  // 否则会与恢复流程抢着发一次生成。（无依赖数组：每渲染后只做一次很轻的守卫检查）
+  // autostart 守卫：每渲染后只做一次很轻的检查；等 covered / 当前任务快照就绪再决定接管还是新提交。
   const autoStarted = useRef(false);
   useEffect(() => {
-    if (autoStarted.current || run.restoring || run.discovering || run.running || doneTripId) return;
+    if (autoStarted.current) return;
+    if (!covered.data || current.isPending) return;
     if (params.get('autostart') !== '1') return;
-    if (blocked || busy) return;
     autoStarted.current = true;
     setSearchParams(
       (prev) => {
@@ -148,23 +189,15 @@ export function NewTripPage() {
       },
       { replace: true },
     );
-    void submit();
+    if (blocked) return;
+    const action = resolvePlanningEntry({ stored: readPlanningEntry(), params: paramsKey, runningJobId });
+    if (action === 'adopt' && runningJobId) {
+      clearPlanningEntry();
+      navigate(`/agent/${encodeURIComponent(runningJobId)}`, { replace: true });
+      return;
+    }
+    void start(action === 'adopt' ? 'fresh' : action);
   });
-
-  // ---------- 生成中 / 恢复 ----------
-  if (run.restoring || run.discovering) {
-    return (
-      <div className={"page w-full [max-width:880px] [margin:0_auto] [padding:20px_16px_48px]"}>
-        <div className={"page-loading [padding:20vh_16px] text-center [color:var(--color-muted)]"}>正在恢复生成进度…</div>
-      </div>
-    );
-  }
-
-  // 生成成功直接进详情页：doneTripId 一置就不再渲染进度面板，下面的 Navigate 接管
-  if (run.running && run.jobId) return <Navigate to={`/agent/${encodeURIComponent(run.jobId)}`} replace />;
-
-  // 生成成功即接管：实时 SSE 与快照恢复两条路都落在这里，不再显示进度面板的终态卡片。
-  if (doneTripId) return <Navigate to={`/trips/${doneTripId}`} replace />;
 
   if (covered.isPending) {
     return (
@@ -180,7 +213,7 @@ export function NewTripPage() {
   }
 
   // ---------- 启动中 / 启动失败 ----------
-  const failure = error ?? run.errorMessage ?? blocked;
+  const failure = error ?? blocked;
   return (
     <div className={"page w-full [max-width:880px] [margin:0_auto] [padding:20px_16px_48px]"}>
       <div className={"page-head flex items-center justify-between [gap:12px] [margin-bottom:16px] flex-wrap"}>

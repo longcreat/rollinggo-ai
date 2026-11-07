@@ -113,6 +113,7 @@ export function tripSnapshot(trip: Trip, dayIndex?: number) {
           category: activity.category,
           startTime: activity.startTime,
           endTime: activity.endTime,
+          durationMin: activity.durationMin,
           description: activity.description,
           cost: activity.cost,
           openTime: activity.openTime,

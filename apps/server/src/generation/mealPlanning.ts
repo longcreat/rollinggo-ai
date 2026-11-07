@@ -1,6 +1,8 @@
 import { uid, type Activity, type TransitLeg } from '@tripweaver/shared';
+import { MEAL_RULES, isMeal, toMinutes, type MealKind } from '../itinerary/mealRules';
 
-export type MealKind = 'lunch' | 'dinner';
+export type { MealCandidate, MealKind } from '../itinerary/mealRules';
+export { isMeal, mealWindow } from '../itinerary/mealRules';
 
 /** Deterministic meal insertion keeps a small transfer/settling buffer on both sides. */
 export const MEAL_TRANSIT_BUFFER_MIN = 15;
@@ -11,68 +13,6 @@ export const MEAL_ANCHOR_ID_PREFIX = 'meal-anchor-';
 interface DraftDayLike {
   activities: Activity[];
   legs?: TransitLeg[];
-}
-
-interface MealRule {
-  label: '午餐' | '晚餐';
-  explicit: RegExp;
-  windowStart: number;
-  windowEnd: number;
-  slots: readonly (readonly [string, string])[];
-}
-
-const MEAL_RULES: Record<MealKind, MealRule> = {
-  lunch: {
-    label: '午餐',
-    explicit: /(午餐|午饭|中餐)/,
-    windowStart: 11 * 60,
-    windowEnd: 14 * 60 + 30,
-    slots: [
-      ['12:00', '13:15'],
-      ['11:30', '12:45'],
-      ['12:30', '13:45'],
-      ['13:00', '14:15'],
-      ['13:15', '14:30'],
-    ],
-  },
-  dinner: {
-    label: '晚餐',
-    explicit: /(晚餐|晚饭)/,
-    windowStart: 17 * 60,
-    windowEnd: 21 * 60 + 30,
-    slots: [
-      ['18:00', '19:15'],
-      ['18:30', '19:45'],
-      ['19:00', '20:15'],
-      ['17:30', '18:45'],
-      ['19:30', '20:45'],
-      ['20:00', '21:15'],
-    ],
-  },
-};
-
-function toMinutes(time: string): number | null {
-  const match = /^(\d{2}):(\d{2})$/.exec(time);
-  if (!match) return null;
-  const hour = Number(match[1]);
-  const minute = Number(match[2]);
-  return hour <= 23 && minute <= 59 ? hour * 60 + minute : null;
-}
-
-/** 只依赖名称/类目/开始时刻，便于排程层用更窄的结构调用。 */
-export interface MealCandidate {
-  name: string;
-  category?: string;
-  startTime?: string;
-}
-
-/** A labelled meal always counts; otherwise a food activity must start in that meal window. */
-export function isMeal(activity: MealCandidate, kind: MealKind): boolean {
-  const rule = MEAL_RULES[kind];
-  if (rule.explicit.test(activity.name)) return true;
-  if (activity.category !== '美食') return false;
-  const start = activity.startTime ? toMinutes(activity.startTime) : null;
-  return start !== null && start >= rule.windowStart && start <= rule.windowEnd;
 }
 
 /** 美食导向判定：只有用户偏好里显式选了「美食」才要求每天午晚餐（09-21 决策 D3/D6）。
@@ -118,11 +58,6 @@ function chooseSlot(activities: readonly Activity[], kind: MealKind): readonly [
         blockedEnd + MEAL_TRANSIT_BUFFER_MIN <= start || blockedStart >= end + MEAL_TRANSIT_BUFFER_MIN,
     );
   });
-}
-
-export function mealWindow(kind: MealKind): Readonly<{ start: number; end: number }> {
-  const rule = MEAL_RULES[kind];
-  return { start: rule.windowStart, end: rule.windowEnd };
 }
 
 function closestAnchor(activities: readonly Activity[], startTime: string): Activity | undefined {

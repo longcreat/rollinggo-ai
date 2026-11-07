@@ -29,7 +29,6 @@ test('完成消息写入来源会话，重复回调只有一条', async () => {
     tripId: 'trip-new',
     destination: '上海',
     days: 2,
-    summary: '上海两日文化漫步',
   };
   await appendGenerationCompletion(input);
   await appendGenerationCompletion(input);
@@ -37,9 +36,9 @@ test('完成消息写入来源会话，重复回调只有一条', async () => {
   const detail = await getConversationDetail(userId, conversation.id);
   assert.equal(detail?.messages.length, 1);
   const message = detail!.messages[0]!;
-  assert.match(message.content, /行程已生成/);
+  assert.match(message.content, /行程已生成：上海（2 天）/);
   assert.equal(message.relatedTripId, 'trip-new');
-  assert.equal(message.attachment?.task?.jobId, input.jobId);
+  assert.equal(message.attachment?.task, undefined, '任务卡只属于发起任务的委派消息，完成消息不重复挂');
 });
 
 test('失败也补一条明确未完成的消息，且不指向行程', async () => {

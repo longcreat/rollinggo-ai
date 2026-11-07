@@ -338,6 +338,10 @@ export async function runMigrations(pool: Pool): Promise<void> {
     await client.query(`ALTER TABLE trips ADD COLUMN IF NOT EXISTS parent_id TEXT`);
     await client.query(`ALTER TABLE trips ADD COLUMN IF NOT EXISTS change_summary TEXT`);
     await client.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS attachment JSONB`);
+    // 任务卡唯一归属（11-08）：历史完成消息与委派消息重复挂 task，清掉完成消息上的重复引用。
+    await client.query(`UPDATE chat_messages SET attachment = attachment - 'task'
+      WHERE attachment ? 'task' AND related_trip_id IS NOT NULL
+        AND attachment->>'tripId' = related_trip_id`);
     await client.query(`UPDATE trips SET root_id = id WHERE root_id IS NULL`);
     await client.query(`ALTER TABLE trips ALTER COLUMN root_id SET NOT NULL`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_trips_root ON trips(root_id, version DESC)`);

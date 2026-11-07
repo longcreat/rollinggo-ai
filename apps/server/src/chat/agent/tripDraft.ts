@@ -6,11 +6,9 @@
 //   - 读工具（get_trip/get_day）必须看到本回合刚做的修改，否则模型会重复修改或自我矛盾。
 //   - 提交放在回合末尾一次性完成：一个新版本 + 一次 editResult，前端整体刷新到新版本。
 //
-// 与确定性编辑链（chat/editOps.ts）的分工：那边是「模型给 JSON → 服务端应用」的一次性批处理；
-// 这里是「模型逐个工具调用 → 同一份草稿累积」，校验语义刻意保持一致（每天上限、地点去重、id 双锚）。
-//
-// 通勤段（legs）由调用方在提交时用 repairChangedRoutes 重算：本层在结构变化后直接清空受影响当天的 legs，
-// 避免给模型看到指向已删除活动的过期路线。
+// 时间不变量：本层只接受结构/内容/停留时长，startTime/endTime 由 itinerary/schedule 统一派生。
+// 结构变化后先清空当天旧 legs 并立即重排时刻，模型在 get_trip/get_day 里看到的永远是一条合法时间线；
+// 提交时 repairChangedRoutes 用真实通勤重算 legs 后，再跑一次 scheduleDays 得到最终时刻。
 import {
   ACTIVITY_CATEGORIES,
   BUDGET_LEVELS,
@@ -22,7 +20,9 @@ import {
   type EditOpOutcome,
   type Trip,
   type TripDay,
+  type TripPace,
 } from '@tripweaver/shared';
+import { scheduleDay } from '../../itinerary/schedule';
 
 /** 工具返回值：给模型看的结论 + 该操作的 result 契约（提交时汇总进 editResult）。 */
 export interface DraftResult {
@@ -56,6 +56,7 @@ function dayView(day: TripDay) {
       category: activity.category,
       startTime: activity.startTime,
       endTime: activity.endTime,
+      ...(activity.durationMin !== undefined ? { durationMin: activity.durationMin } : {}),
       cost: activity.cost,
       located: activity.coordSource !== 'estimated',
     })),
@@ -70,7 +71,10 @@ export interface NewActivityInput {
   description?: string;
   openTime?: string;
   cost?: number;
-  position?: number;
+  /** 插到这个活动之后；缺省追加到当天末尾。用稳定 id 而不是序号，避免模型数错位置。 */
+  afterActivityId?: string;
+  /** 停留时长（分钟）；缺省按类目与行程节奏推导 */
+  durationMin?: number;
   /** 已解析的坐标（GCJ-02）；缺省 = 未定位，提交后按 estimated 处理 */
   lat?: number;
   lng?: number;
@@ -87,8 +91,7 @@ export interface UpdateActivityInput {
   lng?: number;
   category?: string;
   description?: string;
-  startTime?: string;
-  endTime?: string;
+  durationMin?: number;
   openTime?: string;
   cost?: number;
 }
@@ -104,8 +107,9 @@ export interface UpdateTripInput {
   transportMode?: string;
 }
 
-export function createTripDraft(initial: Trip) {
+export function createTripDraft(initial: Trip, options: { pace?: TripPace } = {}) {
   let trip: Trip = structuredClone(initial);
+  const pace: TripPace = options.pace ?? 'moderate';
   let dirty = false;
   const outcomes: EditOpOutcome[] = [];
 
@@ -116,7 +120,14 @@ export function createTripDraft(initial: Trip) {
     const activity = day?.activities.find((item) => item.id === activityId);
     return day && activity ? { day, activity } : null;
   };
-  const touch = (day: TripDay) => { day.legs = []; dirty = true; trip.updatedAt = Date.now(); };
+  const schedule = (day: TripDay) => scheduleDay(day, { pace, preserveDurations: true });
+  /** 结构变化：旧 legs 失效，按新顺序立即重排时刻。 */
+  const touch = (day: TripDay) => {
+    day.legs = [];
+    schedule(day);
+    dirty = true;
+    trip.updatedAt = Date.now();
+  };
   const record = (result: DraftResult) => {
     outcomes.push(result.outcome);
     return result;
@@ -139,6 +150,8 @@ export function createTripDraft(initial: Trip) {
         ? input.category as Activity['category']
         : '其他',
       ...(input.cost !== undefined && Number.isFinite(input.cost) && input.cost >= 0 ? { cost: Math.round(input.cost) } : {}),
+      ...(input.durationMin !== undefined && Number.isFinite(input.durationMin) && input.durationMin >= 1
+        ? { durationMin: Math.round(input.durationMin) } : {}),
       ...(input.openTime ? { openTime: text(input.openTime, 60) } : {}),
       sourceNotes: [],
     };
@@ -156,6 +169,9 @@ export function createTripDraft(initial: Trip) {
       if (!day) return record(fail(kind, `第 ${input.dayIndex} 天不存在；当前共 ${trip.days.length} 天`));
       const name = text(input.name, 100);
       if (!name) return record(fail(kind, '缺少活动名称'));
+      if (input.durationMin !== undefined && (!Number.isFinite(input.durationMin) || input.durationMin < 1)) {
+        return record(fail(kind, '停留时长需为正整数分钟'));
+      }
       if (day.activities.length >= MAX_ACTIVITIES) {
         return record(fail(kind, `第 ${input.dayIndex} 天已有 ${MAX_ACTIVITIES} 个活动（上限），先删再加`));
       }
@@ -166,7 +182,14 @@ export function createTripDraft(initial: Trip) {
         }
       }
       const activity = toActivity(input);
-      const position = input.position !== undefined ? Math.min(Math.max(0, Math.round(input.position)), day.activities.length) : day.activities.length;
+      let position = day.activities.length;
+      if (input.afterActivityId !== undefined) {
+        const anchor = day.activities.findIndex((item) => item.id === input.afterActivityId);
+        if (anchor < 0) {
+          return record(fail(kind, `第 ${day.dayIndex} 天没有活动 id「${input.afterActivityId}」；先调 get_day 确认`));
+        }
+        position = anchor + 1;
+      }
       day.activities.splice(position, 0, activity);
       touch(day);
       return record({
@@ -182,6 +205,7 @@ export function createTripDraft(initial: Trip) {
       const { activity } = target;
       const changes: string[] = [];
       let renamed = false;
+      let reschedule = false;
       const nextName = input.name === undefined ? undefined : text(input.name, 100);
       if (nextName !== undefined) {
         if (!nextName) return record(fail(kind, '活动名称不能为空'));
@@ -191,17 +215,26 @@ export function createTripDraft(initial: Trip) {
         if (nextName !== activity.name) { activity.name = nextName; renamed = true; changes.push(`名称→${nextName}`); }
       }
       if (input.category !== undefined && (ACTIVITY_CATEGORIES as readonly string[]).includes(input.category)) {
-        if (activity.category !== input.category) { activity.category = input.category as Activity['category']; changes.push(`类目→${input.category}`); }
+        if (activity.category !== input.category) {
+          activity.category = input.category as Activity['category'];
+          changes.push(`类目→${input.category}`);
+          reschedule = true;
+        }
       }
       if (input.description !== undefined) {
         const description = text(input.description, 500);
         if (description !== activity.description) { activity.description = description; changes.push('简介已更新'); }
       }
-      for (const field of ['startTime', 'endTime'] as const) {
-        const value = input[field];
-        if (value === undefined) continue;
-        const time = /^\d{2}:\d{2}$/.test(value.trim()) ? value.trim() : '';
-        if (time !== activity[field]) { activity[field] = time; changes.push(`${field === 'startTime' ? '开始' : '结束'}时间→${time || '未定'}`); }
+      if (input.durationMin !== undefined) {
+        if (!Number.isFinite(input.durationMin) || input.durationMin < 1) {
+          return record(fail(kind, '停留时长需为正整数分钟'));
+        }
+        const durationMin = Math.round(input.durationMin);
+        if (durationMin !== activity.durationMin) {
+          activity.durationMin = durationMin;
+          changes.push(`停留→${durationMin} 分钟`);
+          reschedule = true;
+        }
       }
       if (input.openTime !== undefined) {
         const openTime = text(input.openTime, 60);
@@ -230,7 +263,9 @@ export function createTripDraft(initial: Trip) {
           delete activity.coordSystem;
         }
         target.day.legs = [];
+        reschedule = true;
       }
+      if (reschedule) schedule(target.day);
       dirty = true;
       trip.updatedAt = Date.now();
       return record({
@@ -251,7 +286,7 @@ export function createTripDraft(initial: Trip) {
       });
     },
 
-    moveActivity(fromDayIndex: number, activityId: string, toDayIndex: number, position?: number): DraftResult {
+    moveActivity(fromDayIndex: number, activityId: string, toDayIndex: number, afterActivityId?: string): DraftResult {
       const kind: EditOpOutcome['kind'] = 'move_activity';
       const target = findActivity(fromDayIndex, activityId);
       if (!target) return record(fail(kind, `第 ${fromDayIndex} 天没找到要移动的活动`));
@@ -263,9 +298,14 @@ export function createTripDraft(initial: Trip) {
       if (toDay.activities.length >= MAX_ACTIVITIES) {
         return record(fail(kind, `第 ${toDayIndex} 天已有 ${MAX_ACTIVITIES} 个活动（上限），先删再加`));
       }
+      let index = toDay.activities.length;
+      if (afterActivityId !== undefined) {
+        const anchor = toDay.activities.findIndex((item) => item.id === afterActivityId);
+        if (anchor < 0) return record(fail(kind, `第 ${toDayIndex} 天没有活动 id「${afterActivityId}」；先调 get_day 确认`));
+        index = anchor + 1;
+      }
       const [activity] = target.day.activities.filter((item) => item.id === activityId);
       target.day.activities = target.day.activities.filter((item) => item.id !== activityId);
-      const index = position !== undefined ? Math.min(Math.max(0, Math.round(position)), toDay.activities.length) : toDay.activities.length;
       toDay.activities.splice(index, 0, activity!);
       touch(target.day);
       touch(toDay);
@@ -393,7 +433,10 @@ export function createTripDraft(initial: Trip) {
           trip.transportMode = input.transportMode as Trip['transportMode'];
           changes.push(`出行方式→${input.transportMode}`);
           // 出行方式变了，全行程通勤段都要按新方式重算
-          for (const day of trip.days) day.legs = [];
+          for (const day of trip.days) {
+            day.legs = [];
+            schedule(day);
+          }
         }
       }
       if (!changes.length) return record(fail(kind, '没有可应用的行程信息变化'));

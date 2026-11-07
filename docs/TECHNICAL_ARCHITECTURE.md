@@ -159,7 +159,7 @@
 确定性校准层（Agent 之后，全部代码）：
    geocodeAll（geoSanity 出口校验）→ meal_repair（仅美食导向）→ meal_enrich（锚点换真实餐厅）
    → computeLegs（真实路线，熔断+启发式降级）→ feasibility → repair_long_haul（远郊混排修复，
-   单步验证递减才采纳）→ optimize_cross_day_grouping → applyDraftTimings（真实 legs 后再校准时刻）
+   单步验证递减才采纳）→ optimize_cross_day_grouping → scheduleDays（真实 legs 后再校准时刻）
    → 闭馆硬检（不过即 GenerationFailure）
 ```
 

@@ -74,10 +74,67 @@ describe('add_activity', () => {
     assert.match(result.outcome.summary, /上限/);
   });
 
-  it('按 position 插入到指定位置', () => {
+  it('按 afterActivityId 插入到目标活动之后', () => {
     const draft = createTripDraft(baseTrip());
-    draft.addActivity({ dayIndex: 1, name: '文殊院', position: 0, lat: 30.68, lng: 104.07 });
-    assert.equal(draft.current().days[0]!.activities[0]!.name, '文殊院');
+    const result = draft.addActivity({ dayIndex: 1, name: '文殊院', afterActivityId: 'a1', lat: 30.68, lng: 104.07 });
+    assert.equal(result.outcome.applied, true);
+    assert.deepEqual(draft.current().days[0]!.activities.map((item) => item.name), ['人民公园', '文殊院', '宽窄巷子']);
+  });
+
+  it('afterActivityId 不存在时拒绝，不猜位置', () => {
+    const draft = createTripDraft(baseTrip());
+    const result = draft.addActivity({ dayIndex: 1, name: '文殊院', afterActivityId: 'nope' });
+    assert.equal(result.outcome.applied, false);
+    assert.match(result.outcome.summary, /没有活动 id/);
+    assert.equal(draft.changed(), false);
+  });
+
+  it('回归：茶馆插在博物馆之后，时刻按新顺序派生而不是倒序', () => {
+    const trip = baseTrip();
+    const activity = (id: string, name: string, startTime: string, endTime: string) => ({
+      id, name, startTime, endTime, description: '', lat: 30.67, lng: 104.06,
+      coordSource: 'geocoded' as const, coordSystem: 'gcj02' as const, category: '文化' as const, sourceNotes: [],
+    });
+    trip.days[0] = {
+      id: 'd1', dayIndex: 1, title: '古院老巷',
+      activities: [
+        activity('fan', '制扇至美博物馆', '14:13', '15:43'),
+        activity('museum', '成都画院', '15:50', '17:15'),
+        activity('wide', '宽窄巷子', '17:22', '18:52'),
+      ],
+      legs: [],
+    };
+    const draft = createTripDraft(trip, { pace: 'moderate' });
+    const result = draft.addActivity({
+      dayIndex: 1, name: '鲁班茶肆', category: '美食', afterActivityId: 'museum', durationMin: 80,
+      lat: 30.6691, lng: 104.0553,
+    });
+    assert.equal(result.outcome.applied, true);
+    const day = draft.current().days[0]!;
+    assert.deepEqual(day.activities.map((item) => item.name), ['制扇至美博物馆', '成都画院', '鲁班茶肆', '宽窄巷子']);
+    const minutes = (value: string) => {
+      const parts = value.split(':').map(Number);
+      return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
+    };
+    for (let index = 1; index < day.activities.length; index += 1) {
+      assert.ok(minutes(day.activities[index]!.startTime) >= minutes(day.activities[index - 1]!.endTime));
+    }
+    const tea = day.activities[2]!;
+    assert.equal(minutes(tea.endTime) - minutes(tea.startTime), 80);
+  });
+
+  it('新增后按顺序派生时刻，时间线不倒退', () => {
+    const draft = createTripDraft(baseTrip());
+    draft.addActivity({ dayIndex: 1, name: '文殊院', afterActivityId: 'a2', durationMin: 60, lat: 30.68, lng: 104.07 });
+    const activities = draft.current().days[0]!.activities;
+    const minutes = (value: string) => {
+      const parts = value.split(':').map(Number);
+      return (parts[0] ?? 0) * 60 + (parts[1] ?? 0);
+    };
+    for (let index = 1; index < activities.length; index += 1) {
+      assert.ok(minutes(activities[index]!.startTime) >= minutes(activities[index - 1]!.endTime), '后一项不能早于前一项结束');
+    }
+    assert.equal(minutes(activities[2]!.endTime) - minutes(activities[2]!.startTime), 60, '显式停留时长生效');
   });
 });
 
@@ -96,10 +153,13 @@ describe('update_activity', () => {
     assert.match(conflict.outcome.summary, /已有「人民公园」/);
   });
 
-  it('非法时间被归一为空串（时间轴不做推算）', () => {
+  it('停留时长写回并立即重排，后续活动顺延', () => {
     const draft = createTripDraft(baseTrip());
-    draft.updateActivity({ dayIndex: 1, activityId: 'a1', startTime: '9点' });
-    assert.equal(draft.current().days[0]!.activities[0]!.startTime, '');
+    const before = draft.current().days[0]!.activities[1]!.startTime;
+    const result = draft.updateActivity({ dayIndex: 1, activityId: 'a1', durationMin: 150 });
+    assert.equal(result.outcome.applied, true);
+    assert.equal(draft.current().days[0]!.activities[0]!.durationMin, 150);
+    assert.notEqual(draft.current().days[0]!.activities[1]!.startTime, before, '前一项变长后，后一项必须顺延');
   });
 
   it('找不到 id 时拒绝并提示先读当天', () => {
@@ -178,6 +238,8 @@ describe('delete / move / reorder', () => {
     assert.equal(ok.outcome.applied, true);
     assert.deepEqual(draft.current().days[0]!.activities.map((a) => a.id), ['a2', 'a1']);
     assert.deepEqual(draft.current().days[0]!.legs, []);
+    const [first, second] = draft.current().days[0]!.activities;
+    assert.ok(second!.startTime >= first!.endTime, '重排后时刻必须按新顺序重算');
   });
 
   it('顺序未变化时不产生改动', () => {

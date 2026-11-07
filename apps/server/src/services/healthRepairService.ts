@@ -2,7 +2,7 @@
 // 每步执行后重验可行性，hard 违规数不严格递减即回滚该步；任何异常整批回滚。
 // 不用 LLM：建议里的 dayIndex/activityId 来自 Pass 1a 的精确定位，执行是纯数据操作。
 import { simulateTrip, type HealthDecision, type HealthFinding, type Trip } from '@tripweaver/shared';
-import { applyDraftTimings } from '../generation/scheduling/dayPlanner';
+import { scheduleDays } from '../itinerary/schedule';
 
 export interface HealthRepairOutcome {
   trip: Trip;
@@ -49,7 +49,7 @@ function applySuggestion(draft: Trip, finding: HealthFinding): number[] | null {
     if (!targetDay) return null;
     const [moved] = sourceDay.activities.splice(index, 1);
     if (!moved) return null;
-    // 时间戳清空：挪到别的天后原时刻大概率不再成立，交给 applyDraftTimings 按真实通勤重排
+    // 时间戳清空：挪到别的天后原时刻大概率不再成立，交给 scheduleDays 按真实通勤重排
     moved.startTime = '';
     moved.endTime = '';
     targetDay.activities.push(moved);
@@ -93,7 +93,7 @@ export async function applyHealthDecisions(
 
     // 挪动/删除后当天时刻已失效（被挪活动无时刻）：按真实通勤与餐窗重排受影响天，
     // 再验可行性 —— 保证落库的新版本没有无时刻的裸活动。体检场景没有用户节奏，统一 moderate。
-    applyDraftTimings(
+    scheduleDays(
       draft.days.filter((day) => affectedDays.includes(day.dayIndex)),
       'moderate',
     );

@@ -37,8 +37,10 @@ export const ActivitySchema = Type.Object({
   canonicalPlaceId: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
   poiKey: Type.Optional(Type.String({ maxLength: 200 })),
   name: Type.String({ minLength: 1, maxLength: 100 }),
-  startTime: Type.String({ maxLength: 5 }),   // "09:00"，允许空串
-  endTime: Type.String({ maxLength: 5 }),
+  startTime: Type.String({ maxLength: 5 }),   // "09:00"，允许空串；由时间轴派生，模型不直接写
+  endTime: Type.String({ maxLength: 5 }),     // 同上
+  /** 显式停留时长（分钟）；缺省由类目与节奏推导。 */
+  durationMin: Type.Optional(Type.Integer({ minimum: 1, maximum: 600 })),
   description: Type.String({ maxLength: 500 }),
   lat: Type.Number({ minimum: -90, maximum: 90 }),
   lng: Type.Number({ minimum: -180, maximum: 180 }),

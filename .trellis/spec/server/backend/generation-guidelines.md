@@ -441,6 +441,39 @@ lodging name invalidates its coordinates: clear them and drop the affected days'
 Representative paths: `packages/shared/src/schemas.ts`, `packages/shared/src/legs.ts`,
 `apps/server/src/generation/geoPipeline.ts`, `apps/web/src/store/editorStore.ts`.
 
+## Scenario: Itinerary Time Ownership (2026-11-08)
+
+### 1. Scope / Trigger
+
+Any code that changes a day's activity order, dwell time, or persisted start/end times —
+generation, detail-chat write tools, health repair, or a future editor surface.
+
+### 2. Signatures
+
+- `scheduleDay(day, { pace, startAt?, preserveDurations? })` and `scheduleDays(days, pace, …)`
+  in `apps/server/src/itinerary/schedule.ts`.
+- Detail write tools expose `afterActivityId` (stable insertion anchor) and `durationMin`
+  (dwell), never raw `startTime`/`endTime` or zero-based `position`.
+
+### 3. Contracts
+
+- `scheduleDay` is the only writer of `Activity.startTime`/`endTime`. Order is structure;
+  time is derived from the ordered list, `legs` (or walking fallback), dwell, and meal windows.
+- A structural mutation clears the day's stale legs and immediately re-runs `scheduleDay`, so
+  `get_trip`/`get_day` never expose a time line that goes backwards. Commit recomputes real
+  legs (`repairChangedRoutes`) and runs `scheduleDays` once more before persisting.
+- `preserveDurations` keeps each activity's existing dwell when `durationMin` is absent; it does
+  not preserve gaps. Explicit free time must be an activity, not an untimed hole.
+- Generation and detail editing share this module; do not fork a second timing implementation.
+- A task card belongs to the message that delegated the task. Completion messages carry the
+  trip result only and must not re-attach `task` or repeat the task summary.
+
+### 4. Tests Required
+
+`agentTripDraft.test.ts` (insertion anchor, invalid anchor, monotonic timeline, duration,
+regression: tea after museum), `dayPlanner.test.ts` (real-leg retiming, meal windows), and
+`completionMessage.test.ts` (one completion message, no task attachment).
+
 ## Scenario: Deterministic Plan Phase and Copy-Only Writer (09-21, phase 2)
 
 ### 1. Scope / Trigger
@@ -478,7 +511,7 @@ LLM planner/reviewer loop for the live pipeline.
   before `enrichMealAnchors`; the planner never picks restaurants (`plan_day` labels stops `文化`),
   so skipping this step rejects every food-focused trip. Validate only after meal repair and
   enrichment, never right after `submit_plan`.
-- `applyDraftTimings` snaps meals into their windows (lunch ≥ 11:30, dinner ≥ 17:30); otherwise a
+- `scheduleDays` snaps meals into their windows (lunch ≥ 11:30, dinner ≥ 17:30); otherwise a
   day that runs late would schedule dinner at 16:00.
 - Date assignment first matches whole groups, minimizing closed activities (at most `2^15`
   matching states). Remaining closures use `repairScheduleDates`: move or swap up to two

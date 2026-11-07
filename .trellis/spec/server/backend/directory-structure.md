@@ -28,7 +28,7 @@ Representative paths: `apps/server/src/index.ts`, `apps/server/src/routes/trips.
 
 - TypeScript module files use camelCase: `tripService.ts`, `liveRun.ts`,
   `searchSource.ts`, and `serialQueue.ts`.
-- Directories use lowercase domain names: `routes`, `services`, `generation`, and
+- Directories use lowercase domain names: `routes`, `services`, `itinerary`, `generation`, and
   `integrations/websearch`.
 - Route plugins are plural domain names and exported as `<domain>Routes`.
 - Service functions are verb phrases such as `createTrip`, `resolveLlmConfig`, and

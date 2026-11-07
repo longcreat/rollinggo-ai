@@ -36,6 +36,9 @@ function nearestKm(draft: TripDraft, point: { lat: number; lng: number }, exclud
 
 const text = (value: string) => [{ type: 'text' as const, text: value }];
 
+/** 工具提示统一强调：时刻由时间轴派生，模型只决定顺序与停留时长。 */
+const TIME_OWNERSHIP = '时刻由系统按当天顺序和真实通勤自动推算，不要传开始/结束时间。';
+
 function reply(result: DraftResult) {
   return { output: text(JSON.stringify({ ok: result.outcome.applied, summary: result.outcome.summary, ...(result.day ? { day: result.day } : {}) })) };
 }
@@ -46,13 +49,14 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
 
   const addActivity = defineTool({
     name: 'add_activity',
-    description: '在某一天新增一个活动（景点/餐厅/住宿等）。地点名称必须具体到真实地名，服务端会解析坐标并重算当天动线。',
+    description: `在某一天新增一个活动（景点/餐厅/住宿等）。地点名称必须具体到真实地名，服务端会解析坐标并重算当天动线。${TIME_OWNERSHIP}`,
     parameters: obj({
       dayIndex: int({ description: '第几天，从 1 开始' }),
       name: str({ description: '真实地点名称，如「人民公园」「马旺子川小馆」' }),
       category: opt(str({ description: '类目：美食 / 文化 / 自然 / 购物 / 住宿 / 交通 / 娱乐 / 其他' })),
       description: opt(str({ description: '一句话说明为什么安排这里，30–80 字' })),
-      position: opt(int({ description: '插入到当天的第几个位置（0 起）；缺省追加到末尾' })),
+      afterActivityId: opt(str({ description: '插到这个活动 id 之后；缺省追加到当天末尾。先用 get_day 取 id，不要用序号。' })),
+      durationMin: opt(int({ minimum: 15, maximum: 480, description: '预计停留分钟数；缺省按类目与节奏' })),
       openTime: opt(str({ description: '开放/营业时间原文，有可靠来源再填' })),
       cost: opt(num({ description: '人均或门票花费（元）' })),
       allowRevisit: opt(str({ description: '填 "true" 表示用户明确要求再次游览已存在的同一地点' })),
@@ -70,7 +74,8 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
         name,
         ...(args.category ? { category: args.category } : {}),
         ...(args.description ? { description: args.description } : {}),
-        ...(args.position !== undefined ? { position: args.position } : {}),
+        ...(args.afterActivityId ? { afterActivityId: args.afterActivityId } : {}),
+        ...(args.durationMin !== undefined ? { durationMin: args.durationMin } : {}),
         ...(args.openTime ? { openTime: args.openTime } : {}),
         ...(args.cost !== undefined ? { cost: args.cost } : {}),
         ...(point ? { lat: point.lat, lng: point.lng } : {}),
@@ -81,15 +86,14 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
 
   const updateActivity = defineTool({
     name: 'update_activity',
-    description: '修改某个活动的内容：名称、类目、简介、时间、花费。只传要改的字段；id 从 get_trip / get_day 取，不要自己编。',
+    description: `修改某个活动的内容：名称、类目、简介、停留时长、花费。只传要改的字段；id 从 get_trip / get_day 取，不要自己编。${TIME_OWNERSHIP}`,
     parameters: obj({
       dayIndex: int({ description: '第几天，从 1 开始' }),
       activityId: str({ description: '活动 id，必须来自当前行程' }),
       name: opt(str({ description: '新名称' })),
       category: opt(str({ description: '新类目' })),
       description: opt(str({ description: '新简介（≤500 字）' })),
-      startTime: opt(str({ description: '开始时间 HH:MM；传空串表示清空' })),
-      endTime: opt(str({ description: '结束时间 HH:MM；传空串表示清空' })),
+      durationMin: opt(int({ minimum: 15, maximum: 480, description: '新的停留分钟数' })),
       cost: opt(num({ description: '人均或门票花费（元）' })),
     }),
     execute: async (args) => {
@@ -111,10 +115,9 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
         activityId: args.activityId.trim(),
         ...(args.name !== undefined ? { name: args.name } : {}),
         ...(point ? { lat: point.lat, lng: point.lng } : {}),
-      ...(args.category !== undefined ? { category: args.category } : {}),
-      ...(args.description !== undefined ? { description: args.description } : {}),
-      ...(args.startTime !== undefined ? { startTime: args.startTime } : {}),
-      ...(args.endTime !== undefined ? { endTime: args.endTime } : {}),
+        ...(args.category !== undefined ? { category: args.category } : {}),
+        ...(args.description !== undefined ? { description: args.description } : {}),
+        ...(args.durationMin !== undefined ? { durationMin: args.durationMin } : {}),
         ...(args.cost !== undefined ? { cost: args.cost } : {}),
       });
       return {
@@ -144,16 +147,16 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
 
   const moveActivity = defineTool({
     name: 'move_activity',
-    description: '把一个活动移到另一天（跨天调整）。同一天内换顺序请用 reorder_day。',
+    description: `把一个活动移到另一天（跨天调整）。同一天内换顺序请用 reorder_day。${TIME_OWNERSHIP}`,
     parameters: obj({
       fromDayIndex: int({ description: '原第几天' }),
       activityId: str({ description: '活动 id' }),
       toDayIndex: int({ description: '目标第几天' }),
-      position: opt(int({ description: '在目标天的插入位置（0 起）；缺省追加到末尾' })),
+      afterActivityId: opt(str({ description: '插到目标天的这个活动 id 之后；缺省追加到末尾' })),
     }),
     execute: async (args) => reply(draft.moveActivity(
       dayIndex(args.fromDayIndex), args.activityId.trim(), dayIndex(args.toDayIndex),
-      args.position !== undefined ? args.position : undefined,
+      args.afterActivityId,
     )),
   });
 

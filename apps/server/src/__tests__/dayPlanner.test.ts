@@ -1,7 +1,8 @@
 // 一天的时距排布：通勤、停留、闭馆都按注入的数值推演，不做地理计算。
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyDraftTimings, dwellMinutes, formatClock, parseClock, planDay, walkingMinutes } from '../generation/scheduling/dayPlanner';
+import { dwellMinutes, formatClock, parseClock, scheduleDays, walkingMinutes } from '../itinerary/schedule';
+import { planDay } from '../generation/scheduling/dayPlanner';
 
 const stop = (id: string, name: string, lat = 30.25, lng = 120.15, extra: Record<string, unknown> = {}) => ({
   id, name, lat, lng, ...extra,
@@ -70,7 +71,7 @@ test('真实 legs 回填时刻：按实际通勤顺延，保留当天起始时�
     { id: 'a', name: '岳王庙', lat: 30.2524, lng: 120.1346, category: '文化', startTime: '09:00', endTime: '' },
     { id: 'b', name: '西湖', lat: 30.2437, lng: 120.1479, category: '文化', startTime: '', endTime: '' },
   ];
-  applyDraftTimings([{ activities, legs: [{ fromActivityId: 'a', toActivityId: 'b', durationMin: 26 }] }], 'moderate');
+  scheduleDays([{ activities, legs: [{ fromActivityId: 'a', toActivityId: 'b', durationMin: 26 }] }], 'moderate');
   assert.equal(activities[0]!.startTime, '09:00');
   assert.equal(activities[0]!.endTime, '10:15');
   assert.equal(activities[1]!.startTime, '10:41', '到达 = 离开 + 真实通勤 26 分钟');

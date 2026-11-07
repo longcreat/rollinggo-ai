@@ -13,7 +13,6 @@ export interface GenerationCompletionInput {
   tripTitle?: string;
   destination?: string;
   days?: number;
-  summary?: string;
   message?: string;
 }
 
@@ -21,14 +20,15 @@ export async function appendGenerationCompletion(input: GenerationCompletionInpu
   if (!input.conversationId) return;
   const done = input.status === 'done' && Boolean(input.tripId);
   const label = input.tripTitle || input.destination || '新行程';
+  // 任务卡只属于发起任务的委派消息：完成消息只播报结果并指向新行程，
+  // 不重复挂 task，也不重复摘要（摘要由任务卡按 jobId 读取）。
   const content = done
-    ? [`行程已生成：${label}${input.days ? `（${input.days} 天）` : ''}。`, input.summary?.slice(0, 200)].filter(Boolean).join(' ')
+    ? `行程已生成：${label}${input.days ? `（${input.days} 天）` : ''}。`
     : `生成没有完成：${input.message ?? '请稍后重试'}。`;
   const attachment: ChatAttachment = {
     tripId: done ? input.tripId! : '',
     summary: [],
     candidates: [],
-    task: { jobId: input.jobId },
   };
 
   await commitOperation(input.userId, `gen-completion:${input.jobId}`, 'generation-completion', async (tx) => {

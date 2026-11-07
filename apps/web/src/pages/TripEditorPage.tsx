@@ -14,7 +14,7 @@ import { ChatPanel } from '../components/chat/ChatPanel';
 import { DaySection } from '../components/editor/DaySection';
 import { AutoRoutePlanner } from '../components/editor/AutoRoutePlanner';
 import { MapView } from '../components/editor/MapView';
-import { TripSchema, dateForDayIndex, type TripOperationResult } from '@tripweaver/shared';
+import { TripSchema, dateForDayIndex, type Trip, type TripOperationResult } from '@tripweaver/shared';
 import { EditorIcon } from '../components/editor/EditorIcon';
 import { ExportMenu } from '../components/ExportMenu';
 import { matchOverview } from '../lib/tripDerive';
@@ -131,9 +131,12 @@ export function TripEditorPage() {
       queryKey: keys.trip(completedTripId),
       queryFn: () => api.get<unknown>(`/api/trips/${completedTripId}`),
     }).then((saved) => {
-      if (!alive || !Value.Check(TripSchema, saved)) return;
+      if (!alive) return;
+      // 校验失败只提示，不把用户永久困在直播页：字段轻微越界（如营业时间文本过长）
+      // 不该阻断交接，详情页本身能正常渲染。
+      if (!Value.Check(TripSchema, saved)) console.warn('[generation] 落库行程未通过 schema 校验，仍进入详情页');
       qc.setQueryData(keys.trip(completedTripId), saved);
-      load(saved);
+      load(saved as Trip);
       navigate(`/trips/${completedTripId}`, { replace: true });
     }).catch(() => {});
     return () => { alive = false; };

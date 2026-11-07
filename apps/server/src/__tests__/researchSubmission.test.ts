@@ -201,3 +201,28 @@ test('批次取消：等待照片期间不发布候选；条目之间取消不�
   assert.equal(second.outcome.pool.length, 1);
   assert.equal(second.outcome.summary, '');
 });
+
+test('高德营业时间原文超过契约上限时截断，落库行程能通过 schema 校验', async () => {
+  const longOpenTime = '周一至周日 09:00-17:00（16:30 停止入场；法定节假日开放时间以景区公告为准，特殊情况另行通知）';
+  const poiSource = {
+    ...getNullPoiSource(),
+    kind: 'amap' as const,
+    searchPois: async () => [{
+      name: '测试公园a', type: '风景名胜', address: '测试路', rating: '', cost: '',
+      opentime: longOpenTime, photoUrls: [], adcode: '110000', location: { lat: 39.9, lng: 116.4 },
+    }],
+  };
+  const outcome: ResearchOutcome = { pool: [], summary: '', locations: new Map() };
+  const tools = buildResearchTools({
+    destination: '北京', verifiedPlaces: [], outcome, poiSource,
+    searchSource: getNullSearchSource(), searchWebMax: 2,
+    amapPhotos: { photosFor: async () => [], calls: 0 },
+  });
+  // 同一组工具共享 openTimeByName：先 search_pois 捕获原文，再 add_candidate 自动回填。
+  await tools.find((t) => t.name === 'search_pois')!.execute('search', { category: 'attraction', keyword: '公园' });
+  const result = await tools.find((t) => t.name === 'add_candidate')!
+    .execute('long-open', { name: '测试公园a', category: 'attraction', intro: '城市公园' });
+  assert.equal(result.details.ok, true);
+  const openTime = outcome.pool[0]?.openTime;
+  assert.ok(openTime && openTime.length <= 60, `openTime 应截断到 60 字，实际 ${openTime?.length}`);
+});

@@ -371,8 +371,9 @@ export function buildResearchTools(deps: ResearchToolDeps): AgentTool[] {
 
       // 营业时间自动回填：同名命中 search_pois 捕获的 opentime 原文（仅 attraction 参与闭馆日检测）
       if (category === 'attraction') {
-        const openTime = openTimeByName.get(name) ?? renderOpenHours(known?.payload?.openHours);
-        if (openTime) poi.openTime = openTime;
+        // 契约限长 60（ResearchPoiSchema）；高德原文可能很长，概览卡只需要可读的营业时间。
+        const openTime = (openTimeByName.get(name) ?? renderOpenHours(known?.payload?.openHours))?.trim();
+        if (openTime) poi.openTime = openTime.slice(0, 60);
       }
       if (known && typeof known.lat === 'number' && typeof known.lng === 'number') {
         // 库内坐标是权威值，直接覆盖同名的搜索结果坐标。这里不能走 rememberResearchLocation：

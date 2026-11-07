@@ -89,15 +89,15 @@ Wrong: `await agent.prompt(...); return research;` regardless of successful subm
 Correct: validate the successful tool-controlled completion predicate, offer one bounded
 correction, then return a clear error when it remains false.
 
-## In-Memory Job Model
+## Task Model
 
-Jobs, running-job ownership, listeners, event buffers, provider caches, and quota aggregate
-caches are process memory. The job manager permits one running job per user, keeps the latest
-512 events, and removes terminal jobs after 30 minutes.
+生成由用户级 SQLite 上的 durable task 执行；`generations` 表是任务视图（开始写 `running`，
+结束原地更新摘要/告警/用量），进程内的 Job 只承载实时投影与订阅。每个用户同一时刻只允许一个
+运行中任务，终态任务在内存保留 30 分钟用于实时订阅；持久行长期保留，重启后仍可读。
 
-These guarantees are single-process only:
+单进程假设仍然存在（SQLite 与 Harness 独占），但不再依赖内存事件缓冲：
 
-- restart loses running and recently finished job state;
+- 重启后由 durable task resume 重建实时 Job；已结束任务由持久行恢复；
 - another replica cannot read, cancel, or stream a job created elsewhere;
 - per-user running-job exclusion is not cluster-wide;
 - the event ring is recovery convenience, not durable event storage.
@@ -581,14 +581,14 @@ LLM planner/reviewer loop for the live pipeline.
 ### 5. Wrong vs Correct
 
 ```typescript
-// Wrong: let the model decide the order again because "it writes nicer itineraries".
-// (A planner agent with `plannerSystemPrompt` used to do exactly this; both were deleted in 09-25.)
-const plannerRun = await runPhaseAgent({ systemPrompt: '<a planner prompt>', ... });
+// Wrong: let the model invent coordinates/times or free-form the whole day.
+const plannerRun = await runDurablePhaseAgent({ tools: [freeFormTool], ... });
 
-// Correct: structure is code's job; the model only writes titles.
-const scheduleOutcome = await runSystemTask('plan', 'schedule_itinerary', '排定每日行程', () =>
-  applyDeterministicSchedule({ draft, form, pool, locations, longHaul, foodFocused, facts }),
-);
+// Correct: planner agent chooses within the tool contract；距离/时刻/闭馆由 plan_day 计算。
+const plannerRun = await runDurablePhaseAgent({
+  tools: [listAreas, searchAreaPlaces, webSearch, planDay, validatePlan, submitPlan],
+  completion: { isComplete: () => planner.submitted, ... },
+});
 ```
 
 Representative paths: `apps/server/src/generation/scheduling/`,
@@ -922,7 +922,7 @@ refresh recovery after `npm run build`.
 ### 1. Scope / Trigger
 
 Apply this contract when debugging generation misbehavior (model ignoring tools, empty
-responses, prompt regressions) or changing `agents/runner.ts` / phase prompts. Every LLM API
+responses, prompt regressions) or changing `agents/durablePhase.ts` / phase prompts. Every LLM API
 request made by the three phase agents is persisted as a full context snapshot so the exact
 system prompt, message history, and tool definitions can be inspected after the fact.
 
@@ -930,7 +930,7 @@ system prompt, message history, and tool definitions can be inspected after the 
 
 - `createLlmRequestRecorder(scope: { jobId, userId, phase, round }): LlmRequestRecorder`
   in `apps/server/src/generation/llmRequestLog.ts`
-- `RunAgentOptions.recorder?: LlmRequestRecorder` in `apps/server/src/generation/agents/runner.ts`
+- `RunAgentOptions.recorder?: LlmRequestRecorder` in `apps/server/src/generation/agents/phase.ts`
 - Table `llm_request_logs`: `id, job_id, user_id, phase, round, turn, model, system_prompt,
   messages JSONB, tools JSONB, response JSONB NULL, created_at TIMESTAMPTZ`;
   indexes `(job_id)` and `(user_id, created_at DESC)`.
@@ -1202,12 +1202,9 @@ request failed: Model is unavailable.` even though the same model answers simple
 upstream of this repo, and every LLM error was fatal: `assertAlive` turns any `errorMessage` into
 `GenerationFailure`.
 
-**Fix / Prevention**: `agents/runner.ts` wraps `streamSimple` in `streamWithRetry`: each attempt's
-events are buffered and only a successful attempt is replayed to the agent, so a retry never pushes
-a half message into the context. Only "retry might help" errors retry (`isRetryableUpstreamError`:
-model unavailable / rate limit / 5xx / network); request-shape 400s, auth errors, and failures that
-already emitted content/tool deltas do not. Retry delays are `[1000, 3000]` ms. Unit tests:
-`apps/server/src/__tests__/llmRetry.test.ts`.
+**Fix / Prevention**: 重试由 pi-durable 的 `settings.retry`（默认开启）与 pi-ai 的
+`isRetryableAssistantError` 分类负责；durable 只提交完整 assistant entry，重试不会把半截消息写进
+上下文。配额/计费类错误按上游分类不重试。自定义重试包装已随旧 `agents/runner.ts` 删除。
 
 ## Scenario: Closure-Day Day Assignment and Holiday Exemption (09-27)
 

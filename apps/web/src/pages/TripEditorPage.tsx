@@ -121,7 +121,8 @@ export function TripEditorPage() {
     if (!live || !next) return;
     const current = useEditorStore.getState();
     if (current.trip?.id === next.id && current.trip.updatedAt === next.updatedAt) return;
-    const filter = current.dayFilter;
+    // 只有同一次生成内的天行更新才沿用选中天；新任务从总览开始，避免继承上一趟行程的第 N 天。
+    const filter = current.trip?.id === next.id ? current.dayFilter : null;
     load(next);
     if (filter !== null) useEditorStore.getState().setDayFilter(filter);
   }, [live, liveState.trip, load]);
@@ -140,6 +141,7 @@ export function TripEditorPage() {
       if (!Value.Check(TripSchema, saved)) console.warn('[generation] 落库行程未通过 schema 校验，仍进入详情页');
       qc.setQueryData(keys.trip(completedTripId), saved);
       load(saved as Trip);
+      useEditorStore.getState().setDayFilter(null);
       navigate(`/trips/${completedTripId}`, { replace: true });
     }).catch(() => {});
     return () => { alive = false; };

@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "snapshotVersion": 3,
+  "runId": "2026-11-07T14-45-31-102Z-258e1421",
+  "startedAt": "2026-11-07T14:45:31.102Z",
+  "mode": "live",
+  "suite": "smoke",
+  "caseIds": [
+    "shanghai-3d-transit"
+  ],
+  "datasetHash": "372c8ecd92080460f82049a4a4a20fa31d5726ec3119745b8c2e9f029065ee70",
+  "checksHash": "fee0355aecabafdd0ab1583df8f7e2b692dc6b663f67097096aa1fffd509ec7c",
+  "promptHash": "bd510147e892e3d8c71ae08e963f99bb05b059cde3a23ce6f9397e2ac60f327b",
+  "runtimeHash": "2e407c6b5ce62db26c52f45e266153493f43cc89faa61c96ec769e79ce0479f3",
+  "code": {
+    "head": "42e477810fc5b3ec80d21ef6864318ed3b77c566",
+    "dirty": true
+  },
+  "knowledge": {
+    "mode": "golden",
+    "hash": "4bfe1291de1971d09914af40a63ff54c8d5caa8e53d9b912b5d710f0d6645883",
+    "rows": 87
+  },
+  "configuration": {
+    "model": "deepseek-v4.1-flash-1017",
+    "endpoint": "https://llm-8klwdaukirwgc58b.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+    "allowNoGeo": false,
+    "timeoutMs": 600000,
+    "amap": true,
+    "search": true,
+    "embeddingModel": "@cf/baai/bge-m3",
+    "photos": false,
+    "weather": false,
+    "modelOptions": "production runner defaults (runtimeHash)",
+    "providerCallSemantics": "accepted wrapper attempts; not billing or confirmed network requests",
+    "AMAP_GEOCODE_DAILY_BUDGET": "700",
+    "AMAP_PLACE_DAILY_BUDGET": "100",
+    "AMAP_WALK_DAILY_BUDGET": "700",
+    "AMAP_CYCLE_DAILY_BUDGET": "700",
+    "AMAP_DRIVE_DAILY_BUDGET": "700",
+    "AMAP_TRANSIT_DAILY_BUDGET": "700",
+    "SEARCH_DAILY_BUDGET": "100"
+  }
+}

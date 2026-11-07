@@ -1,5 +1,7 @@
 # 织程 TripWeaver · 开发计划
 
+> **历史文档**：以下清单记录当时的实施过程；其中 `agents/runner.ts`、512 事件缓冲、旧 job 事件流均已删除，当前架构见 [TECHNICAL_ARCHITECTURE.md](./TECHNICAL_ARCHITECTURE.md)。
+
 - 项目名称：**织程 TripWeaver**（仓库名 `tripweaver`）
 - 文档版本：v0.6
 - 日期：2026-09-20

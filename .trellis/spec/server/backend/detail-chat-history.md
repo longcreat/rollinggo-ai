@@ -29,7 +29,7 @@
   `text`（1～1000 字符）、可选 `dayId` / `suggestion`。服务端核验所有权、会话、最新版、时间戳和日期。
 - 事件为 `accepted / progress / answer_delta / question / question_answered / question_expired /
   recommendations / edit_result / done / error`，带 `requestId` 和从 1 递增的 `sequence`，终态唯一。
-  客户端去重、检查缺帧并拒绝无终态 EOF。正文只来自无工具 runner 的 `text_delta`，绕过会缓冲完整响应的重试层。
+  客户端去重、检查缺帧并拒绝无终态 EOF。正文来自 pi-durable 的 `generation` 快照（LiveDoc），不再有独立的 `text_delta` runner。
   `progress` 同时带旧字段 `text` 和可选结构化 `step`（id/name/label/status/startedAt/durationMs），
   前端按 `step.id` upsert；只暴露工具动作标签，不暴露参数、结果或内部推理。
 - 附件包含来源行程/日期、摘要和最多三张候选。候选包含稳定 `poiKey`、

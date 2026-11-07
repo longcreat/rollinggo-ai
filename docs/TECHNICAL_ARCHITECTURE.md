@@ -27,7 +27,7 @@
 | 状态 | @tanstack/react-query（服务端状态）+ zustand（编辑器交互态） | 分治 |
 | **API 层** | **Fastify + `@fastify/type-provider-typebox`** | TypeBox 即 JSON Schema，校验零胶水 |
 | **数据库** | **PostgreSQL 16 + pgvector + Drizzle ORM** | 业务数据 + 向量同库；理由见 §4.3 |
-| **Agent 会话存储** | **pi-durable（每人一份 SQLite，`data/chat-runs.sqlite`）** | durable conversation：崩溃恢复 `resume()`、上下文压缩、transcript 持久化；单实例部署假设（一个存储只能被一个进程打开） |
+| **Agent 会话存储** | **pi-durable（每人一份 SQLite，`data/agent-runs/<userId>.sqlite`）** | 对话、子代理与生成任务共用一份存储：崩溃恢复 `resume()`、上下文压缩、transcript 持久化；单实例部署假设（一个存储只能被一个进程打开） |
 | **Agent 运行时** | **`@earendil-works/pi-agent-core` / `pi-ai` / `pi-durable` 1.5**（原 badlogic/pi-mono 生态） | 生成三 Agent 与详情 harness 共用同一循环底座；harness 设计对照 `~/Desktop/work/harness`（pi/openclaw/zcode/opencode/dsh） |
 | 认证 | 自实现：bcryptjs + 会话表 + httpOnly Cookie | 需求简单；会话表支持吊销 |
 | **数据源** | **高德 Web 服务单源**（POI text/around/polygon + geocode + 路径规划）+ Web 搜索（LangSearch）+ 和风天气 | 天地图已于 11-05 下线；图片收敛为高德 POI photos 单源 |
@@ -215,7 +215,8 @@ BYOK（用户自带 LLM Key，AES-256-GCM 加密存储，baseUrl 保存+使用�
 | `GET/POST /api/conversations/:id/questions/*` | HITL 问题 pending 查询与回答回注 |
 | `POST /api/trips/:id/rewind` | 撤销到历史版本（删除其后版本） |
 | `POST /api/trips/:id/health-check` · `GET .../latest` · `POST .../findings/:fid/verify`（10/min）· `POST .../decisions` | 体检四端点 |
-| `GET /api/generations/:jobId/events` | 生成 SSE（新增 `plan_day` 事件：每天排完推送整日结构） |
+| `GET /api/generations/:jobId/projection` | 统一投影快照/补帧（客户端携 `fromSeq` 重订阅） |
+| `GET /api/generations/:jobId/projection/events` | 生成投影 SSE（row/state delta，不再有独立事件环形缓冲） |
 
 ---
 
@@ -268,4 +269,4 @@ BYOK（用户自带 LLM Key，AES-256-GCM 加密存储，baseUrl 保存+使用�
 - **天地图双链（09-25~11-05）**：POI 搜索固定天地图 + 路线/geocode 高德优先。11-05 整体下线，全走高德。历史适配器教训（XML/单位/无骑行端点等实测记录）见 git v0.6 版本文档 §12.1。
 - **四层图库体系（~11-04）**：curated/selected/reviewed/审图队列 + pexels/unsplash/pixabay/wikimedia 多源。11-04 收敛为高德 POI photos 单源。
 - **小红书语料管线**：离线导入 + RAG 检索仍是知识库地基（`canonical_places`/`research_evidence`），消费方从生成调研扩展到 Agent 工具。
-- **pi 0.73 → 1.5 迁移**：详情对话 runtime 从自管 runner 迁至 pi-durable harness；生成链路仍用 pi-agent-core 的 `runPhaseAgent`（自管重试/提交协议）。
+- **pi 0.73 → 1.5 迁移**：详情对话与生成阶段都已迁至 pi-durable harness（`runDurablePhaseAgent`）；旧 `runPhaseAgent` / `agents/runner.ts` 已删除，重试与提交协议由 durable 负责。

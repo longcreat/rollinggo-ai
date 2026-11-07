@@ -11,7 +11,7 @@ Use state according to its lifetime and authority:
 | Server resources and mutation status | React Query |
 | Shared editor draft plus editor-only filter | Zustand editor store |
 | Refresh recovery for an in-progress generation job | `sessionStorage` |
-| Live generation timeline | AppLayout 的 GenerationProvider 持有可重放 SSE 状态，独立生成页消费 |
+| Live generation timeline | AppLayout 通过 `useCurrentGeneration` 发现运行任务；任务卡/直播页消费统一投影与持久任务行 |
 | Account notifications / current running job | React Query，按账号缓存与服务端持久通知/任务查询 |
 
 Evidence: `apps/web/src/pages/LoginPage.tsx`, `apps/web/src/pages/PlannerPage.tsx`, `apps/web/src/pages/TripEditorPage.tsx`.
@@ -109,7 +109,7 @@ result; an in-flight save is not labelled successful. Both pending and historica
 
 ## URL, Session, and SSE State
 
-账号偏好使用 AppLayout 下按 userId 隔离的 `TravelPreferencesProvider`：React Query 管理服务器快照，本地草稿支持首页与个人资料共同编辑。首页只改草稿，不写账号也不显示保存状态；生成行程成功后，由全局 GenerationProvider 调 `persist(snapshot)` 保存实际提交快照；切页保留新草稿，旧回执不能清除它，保存失败可重试原快照。导航已移除个人资料入口；旧组件保留，不再作为可达操作。只记住偏好、出行方式、200 字备注。见 [完整契约](../../server/backend/travel-preferences.md)。
+账号偏好使用 AppLayout 下按 userId 隔离的 `TravelPreferencesProvider`：React Query 管理服务器快照，本地草稿支持首页与个人资料共同编辑。首页只改草稿，不写账号也不显示保存状态；表单提交并拿到任务 id 后，由 NewTripPage 直接 `persist(提交快照)`；切页保留新草稿，旧回执不能清除它，保存失败可重试原快照。导航已移除个人资料入口；旧组件保留，不再作为可达操作。只记住偏好、出行方式、200 字备注。见 [完整契约](../../server/backend/travel-preferences.md)。
 
 Use URL state for navigation-relevant values: route ids, OAuth error codes, and the post-login return path. Treat route and search values as untrusted strings and narrow them before use.
 

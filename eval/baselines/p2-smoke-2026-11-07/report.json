@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "manifest": {
+    "schemaVersion": 1,
+    "snapshotVersion": 3,
+    "runId": "2026-11-07T14-45-31-102Z-258e1421",
+    "startedAt": "2026-11-07T14:45:31.102Z",
+    "mode": "live",
+    "suite": "smoke",
+    "caseIds": [
+      "shanghai-3d-transit"
+    ],
+    "datasetHash": "372c8ecd92080460f82049a4a4a20fa31d5726ec3119745b8c2e9f029065ee70",
+    "checksHash": "fee0355aecabafdd0ab1583df8f7e2b692dc6b663f67097096aa1fffd509ec7c",
+    "promptHash": "bd510147e892e3d8c71ae08e963f99bb05b059cde3a23ce6f9397e2ac60f327b",
+    "runtimeHash": "2e407c6b5ce62db26c52f45e266153493f43cc89faa61c96ec769e79ce0479f3",
+    "code": {
+      "head": "42e477810fc5b3ec80d21ef6864318ed3b77c566",
+      "dirty": true
+    },
+    "knowledge": {
+      "mode": "golden",
+      "hash": "4bfe1291de1971d09914af40a63ff54c8d5caa8e53d9b912b5d710f0d6645883",
+      "rows": 87
+    },
+    "configuration": {
+      "model": "deepseek-v4.1-flash-1017",
+      "endpoint": "https://llm-8klwdaukirwgc58b.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+      "allowNoGeo": false,
+      "timeoutMs": 600000,
+      "amap": true,
+      "search": true,
+      "embeddingModel": "@cf/baai/bge-m3",
+      "photos": false,
+      "weather": false,
+      "modelOptions": "production runner defaults (runtimeHash)",
+      "providerCallSemantics": "accepted wrapper attempts; not billing or confirmed network requests",
+      "AMAP_GEOCODE_DAILY_BUDGET": "700",
+      "AMAP_PLACE_DAILY_BUDGET": "100",
+      "AMAP_WALK_DAILY_BUDGET": "700",
+      "AMAP_CYCLE_DAILY_BUDGET": "700",
+      "AMAP_DRIVE_DAILY_BUDGET": "700",
+      "AMAP_TRANSIT_DAILY_BUDGET": "700",
+      "SEARCH_DAILY_BUDGET": "100"
+    }
+  },
+  "finishedAt": "2026-11-07T14:46:49.395Z",
+  "errors": [],
+  "cases": [
+    {
+      "caseId": "shanghai-3d-transit",
+      "inputHash": "ef7f79334ea69e1845343e847d8c07ece6ced151cf96afe8228d29255c41f12a",
+      "status": "PASS",
+      "problems": [],
+      "unavailable": [],
+      "flow": [
+        {
+          "id": "input",
+          "label": "生成输入保留",
+          "status": "PASS",
+          "detail": "核对目的地、日期、人数、偏好、备注和出行方式；节奏的排程效果由流程回归验证。"
+        },
+        {
+          "id": "research",
+          "label": "知识检索与调研提交",
+          "status": "PASS",
+          "detail": "prefetch_verified_places → submit_research"
+        },
+        {
+          "id": "plan",
+          "label": "规划 Agent 选点与排程",
+          "status": "PASS",
+          "detail": "plan_day → submit_plan"
+        },
+        {
+          "id": "plan-model",
+          "label": "规划阶段由模型决策",
+          "status": "PASS",
+          "detail": "plan 阶段模型响应数 8"
+        },
+        {
+          "id": "writer",
+          "label": "标题文案",
+          "status": "PASS",
+          "detail": "update_titles"
+        },
+        {
+          "id": "geo",
+          "label": "坐标与首次路线",
+          "status": "PASS",
+          "detail": "geo_geocode_all → optimize_day_routes → geo_compute_legs → simulate_feasibility"
+        },
+        {
+          "id": "repair",
+          "label": "远郊与跨天处理",
+          "status": "PASS",
+          "detail": "repair_long_haul → optimize_cross_day_grouping"
+        },
+        {
+          "id": "final-geo",
+          "label": "最终路线复核",
+          "status": "PASS",
+          "detail": "geo_geocode_review_changes → geo_recompute_final_legs"
+        },
+        {
+          "id": "identity",
+          "label": "天序与活动标识",
+          "status": "PASS",
+          "detail": "天序连续，天与活动 ID 无重复。"
+        },
+        {
+          "id": "meals",
+          "label": "美食偏好餐次",
+          "status": "PASS",
+          "detail": "每天有午餐与晚餐；区域餐次符合当前约定。"
+        },
+        {
+          "id": "lodging-input",
+          "label": "住宿可选约定",
+          "status": "PASS",
+          "detail": "仅保留用户指定住宿，未指定时不自行生成住宿。"
+        },
+        {
+          "id": "route-integrity",
+          "label": "最终路段引用",
+          "status": "PASS",
+          "detail": "非当前相邻关系、悬空或重复路段 0 条。"
+        },
+        {
+          "id": "route-coverage",
+          "label": "路段产出",
+          "status": "PASS",
+          "detail": "21/21 条当前相邻路线（含已指定住宿）；缺路线按现有增强降级处理，不虚构时长。"
+        },
+        {
+          "id": "persistence",
+          "label": "终态、行程与审计落库",
+          "status": "PASS",
+          "detail": "终态 done；行程读回 true；成功审计 true；概览候选一致 true"
+        }
+      ],
+      "limitations": [
+        "未指定出发日期，按日期的闭馆检查不适用。",
+        "部分活动缺少营业/闭馆信息，日历检查不能证明所有地点开放。",
+        "未指定住宿，住宿往返检查不适用；活动间交通不代表从住宿出发的全天交通。"
+      ],
+      "metrics": {
+        "day.1.activities": 8,
+        "day.1.timedActivities": 8,
+        "day.1.activityMinutes": 570,
+        "day.1.betweenActivityMinutes": 111,
+        "day.1.betweenActivityKm": 15.746,
+        "day.1.lodgingMinutes": null,
+        "day.2.activities": 8,
+        "day.2.timedActivities": 8,
+        "day.2.activityMinutes": 570,
+        "day.2.betweenActivityMinutes": 44,
+        "day.2.betweenActivityKm": 3.216,
+        "day.2.lodgingMinutes": null,
+        "day.3.activities": 8,
+        "day.3.timedActivities": 8,
+        "day.3.activityMinutes": 570,
+        "day.3.betweenActivityMinutes": 149,
+        "day.3.betweenActivityKm": 16.827,
+        "day.3.lodgingMinutes": null,
+        "activityCount": 24,
+        "timedActivityCount": 24,
+        "timeCoverageRatio": 1,
+        "transferTimeCoverageRatio": 1,
+        "routePairCoverageRatio": 1,
+        "dateAvailable": 0,
+        "openHoursCoverageRatio": 0.75,
+        "areaMealCount": 0,
+        "flowFailures": 0,
+        "notePlaceFailures": 0,
+        "flowDegraded": 0,
+        "hard": 0,
+        "soft": 0,
+        "structural": 0,
+        "geoProblems": 0,
+        "locatedRatio": 1,
+        "estimatedRatio": 0,
+        "providerLegRatio": 1,
+        "outliers": 0,
+        "poolSize": 13,
+        "adoptionRatio": 0.20833333333333334,
+        "totalMs": 77707,
+        "tokensIn": 31218,
+        "tokensOut": 6085,
+        "phase.research#1": 33221,
+        "phase.plan#1": 38900,
+        "phase.review#1": 17042,
+        "calls.amap": 37,
+        "calls.search": 3,
+        "calls.xhs": 0
+      },
+      "snapshotHash": "9162a9f81d81562fd32c2d6a758432927dcc21089ed9f4111c848acc83f2f8f9",
+      "source": {
+        "generatedAt": 1794062809367,
+        "model": "deepseek-v4.1-flash-1017"
+      }
+    }
+  ],
+  "gate": {
+    "pass": true,
+    "counts": {
+      "PASS": 1,
+      "FAIL": 0,
+      "ERROR": 0,
+      "SKIPPED": 0
+    },
+    "totalHard": 0,
+    "totalSoft": 0
+  }
+}

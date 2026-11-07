@@ -1,6 +1,6 @@
 # 行程详情「个人 Agent」升级方案（复用优先版）
 
-> 状态：规划稿，未实施
+> 状态：已实施（2026-11）：对话/子代理/生成共用用户级 pi-durable 存储，生成由主 Agent 异步委派，任务行与投影是进度的唯一事实源。
 > 原则：能用现成 harness 的就装、能整段搬的就搬，自写只保留旅行领域相关的薄层。
 > 目标：详情页对话升级为能连续干活的 Agent——多轮工具、联网搜索、记忆、弹窗追问、行程增删改查，可中断、可恢复。
 
@@ -72,7 +72,7 @@
 
 - [ ] `package.json`：移除 `@mariozechner/pi-agent-core`、`@mariozechner/pi-ai`，加三个 `@earendil-works/*@1.5.0`。
 - [ ] import 路径替换，共 9 个文件：
-  - `apps/server/src/generation/agents/runner.ts`
+  - `apps/server/src/generation/agents/durablePhase.ts`
   - `apps/server/src/generation/model.ts`
   - `apps/server/src/generation/tools/defineTool.ts`
   - `apps/server/src/generation/tools/draftTools.ts`、`geoTools.ts`、`researchTools.ts`、`reviewTools.ts`
@@ -134,7 +134,7 @@ pi-durable 的 `afterRun` 钩子：把 draft 与 base 做 diff → `commitOperat
 
 | 状态 | 存放 | 理由 |
 | --- | --- | --- |
-| agent transcript、run、工具调用、压缩摘要 | pi-durable SQLite（`data/chat-runs.sqlite`） | 单实例部署，文件+WAL 足够；不写 Postgres 适配器 |
+| agent transcript、run、工具调用、压缩摘要 | pi-durable SQLite（`data/agent-runs/<userId>.sqlite`） | 单实例部署，文件+WAL 足够；不写 Postgres 适配器 |
 | 用户可见的对话消息 | Postgres `chat_messages` | 现有 API/前端契约不变 |
 | 行程与版本 | Postgres（沿用） | 已有版本链 |
 | 记忆 | Postgres `trip_notes` / `user_memory` | 可查询、可删 |

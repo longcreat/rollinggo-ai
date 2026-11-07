@@ -22,7 +22,7 @@ PUT 使用路由级 `validatorCompiler` 和 `@sinclair/typebox/value` 的 `Value
 
 `TravelPreferencesProvider` 放在 AppLayout，按 userId 重建；本地草稿覆盖服务器快照，不自动写库。当前可达入口为首页：
 
-- 首页只写本地草稿，不调 PUT。`GenerationProvider.start(form)` 从实际表单构造偏好快照，任务成功后调用 `persist(snapshot)`；页面切换保留草稿，失败不保存，刷新/退出/账号切换丢弃草稿。409 接管不保存当前表单。旧任务成功不能把首页后来的新选择误存到账号，也不能清除新草稿。
+- 首页只写本地草稿，不调 PUT。NewTripPage 在行前回合返回任务 id 后，用实际提交的表单快照调用 `persist(snapshot)`；页面切换保留草稿，失败不保存，刷新/退出/账号切换丢弃草稿。旧任务不能把首页后来的新选择误存到账号，也不能清除新草稿。
 - 原个人资料弹窗与 autoSave 组件仍保留代码，但导航无入口，不作为当前产品可达流程。
 
 首页的「节奏与同行」与「偏好与出行」共用同一份草稿：面板初值直接读账号快照（`value.pace` / `value.partySize`），选择只调 `change`；偏好还没加载完时这些控件置灰，避免点了没反应。个人资料弹窗**不提供**这两个控件，但它的「清空」必须把 `pace` 与 `partySize` 一起复位，否则账号里的节奏无法清除。

@@ -1,4 +1,4 @@
-// 生成主流程：调研 → 确定性排程 → 地理增强、标题与专属建议 → 原子落库。
+// 生成主流程：调研 Agent → 规划 Agent → 地理校准、标题与专属建议 → 原子落库。
 // 唯一入口 runGeneration —— 路由只见任务号与 SSE，Agent 细节全部封装在此（架构 §2 单入口隔离）
 //
 // ┌─ 阅读顺序（建议从这里开始）────────────────────────────────┐
@@ -6,21 +6,24 @@
 // │    走完一遍就是一次完整生成的全过程。                                     │
 // │ 2. 三个辅助设施先扫一眼，后面到处在用：                                   │
 // │      sinkFor()       把 Agent 内部事件翻译成 SSE 事件，推给前端时间线      │
-// │      runSystemTask() 把「非 Agent 的确定性步骤」（排程/地理/修复）也包装   │
+// │      runSystemTask() 把「非 Agent 的校准步骤」（地理/补餐/远郊修复）也包装 │
 // │                      成时间线上的一次工具调用，前端看起来和 Agent 工具一样 │
 // │      assertAlive()   每个 await 之后的取消/超时检查点                     │
-// │ 3. 三个阶段：                                                            │
-// │      阶段 1 调研     = 唯一的「有 LLM 且决定行程内容」的阶段               │
-// │      阶段 2 排程     = 零 LLM，纯算法（本文件最值钱的设计）                │
+// │ 3. 三个阶段（11-06 起，范式 = 模型决策 + 代码校准）：                      │
+// │      阶段 1 调研     = 调研 Agent 选点写简介（submit_research 提交协议）   │
+// │      阶段 2 规划     = 规划 Agent 片区选点/分天/排序/时刻                  │
+// │                       （planner/ 六工具，submit_plan 提交协议；            │
+// │                        每天 plan_day 经 SSE 直播到前端）                  │
 // │      阶段 3 文案/建议 = 有 LLM 但不改结构，只填文字                        │
+// │   Agent 之后是确定性校准层（geocode→补餐→真实 legs→远郊修复→跨天优化      │
+// │   →applyDraftTimings→闭馆硬检），旧 schedule.ts 排程引擎已退出生成主链。   │
 // │ 4. 三条贯穿全文的原则，看到 catch 先想这个：                              │
 // │      · 增强路径失败不改写任务成败（地理/文案/远郊修复，降级继续）           │
-// │      · 核心路径失败必须终止（排程排不出来就没有行程，不能降级）             │
+// │      · 核心路径失败必须终止（规划未提交/闭馆无解就没有行程，不能降级）       │
 // │      · 取消/超时永远向外抛，不能被 catch 吞掉                              │
 // └──────────────────────────────────────────────────────────────────────┘
 //
 // 几个反复出现的术语：
-//   层2 编排预防 = 排程前的确定性预处理，用坐标和通勤时长给远郊点标级（classifyLongHaulPois）
 //   层3 兜底修复 = 排程后如果仍出现「远郊日混排」，代码级把市区活动挪到别的天（repairLongHaulMixedDays）
 //   hard / soft 违规 = feasibility() 的两档结果；hard 是「排了但物理上做不到」（如闭馆日去了）
 //   旁路坐标 = 调研 Agent 调检索工具时顺带捕获的坐标，优先于知识库坐标
@@ -52,10 +55,10 @@ import {
   resolveSearchSourceForUser,
 } from '../integrations/websearch/searchSource';
 import { DraftTrip } from './draft';
+import { ensureMealCoverage, isFoodFocused } from './mealPlanning';
 import { createGeoSession } from './geoPipeline';
-import { classifyLongHaulPois, type LongHaulPoi } from './longHaul';
+import { enrichMealAnchors } from './mealEnrichment';
 import { repairLongHaulMixedDays, verifiedFixNotes, type AppliedFixMove } from './longHaulFixer';
-import { isFoodFocused } from './mealPlanning';
 import { optimizeCrossDayGrouping, orderUntimedDayRoutes } from './routeCoherence';
 import { buildModel } from './model';
 import { emit, completeJob, failJob, cancelJob, type Job } from './jobManager';
@@ -67,16 +70,16 @@ import { loadPlaceFacts, saveAmapPhoto } from './scheduling/placeFacts';
 import { createStoredPlaceLookups } from './storedPlaceLookups';
 import { createAmapPoiPhotoLookup } from '../integrations/amap/poiPhotos';
 import { env } from '../env';
-import { loadPlaceRelations } from './scheduling/placeRelations';
 
-import { buildDraftTools } from './tools/draftTools';
-import type { ReviewOutcome } from './tools/reviewTools';
+import { buildTitleTool } from './tools/titleTool';
 import { retrieveContext } from './retrieveContext';
 import { prepareResearchContext } from './researchContext';
 import { prepareTripAdviceEvidence, runTripAdviceWriter } from './tripAdvice';
-import { applyDeterministicSchedule } from './scheduling/buildDraft';
-import { ScheduleDateConflictError } from './scheduling/schedule';
-import { scheduleClosureConflicts } from './scheduling/dateRepair';
+import { runPlannerAgent, plannerSeeds } from './planner/plannerAgent';
+import { buildAreas } from './planner/tools';
+import { searchAreaPois } from '../integrations/amap/placeArea';
+import { ScheduleDateConflictError, scheduleClosureConflicts } from './closureConflict';
+import { applyDraftTimings } from './scheduling/dayPlanner';
 import {
   WRITER_SYSTEM_PROMPT,
   writerUserPrompt,
@@ -106,7 +109,6 @@ export async function runGeneration(
   const signal = job.abort.signal;
   const usage = { tokensIn: 0, tokensOut: 0 };
   // 餐次/餐宿要求的开关（09-21 D3/D6）：只在偏好含「美食」时强制午晚餐与餐次兜底
-  const foodFocused = isFoodFocused(form.preferences);
   const timing = new GenerationPerformance(job.createdAt);
   let terminalStatus: GenerationJobStatus = 'error';
   // 成功通知的推送事件：事务提交后再发，避免前端回查到未提交的行
@@ -249,6 +251,7 @@ export async function runGeneration(
       type: 'job_start',
       destination: form.destination,
       days: form.days,
+      ...(form.startDate ? { startDate: form.startDate } : {}),
       xhsEnabled: enabledSources.length > 0,
       dataSources: enabledSources,
       at: job.createdAt,
@@ -286,29 +289,10 @@ export async function runGeneration(
     endPhase('research', 1, `候选 ${research.pool.length} 个｜${research.summary.slice(0, 160)}`);
     geo.useResearchPlaces(research.pool, research.locations);
 
-    // 层2 编排预防：候选池距离预计算（确定性、零外呼）——远郊长途点按通勤时长标级。
-    // 坐标来源（09-23）：调研旁路捕获优先，知识库坐标兜底——知识库来源候选（search_verified_places）
-    // 不经 search_pois，旁路没有它的坐标，不兜底会被跳过标级（实测：八达岭因此与慕田峪同时入选市区天）。
-    // placeFacts 前移到此处：标级与排程复用同一份事实，不重复查询。
-    const [placeFacts, placeRelations] = await Promise.all([
-      loadPlaceFacts(research.pool.map((poi) => poi.name), form.destination),
-      loadPlaceRelations(form.destination),
-    ]);
-    const kbCoords = new Map<string, { lat: number; lng: number }>();
-    for (const poi of research.pool) {
-      if (research.locations.has(poi.name)) continue;
-      const facts = placeFacts.get(poi.name);
-      if (facts?.lat !== undefined && facts.lng !== undefined) kbCoords.set(poi.name, { lat: facts.lat, lng: facts.lng });
-    }
-    // 纯函数按理不抛，仍按增强路径防御（生成不失败原则，同 resolveGeoAndSimulate）：意外异常只损失情报、按无标记降级。
-    let longHaulIntel: LongHaulPoi[] = [];
-    try {
-      longHaulIntel = classifyLongHaulPois(research.pool, research.locations, form.transportMode ?? 'transit', kbCoords);
-    } catch {
-      // 按无情报降级，生成继续
-    }
+    // 知识库事实（坐标/开放时间/类目）：规划 Agent 的片区种子与后续修复共用同一份，不重复查询。
+    const placeFacts = await loadPlaceFacts(research.pool.map((poi) => poi.name), form.destination);
 
-    // ---------- 确定性排程，随后并发运行地理增强与标题文案 ----------
+    // ---------- 规划 Agent，随后并发运行地理增强与标题文案 ----------
     const draft = new DraftTrip(form);
     let reviewNotes: string[] = [];
     // 记录修复器的实际挪动；后续跨天优化可能再次换天，落库前验证注记仍然成立。
@@ -322,6 +306,19 @@ export async function runGeneration(
         await runSystemTask('plan', 'geo_geocode_all', '解析活动坐标', () => geo.geocodeAll(draft, sink.onThought, signal));
         assertAlive(signal);
         await runSystemTask('plan', 'optimize_day_routes', '调整顺路顺序', async () => orderUntimedDayRoutes(draft, form.destination));
+        // 餐次补齐（2026-11-06）：规划 Agent 只选景点，美食导向的行程必然缺午晚餐。
+        // 与 draft.validate 的判定同口径：只有偏好里显式选了「美食」才强制午晚餐，其余行程不硬塞。
+        // 先用确定性规则补锚点（找准时间窗、避开冲突、落在当日片区），再由下面的 enrich 换成真实餐厅。
+        if (isFoodFocused(form.preferences)) {
+          await runSystemTask('plan', 'meal_repair', '补齐午晚餐', async () =>
+            ensureMealCoverage(draft.mutableDays(), form.destination));
+        }
+        // 餐次充实（2026-11-06）：合成锚点 → 真实餐厅。必须在 geocode 之后（邻居坐标可用）、
+        // computeLegs 之前（替换带入新坐标，腿按真实餐厅算）。查不到保留锚点，不影响生成。
+        await runSystemTask('plan', 'meal_enrich', '充实餐次推荐', () => enrichMealAnchors({
+          draft, poi: poiBase, destination: form.destination, startDate: form.startDate, signal,
+          onProgress: sink.onThought,
+        }));
         await runSystemTask('plan', 'geo_compute_legs', '估算通勤路线', () => geo.computeLegs(draft, sink.onThought, signal));
         assertAlive(signal);
       } catch (err) {
@@ -330,30 +327,85 @@ export async function runGeneration(
       await runSystemTask('plan', 'simulate_feasibility', '检查时空可行性', () => draft.feasibility());
     };
 
-    // ---------- 阶段 2：确定性排程（零 LLM） ----------
-    // 这是整个项目最重要的设计决策：入选点、分天与顺序由知识库和空间算法决定，模型完全不参与。
-    // 为什么不用模型排？模型算不准距离和通勤时长，一定会编出「上午故宫下午八达岭」这种行程。
-    // 注意排程不产出具体起止时刻（09-22 D5 之后取消时间轴），只产出「哪天去哪些点、什么顺序」。
-    // 失败处理与增强路径相反：排不出来就没有行程可言，不做「降级继续」，直接抛错终止。
-    startPhase('plan', 1, '确定性排程');
-    const scheduleOutcome = await runSystemTask('plan', 'schedule_itinerary', '排定每日行程', () =>
-      applyDeterministicSchedule({
-        draft,
-        form,
-        pool: research.pool,
-        locations: research.locations,
-        longHaul: longHaulIntel,
-        foodFocused,
-        facts: placeFacts,
-        relations: placeRelations,
-      }),
-    );
-    const scheduleProblems = draft.validate();
-    if (scheduleProblems.length) {
-      // 把每日活动数一并报出：排程 bug 的症状通常是「某天挤爆」而不是某个点排错，
-      // 且每日分布是唯一能一眼看出分组形状的信息。
-      const shape = scheduleOutcome.schedule.days.map((day) => `第${day.dayIndex}天${day.stops.length}个`).join('｜');
-      throw new GenerationFailure(`行程排程结果不完整（${shape}，候选 ${research.pool.length} 个）：${scheduleProblems.join('；')}。请重试`);
+    // ---------- 阶段 2：规划 Agent 选点与分天 ----------
+    // 选点/分天/排序/时刻统一由规划 Agent 决定；距离、通勤与时刻仍由工具计算（计划里不出现模型算出来的数）。
+    startPhase('plan', 1, 'Agent 规划');
+    let seeds = plannerSeeds({
+      candidates: research.pool,
+      pointOf: (name, id) => {
+        const located = (id ? research.locations.get(id) : undefined) ?? research.locations.get(name);
+        if (located) return { lat: located.lat, lng: located.lng };
+        const facts = placeFacts.get(name.trim());
+        return facts?.lat !== undefined && facts.lng !== undefined ? { lat: facts.lat, lng: facts.lng } : undefined;
+      },
+    });
+    // 知识库无覆盖、POI 搜索又不通时，候选只来自模型知识（没有坐标）。
+    // 用地理编码补齐前几个景点：geocode 与 place 是两本额度，能避免整个生成因地点检索额度耗尽而失败。
+    if (!seeds.length) {
+      const geocoded: typeof seeds = [];
+      for (const poi of research.pool.filter((item) => item.category === 'attraction').slice(0, 8)) {
+        assertAlive(signal);
+        const point = await geo.resolvePlace(poi.name).catch(() => null);
+        if (!point) continue;
+        geocoded.push({
+          name: poi.name, lat: point.lat, lng: point.lng, category: 'attraction',
+          ...(poi.intro ? { intro: poi.intro } : {}),
+          ...(poi.openTime ? { openTime: poi.openTime } : {}),
+          ...(poi.canonicalPlaceId ? { canonicalPlaceId: poi.canonicalPlaceId } : {}),
+        });
+      }
+      seeds = geocoded;
+    }
+    // 城市在知识库里没有任何点位（或调研候选全被改名）时，用城市中心兜底一个片区，
+    // 让 Agent 仍能通过 search_area_places 展开真实 POI，而不是直接判失败。
+    let areas = buildAreas(seeds);
+    if (!areas.length) {
+      const center = await geo.resolvePlace(form.destination).catch(() => null);
+      if (!center) {
+        throw new GenerationFailure(`无法定位目的地「${form.destination}」，暂时不能规划；请检查地图服务后重试`);
+      }
+      // 知识库无覆盖城市：先用一次片区检索确认额度并拿到真实点位，避免 Agent 空跑 30–90 秒后才失败。
+      let nearby: Awaited<ReturnType<typeof searchAreaPois>> = [];
+      if (env.amapKey) {
+        try {
+          nearby = await searchAreaPois(env.amapKey, { city: form.destination, center, radiusM: 12_000 }, signal);
+        } catch (error) {
+          if (signal.aborted) throw error;
+          const message = error instanceof Error ? error.message : '';
+          if (/预算已用完|额度不足|budget/i.test(message)) {
+            throw new GenerationFailure('高德地点检索额度已用完，无法获取真实点位；请明天再试，或联系站长调整 AMAP_SEARCH_MONTHLY_BUDGET');
+          }
+        }
+      }
+      const fallbackSeeds = nearby
+        .filter((poi) => poi.location)
+        .map((poi) => ({ name: poi.name, lat: poi.location!.lat, lng: poi.location!.lng, category: 'attraction' as const, ...(poi.opentime ? { openTime: poi.opentime } : {}) }));
+      areas = buildAreas(fallbackSeeds.length ? fallbackSeeds : [{ name: form.destination, lat: center.lat, lng: center.lng, category: 'attraction' }], 12_000);
+    }
+    const planner = await runSystemTask('plan', 'agent_plan', 'Agent 规划每日行程', () => runPlannerAgent({
+      model,
+      apiKey: cfg.apiKey,
+      signal,
+      sink: sinkFor('plan'),
+      form,
+      draft,
+      areas,
+      searchArea: async (query, plannerSignal) => {
+        if (!env.amapKey) return [];
+        return searchAreaPois(env.amapKey, { city: form.destination, ...query }, plannerSignal);
+      },
+      webSearch: async (query, plannerSignal) => {
+        const hits = await search.source.search(query, plannerSignal);
+        return hits.map((hit) => ({ title: hit.title, url: hit.url, summary: hit.summary }));
+      },
+      recorder: createLlmRequestRecorder({ jobId: job.id, userId: job.userId, phase: 'plan', round: 2 }),
+      onDayPlanned: (day) => emit(job, { type: 'plan_day', ...day }),
+    }));
+    usage.tokensIn += planner.result.tokensIn;
+    usage.tokensOut += planner.result.tokensOut;
+    assertAlive(signal, planner.result.errorMessage);
+    if (!planner.submitted) {
+      throw new GenerationFailure(`规划未完成（候选 ${research.pool.length} 个）：${planner.result.errorMessage ?? '模型未调用 submit_plan'}。请重试`);
     }
 
     // ---------- 阶段 3：标题与专属建议；标题先与下面的地理/修复并发 ----------
@@ -363,13 +415,13 @@ export async function runGeneration(
     // 工具面只给 update_titles，成功即结束；改不动活动/顺序/说明。
     // 文案属增强路径：模型没写完也不算失败，草稿里已有候选简介兜底。
     startPhase('review', 1, '撰写说明文案');
-    const review: ReviewOutcome = { submitted: false, notes: [] };
+    // 文案阶段的收尾状态：update_titles 成功提交即结束（原 reviewTools 的 ReviewOutcome，内联为本地类型）
+    const review: { submitted: boolean; notes: string[] } = { submitted: false, notes: [] };
     const writerPromise = runPhaseAgent({
       model,
       apiKey: cfg.apiKey,
       systemPrompt: WRITER_SYSTEM_PROMPT,
-      tools: buildDraftTools(draft, 'plan', (notes) => { review.submitted = true; review.notes = notes; })
-        .filter((tool) => tool.name === 'update_titles'),
+      tools: [buildTitleTool(draft, (notes) => { review.submitted = true; review.notes = notes; })],
       userPrompt: writerUserPrompt(form, draft.render()),
       signal,
       sink: sinkFor('review'),
@@ -416,7 +468,7 @@ export async function runGeneration(
     endPhase(
       'plan',
       1,
-      `活动 ${scheduleOutcome.written} 个｜候选 ${research.pool.length} 个（无坐标补位 ${scheduleOutcome.withoutCoord}｜排不下丢弃 ${scheduleOutcome.schedule.droppedCount}）`,
+      `活动 ${draft.mutableDays().reduce((sum, day) => sum + day.activities.length, 0)} 个｜候选 ${research.pool.length} 个｜Agent 规划`,
     );
 
     // 文案收口（并行段结束）：启动时已记 startPhase，此处只等结果
@@ -479,10 +531,9 @@ export async function runGeneration(
       }
     }
 
-    // 餐次兜底与通勤时间顺延都不再执行（09-22 D5：行程不产出时间轴）：
-    // · ensureMealCoverage 靠时间窗插餐，没有时间轴就无处安放；餐次由确定性排程在每天直接插锚点。
-    // · repairTransitTiming 靠「活动结束时间 + 真实 leg」顺延，没有时间轴就无从顺延。
-    // 真通勤时长仍由 computeLegs 算在 leg 上，前端按「段间耗时」展示。
+    // 按最终 legs 顺延每个活动的到达/离开时刻：规划 Agent 预览用的是启发式时长，
+    // 真实路线重算后必须再校准一次，否则会出现「17 分钟间隔走 26 分钟路程」的可行性冲突。
+    runSystemTask('review', 'retime_days', '按真实通勤校准时刻', () => applyDraftTimings(draft.mutableDays(), form.pace ?? 'moderate'));
 
     // 只保留最终草稿中仍成立的换天说明。
     const verifiedAutoNotes = verifiedFixNotes(draft, autoFixMoves);
@@ -497,6 +548,20 @@ export async function runGeneration(
     const feasibilityNotes = feasibilityReviewNotes(finalFeasibility);
     if (feasibilityNotes.length) {
       reviewNotes = [...new Set([...reviewNotes, ...feasibilityNotes])].slice(0, 8);
+    }
+
+    // 落库前最后一道完整性检查：结构性问题（天数不符、空天）仍然失败；餐次与跨天重复
+    // 已在后续阶段做确定性修复，残留只记录并写成说明，不再让用户等完整个流程后功亏一篑。
+    const completeness = draft.validate();
+    const structuralProblems = completeness.filter((problem) =>
+      problem.startsWith('天数不符') || problem.includes('没有任何活动'));
+    if (structuralProblems.length) {
+      const shape = draft.mutableDays().map((day, index) => `第${index + 1}天${day.activities.length}个`).join('｜');
+      throw new GenerationFailure(`规划结果不完整（${shape}，候选 ${research.pool.length} 个）：${structuralProblems.join('；')}。请重试`);
+    }
+    if (completeness.length) {
+      logger?.info({ jobId: job.id, problems: completeness.slice(0, 6) }, 'plan completeness advisory');
+      reviewNotes = [...new Set([...completeness.slice(0, 3), ...reviewNotes])].slice(0, 8);
     }
 
     // ---------- 落库 ----------

@@ -30,8 +30,13 @@ export async function usageView(userId: string): Promise<UsageView> {
   };
 }
 
-export async function hasQuota(userId: string): Promise<boolean> {
-  return (await usedToday(userId)) < env.genDailyLimit;
+/**
+ * 生成额度闸门：2026-11-07 定调「测试环境不限量」，恒可用；usedToday/usageView 仍供 /api/usage 展示。
+ * 生产恢复点：恢复原判定 `(await usedToday(userId)) < env.genDailyLimit`。
+ */
+export async function hasQuota(_userId: string): Promise<boolean> {
+  void _userId;
+  return true;
 }
 
 // ---------- 全站外部数据源日额度（架构 §6） ----------

@@ -4,6 +4,7 @@ import { pool } from '../db/client';
 import { WebSearchSource } from '../integrations/websearch/searchSource';
 import { AmapPoiSource } from '../integrations/amap/poiSource';
 import { amapQuotaGate } from '../integrations/amap/request';
+import { amapDay } from '../integrations/amap/services';
 
 after(() => pool.end());
 
@@ -33,7 +34,7 @@ test('地点搜索的取消不污染缓存，重试可正常查询', async () =>
   const original = globalThis.fetch;
   // 高德配额闸门走 DB，测试里 stub 成恒放行（真实扣账在 amapQuotaLedger 单测覆盖）
   const originalAcquire = amapQuotaGate.acquire;
-  amapQuotaGate.acquire = async () => ({ allowed: true, service: 'place', day: '0', used: 0, limit: 1, resetAt: 0 });
+  amapQuotaGate.acquire = async () => ({ allowed: true, service: 'place', day: amapDay().day, used: 0, limit: 1, resetAt: 0 });
   const source = new AmapPoiSource('test');
   const controller = new AbortController();
   let started!: () => void;

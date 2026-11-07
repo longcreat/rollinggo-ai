@@ -1,10 +1,11 @@
 import { Value } from '@sinclair/typebox/value';
-import { ChatStreamEventSchema, SendMessageResultSchema, TripOperationResultSchema, type ChatStreamEvent, type DetailChatRequest, type SendMessageResult, type AddFoodRequest, type TripOperationRequest } from '@tripweaver/shared';
+import { ChatStreamEventSchema, SendMessageResultSchema, TripOperationResultSchema, type AgentQuestionAnswer, type ChatStreamEvent, type DetailChatRequest, type PendingQuestionView, type SendMessageResult, type AddFoodRequest, type TripOperationRequest, type TripRewindRequest } from '@tripweaver/shared';
 import { api, ApiError, requestStream } from './client';
 
 /** POST SSE 支持跨 chunk 的 UTF-8 与帧边界；校验、按序去重、EOF 必须有终态。 */
 export async function streamChat(id: string, input: DetailChatRequest, signal: AbortSignal, onEvent: (event: ChatStreamEvent) => void): Promise<SendMessageResult> {
-  const response = await requestStream(`/api/conversations/${id}/messages/stream`, input, { signal, timeoutMs: 180_000 });
+  // HITL 问题默认等待 120s，回答后模型还要继续生成；给整轮留足 5 分钟。
+  const response = await requestStream(`/api/conversations/${id}/messages/stream`, input, { signal, timeoutMs: 300_000 });
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = '';
@@ -44,6 +45,15 @@ export async function recoverChat(id: string, requestId: string) {
 export async function stopChat(id: string, requestId: string) {
   await api.post(`/api/conversations/${id}/operations/${requestId}/stop`);
 }
+/** HITL：回答 Agent 暂停时提出的问题；答案会回到同一回合的工具结果。 */
+export async function answerQuestion(id: string, questionId: string, answers: AgentQuestionAnswer[]) {
+  await api.post(`/api/conversations/${id}/questions/${questionId}/answer`, { answers });
+}
+/** HITL：刷新后拉回等待中的问题。 */
+export async function pendingQuestion(id: string): Promise<PendingQuestionView | null> {
+  const data = await api.get<{ question: PendingQuestionView | null }>(`/api/conversations/${id}/questions/pending`);
+  return data.question;
+}
 export async function addFood(id: string, input: AddFoodRequest) {
   const data = await api.post<unknown>(`/api/conversations/${id}/food`, input);
   if (!Value.Check(TripOperationResultSchema, data)) throw new Error('添加结果无效');
@@ -52,5 +62,11 @@ export async function addFood(id: string, input: AddFoodRequest) {
 export async function restoreVersion(id: string, input: TripOperationRequest) {
   const data = await api.post<unknown>(`/api/trips/${id}/restore`, input);
   if (!Value.Check(TripOperationResultSchema, data)) throw new Error('恢复结果无效');
+  return data;
+}
+/** 真正回退：删除 target 之后的版本，target 重新成为当前版本。 */
+export async function rewindVersion(id: string, input: TripRewindRequest) {
+  const data = await api.post<unknown>(`/api/trips/${id}/rewind`, input);
+  if (!Value.Check(TripOperationResultSchema, data)) throw new Error('回退结果无效');
   return data;
 }

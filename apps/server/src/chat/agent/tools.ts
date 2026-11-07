@@ -1,30 +1,30 @@
-// 行程详情 Agent 的只读工具：读行程、查地点、搜全网、查天气。
-//
-// 只读是刻意的：P1 先把「自己查、自己判断、自己组织回答」跑通，写操作（改行程）
-// 继续走原有的确定性编辑链路，避免两条写入路径并存。
-// 每次请求的工具都是新闭包，绑定当轮的 trip 与带预算的数据源。
-import { obj, opt, str } from '@earendil-works/pi-schema';
+// 行程详情「主 Agent」的全量工具：读行程、查地点、搜全网、查天气、找餐厅、结构化追问、
+// 更新出行条件、请求重新生成，以及改行程的写工具。子 Agent 只能拿到 toolPolicy 里的只读白名单。
+// 每次请求的工具都是新闭包，绑定当轮的 trip、带预算的数据源与本回合状态。
+import { arr, obj, opt, str } from '@earendil-works/pi-schema';
 import { defineTool } from '@earendil-works/pi-durable';
 import type { ToolRegistration } from '@earendil-works/pi-durable';
-import type { Trip } from '@tripweaver/shared';
-import { POI_CATEGORIES, type PoiCategory } from '@tripweaver/shared';
+import { Type } from '@sinclair/typebox';
+import type { AgentQuestion, AgentQuestionAnswer, PlanningBriefPatch, Trip } from '@tripweaver/shared';
+import { POI_CATEGORIES, PlanningBriefPatchSchema, type PoiCategory } from '@tripweaver/shared';
 import type { DetailSources } from '../detailSources';
+import type { DetailKnowledge } from '../detailKnowledge';
 import type { WebSearchHit } from '../../integrations/websearch/searchSource';
 import type { SourcedPoi } from '../../integrations/geoContracts';
+import { searchFood } from '../foodSearch';
+import { classifySubPoi } from '../../services/geofenceImport';
 import { createTripWriteTools } from './writeTools';
 import type { TripDraft } from './tripDraft';
 import { createPlacePointCache, type PlacePointCache } from './placePoints';
+import { createAgentTurnState, mergeBriefPatch, type AgentTurnState } from './turnState';
 
 export interface TripToolDeps {
   trip: Trip;
   sources: DetailSources;
   signal: AbortSignal;
   getWeather?: (trip: Trip) => Promise<unknown>;
-  /**
-   * 本回合的行程草稿。给了它就意味着开启写工具：读工具也统一读草稿，
-   * 保证模型能立刻看到自己刚做的修改（否则会重复改同一处）。
-   */
-  draft?: TripDraft;
+  /** 本回合的行程草稿：主 Agent 始终是读写模式，读工具也统一读草稿。 */
+  draft: TripDraft;
   /** 新活动定位（高德）；未注入时新增活动按「位置待核实」处理 */
   resolvePlace?: (name: string) => Promise<{ lat: number; lng: number } | null>;
   /**
@@ -32,6 +32,14 @@ export interface TripToolDeps {
    * 于是「子代理查到的地点」再 add_activity 时不需要重新解析。
    */
   points?: PlacePointCache;
+  /** 本回合跨工具状态：美食候选、追问、Brief 增量、重新生成请求 */
+  state?: AgentTurnState;
+  /** 当前对话范围（前端选中的某一天）；美食检索默认用它 */
+  scopeDayId?: string;
+  /** HITL：暂停 Agent，等待用户通过独立接口回答；返回 null 表示超时/取消 */
+  askUser?: (questions: AgentQuestion[]) => Promise<AgentQuestionAnswer[] | null>;
+  /** 问答记录写入 state 后回调下标，回合据此在事件流里标记问答发生的位置 */
+  onQuestionRecorded?: (index: number) => void;
 }
 
 const text = (value: string) => [{ type: 'text' as const, text: value }];
@@ -113,10 +121,11 @@ function normalizeCategory(value: string | undefined): PoiCategory {
 export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
   const { sources, signal } = deps;
   // 读工具一律读「当前草稿」：本回合的写入立即对后续读取可见。
-  const view = (): Trip => deps.draft?.current() ?? deps.trip;
+  const view = (): Trip => deps.draft.current();
   // 本回合核验过的坐标（search_places 结果 + 子代理结构化提交）：写工具改名/新增时优先用，
   // 避免把已经查准的地点再交给模糊解析（实测「人民公园东门」会被解到 30km 外的同名点）。
   const points = deps.points ?? createPlacePointCache();
+  const state = deps.state ?? createAgentTurnState();
 
   const getTrip = defineTool({
     name: 'get_trip',
@@ -150,8 +159,54 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
       const category = normalizeCategory(args.category);
       const hits = await sources.poi.searchPois(category, args.keyword, view().destination, signal);
       if (!hits.length) return { output: text(`未查到「${args.keyword}」相关地点`) };
-      for (const hit of hits) if (hit.location) points.remember(hit.name, hit.location);
+      for (const hit of hits) {
+        if (hit.location) points.remember(hit.name, hit.location);
+        if (hit.photoUrls.length) points.rememberPhotos(hit.name, hit.photoUrls);
+      }
       return { output: text(JSON.stringify(searchPlacesPayload(hits))) };
+    },
+  });
+
+  // 景区/商圈是面状区域：先解析中心点，再按半径取区内真实点位。
+  // 只返回可编排景点（过滤售票亭/码头/停车场），坐标写入本回合点位缓存供 add_activity 复用。
+  const searchAreaPlaces = defineTool({
+    name: 'search_area_places',
+    description: '把景区/商圈当面状区域，返回区域内的真实景点（如西湖→断桥/白堤/苏堤）。用于「这一片怎么玩」「按片区排路线」；查具体地点名仍用 search_places。',
+    parameters: obj({
+      area: str({ description: '片区名称，如「西湖」「宽窄巷子」「故宫」' }),
+      radiusM: opt(str({ description: '检索半径（米），300–8000，缺省 2500' })),
+      keywords: opt(str({ description: '补充关键词，如「博物馆」「观景」' })),
+    }),
+    execute: async (args) => {
+      signal.throwIfAborted();
+      const radiusM = Math.min(Math.max(Number(args.radiusM ?? 2500) || 2500, 300), 8000);
+      const centers = await sources.poi.searchPois('attraction', args.area, view().destination, signal);
+      const center = centers.find((hit) => hit.location)?.location;
+      if (!center) return { output: text(`未找到「${args.area}」的中心点，先用 search_places 查一次`) };
+      let pois: SourcedPoi[] = [];
+      try {
+        pois = await sources.searchArea({ center, radiusM, ...(args.keywords ? { keywords: args.keywords } : {}) });
+      } catch (error) {
+        return { output: text(`片区检索失败：${error instanceof Error ? error.message : '未知错误'}`) };
+      }
+      const accepted = pois.filter((poi) => classifySubPoi(poi, { center }) === null && poi.location);
+      for (const hit of accepted) {
+        if (hit.location) points.remember(hit.name, hit.location);
+        if (hit.photoUrls.length) points.rememberPhotos(hit.name, hit.photoUrls);
+      }
+      return {
+        output: text(JSON.stringify({
+          area: args.area,
+          center,
+          radiusM,
+          returned: pois.length,
+          places: accepted.slice(0, 20).map((poi) => ({
+            name: poi.name, type: poi.type, address: poi.address,
+            lat: poi.location!.lat, lng: poi.location!.lng,
+            ...(poi.opentime ? { openTime: poi.opentime } : {}),
+          })),
+        })),
+      };
     },
   });
 
@@ -179,9 +234,150 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     },
   });
 
-  const readTools = [getTrip, getDay, searchPlaces, webSearch, getWeather];
-  // 没有草稿 = 只读模式（P1 行为不变）；有草稿才装配写工具。
-  return deps.draft
-    ? [...readTools, ...createTripWriteTools({ draft: deps.draft, signal, resolvePlace: deps.resolvePlace, cachedPoint: (name) => points.find(name) })]
-    : readTools;
+  const searchFoodTool = defineTool({
+    name: 'search_food',
+    description: '查找当前行程附近可添加的真实餐厅，返回候选卡片（名称/地址/就近活动/人均等）。用户问美食、餐厅、午餐/晚餐推荐时使用；卡片会显示在回答下方。',
+    parameters: obj({
+      query: str({ description: '用餐需求，如「川菜」「清淡」「人民公园附近」' }),
+      dayIndex: opt(str({ description: '限定第几天，缺省用当前对话范围；整趟行程可省略' })),
+      meal: opt(str({ description: 'lunch 或 dinner，缺省 lunch' })),
+    }),
+    execute: async (args) => {
+      signal.throwIfAborted();
+      const trip = view();
+      const dayIndex = args.dayIndex ? Number.parseInt(args.dayIndex, 10) : undefined;
+      if (dayIndex !== undefined && !trip.days.some((day) => day.dayIndex === dayIndex)) {
+        return { output: text(`没有第 ${args.dayIndex} 天；当前行程共 ${trip.days.length} 天`) };
+      }
+      const dayId = dayIndex !== undefined
+        ? trip.days.find((day) => day.dayIndex === dayIndex)?.id
+        : deps.scopeDayId;
+      const meal = args.meal === 'dinner' ? 'dinner' : 'lunch';
+      const knowledge: DetailKnowledge = { places: [], web: [], references: [], notes: [] };
+      const result = await searchFood(knowledge, sources, trip, dayId, args.query, state.excludedFoodKeys, signal, meal);
+      for (const candidate of result.candidates) {
+        state.excludedFoodKeys.add(candidate.poiKey);
+        points.remember(candidate.name, candidate);
+        if (!state.foodCandidates.some((item) => item.poiKey === candidate.poiKey)) state.foodCandidates.push(candidate);
+      }
+      state.foodNotes.push(...result.notes);
+      if (!result.candidates.length) {
+        return { output: text(`没有找到符合条件且有完整位置资料的具体餐厅${result.notes.length ? `：${result.notes.join(' ')}` : ''}`) };
+      }
+      return {
+        output: text(JSON.stringify(result.candidates.map((candidate) => ({
+          name: candidate.name,
+          address: candidate.address,
+          dayIndex: candidate.dayIndex,
+          nearby: candidate.nearby,
+          meal: candidate.meal,
+          reason: candidate.reason,
+          cuisine: candidate.cuisine,
+          openTime: candidate.openTime,
+        })))),
+      };
+    },
+  });
+
+  const askUser = defineTool({
+    name: 'ask_user',
+    description: '需要用户做选择、确认改动或取舍方案时必须使用：暂停当前回合，向用户展示问题卡；禁止在回复末尾用文字问「要不要/你希望/可以吗」。用户回答后你会拿到答案并继续本轮。问题要具体、可直接回答；有推荐选项时放在第一个。',
+    parameters: Type.Object({
+      questions: Type.Array(Type.Object({
+        id: Type.Optional(Type.String({ maxLength: 100, description: '稳定问题 id，缺省自动生成' })),
+        question: Type.String({ minLength: 1, maxLength: 160, description: '只写一句要用户决定的事（建议 ≤60 字），不要复述诊断' }),
+        header: Type.Optional(Type.String({ maxLength: 40, description: '短标题，如「确认」「选择范围」' })),
+        options: Type.Optional(Type.Array(Type.Object({
+          label: Type.String({ minLength: 1, maxLength: 40 }),
+          description: Type.Optional(Type.String({ maxLength: 100 })),
+        }), { maxItems: 6, description: '可点击选项；用户始终可以自行输入答案' })),
+        multiSelect: Type.Optional(Type.Boolean({ description: '是否允许多选，缺省单选' })),
+      }), { minItems: 1, maxItems: 3 }),
+    }),
+    execute: async (rawArgs) => {
+      const args = rawArgs as {
+        questions: Array<{
+          id?: string; question: string; header?: string;
+          options?: Array<{ label: string; description?: string }>;
+          multiSelect?: boolean;
+        }>;
+      };
+      if (!deps.askUser) return { output: text('当前环境不支持交互提问'), isError: true };
+      const ids = new Set<string>();
+      const questions: AgentQuestion[] = [];
+      for (const [index, item] of args.questions.entries()) {
+        const question = item.question.trim().slice(0, 300);
+        if (!question) return { output: text('问题不能为空'), isError: true };
+        let id = item.id?.trim().slice(0, 100) || `q${index + 1}`;
+        if (ids.has(id)) id = `${id}-${index + 1}`;
+        ids.add(id);
+        const options = (item.options ?? [])
+          .map((option) => ({
+            label: option.label.trim().slice(0, 80),
+            ...(option.description?.trim() ? { description: option.description.trim().slice(0, 200) } : {}),
+          }))
+          .filter((option) => option.label)
+          .slice(0, 6);
+        questions.push({
+          id,
+          question,
+          ...(item.header?.trim() ? { header: item.header.trim().slice(0, 60) } : {}),
+          options,
+          ...(item.multiSelect ? { multiSelect: true } : {}),
+        });
+      }
+      const answers = await deps.askUser(questions);
+      if (!answers) {
+        state.questionExpired = true;
+        return { output: text('用户未在时限内回答，本轮结束；不要重复询问同一个问题'), isError: true, control: { terminate: true } };
+      }
+      for (const question of questions) {
+        const answer = answers.find((item) => item.id === question.id);
+        state.questions.push({
+          question: question.question,
+          options: question.options.map((option) => option.label),
+          selected: answer?.selected ?? [],
+          ...(answer?.custom ? { custom: answer.custom } : {}),
+        });
+        deps.onQuestionRecorded?.(state.questions.length - 1);
+      }
+      return { output: text(JSON.stringify({ answers })) };
+    },
+  });
+
+  const updateBrief = defineTool({
+    name: 'update_brief',
+    description: '更新「下一次完整生成」使用的出行条件（目的地、日期、天数、人数、节奏、偏好、约束、住宿、备注）。修改当前行程本身请用 update_trip，不要用它。',
+    parameters: PlanningBriefPatchSchema,
+    execute: async (args) => {
+      // merge 而不是覆盖：一轮里模型可能多次 update_brief（先改日期、再补约束），
+      // 标量字段仅当本次有定义才覆盖；约束增删按数组拼接去重（见 mergeBriefPatch）。
+      state.briefPatch = mergeBriefPatch(state.briefPatch, args as PlanningBriefPatch);
+      return { output: text('已记录出行条件更新') };
+    },
+  });
+
+  const startGeneration = defineTool({
+    name: 'start_generation',
+    description: '仅当用户明确要求「按当前条件重新生成一份完整行程」时调用。调用后由系统在条件齐备且额度允许时启动生成；不要在普通咨询或小修改时使用。',
+    parameters: obj({}),
+    execute: async () => {
+      state.startGeneration = true;
+      return { output: text('已记录重新生成请求') };
+    },
+  });
+
+  return [
+    getTrip,
+    getDay,
+    searchPlaces,
+    searchAreaPlaces,
+    webSearch,
+    getWeather,
+    searchFoodTool,
+    askUser,
+    updateBrief,
+    startGeneration,
+    ...createTripWriteTools({ draft: deps.draft, signal, resolvePlace: deps.resolvePlace, cachedPoint: (name) => points.find(name) }),
+  ];
 }

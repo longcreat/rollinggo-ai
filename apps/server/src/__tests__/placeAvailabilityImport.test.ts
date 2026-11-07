@@ -15,8 +15,6 @@ import { loadPlaceIdentityIndex } from '../services/placeIdentityService';
 import { createPlaceRetriever } from '../generation/placeRetrieval';
 import { loadCityPlaceFacts } from '../generation/scheduling/placeFacts';
 import { createTrip, getTrip } from '../services/tripService';
-import { bindEditPlaceIdentities } from '../chat/placeIdentity';
-import { applyItineraryEdits, editActivityDrafts, normalizeEditOps } from '../chat/editOps';
 
 after(() => pool.end());
 
@@ -79,17 +77,6 @@ test('真实撤回导入清事实图片向量，旧文件不能复活；历史�
     assert.equal(index.resolve(city, old.name, old.id).status, 'ambiguous');
     for (const branch of branches) assert.equal(index.resolve(city, branch.name, branch.id).status, 'resolved');
     assert.deepEqual(await getTrip(user, saved.id), saved);
-    const ops = normalizeEditOps(branches.map(branch => ({ kind: 'add_activity', dayIndex: 1, activity: { name: branch.name, category: '美食' } })));
-    const current = bindEditPlaceIdentities(saved, editActivityDrafts(ops), index, '添加两家分店');
-    assert.equal(current.days[0]!.activities[0]!.canonicalPlaceId, old.id);
-    const edited = applyItineraryEdits(current, ops); assert.equal(edited.changed, true);
-    const next = await createTrip(user, edited.trip, saved.id);
-    assert.deepEqual(await getTrip(user, saved.id), saved);
-    const reread = await getTrip(user, next.id);
-    for (const id of [old.id, ...branches.map(p => p.id)]) assert.ok(reread!.days.flatMap(day => day.activities).some(a => a.canonicalPlaceId === id));
-    assert.throws(() => bindEditPlaceIdentities(saved, editActivityDrafts(normalizeEditOps([
-      { kind: 'add_activity', dayIndex: 1, activity: { name: old.name } },
-    ])), index, ''), /多个同名/);
     await writeFile(imagesFile, JSON.stringify({ city, images: [{ placeId: old.id, key: 'xhs/old/00.webp' }] }));
     await execute('seed-xhs-place-images.ts', imagesFile);
     assert.deepEqual((await read()).payload.imageGallery, []);

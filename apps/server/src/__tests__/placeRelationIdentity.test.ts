@@ -8,8 +8,8 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { pool } from '../db/client';
-import { loadPlaceRelations, resolveRelatedPairs } from '../generation/scheduling/placeRelations';
-import { relatedPairKey } from '../generation/scheduling/schedule';
+import { loadPlaceRelations, relatedPairKey, resolveRelatedPairs } from '../generation/scheduling/placeRelations';
+
 import { captureIdentityImport, recordIdentityImport, rollbackIdentityImport } from '../services/placeIdentityAudit';
 import { currentBoundRelations, relationDigest, validateBoundRelations, validateRelationManifest,
   type BoundRelation, type RelationManifest } from '../services/placeRelationIdentity';

@@ -4,21 +4,21 @@
 //   - 并行调研 3 个主题时，主代理的上下文会被三份原始搜索结果塞满；子代理各自消化后只回结论。
 //   - 参考出发鸭的 explore_sub_*：子代理专精局部检索（POI/通勤/口碑），主代理只做编排与决策。
 //
-// 结构化返回（二期）：让子代理调「终态提交工具」而不是输出 JSON 文本。
-//   - 任务内容仍然动态（主代理现写 prompt），但返回契约固定：kind=places / notes 两种。
-//   - 终态工具的参数由 harness 按 schema 校验，写错会被打回让子代理自己重试，不用主代理兜。
-//   - 捕获按 `api.conversationId` 存：所有子会话共用同一个 registry，闭包变量在并发时会串。
+// 结构化返回：子代理最后输出固定 JSON 契约（kind=places / notes），服务端严格解析；
+// 解析失败回退文本，不阻塞主代理。pi-durable 的终态工具在创建会话时会被 modelTools 过滤，
+// 因此这里不用 submit_places/submit_notes，而是由主代理侧的 parseData 统一校验。
 //
 // 与 opencode `subagent` 工具的差异（有意为之）：
 //   - 不做后台模式、不做「继续某个子会话」：我们的场景是单轮调研，前台阻塞返回就够了。
 //   - 一个工具一次派发多个任务（Promise.all 并行）：不依赖运行时是否并行执行多个 tool call。
 //   - 子代理固定只读（`childTools` 白名单 + 不注册本工具）→ 深度恒为 1，不会出现子代理改行程。
 //
-// 会话复用：子会话按「父会话 + 任务槽位」复用，第一次创建后长期保留。
-// pi-durable 没有删除会话的 API，若每任务每次都新建，SQLite 会随对话轮次无限增长；
-// 复用后每个父会话最多额外 3 个子会话。子会话首轮上下文是全新的，所以任务提示必须自包含。
+// 会话复用：子会话按「父会话 + 任务槽位」复用，同一槽位串行，第一次创建后长期保留。
+// pi-durable 没有删除会话的 API，复用避免每轮新建 SQLite 会话；槽位由主代理任务 id 决定，
+// 因此任务提示必须自包含。工具面在创建时按 toolPolicy 收敛为只读白名单。
 import { AssistantEntry, defineTool, type ConversationId, type Harness, type ToolRegistration } from '@earendil-works/pi-durable';
 import { arr, obj, opt, str } from '@earendil-works/pi-schema';
+import { assertSubagentToolNames } from './toolPolicy';
 
 /** 子代理产出类型：固定两种，避免「让模型自己设计 schema」 */
 export type SubagentKind = 'places' | 'notes';
@@ -144,6 +144,8 @@ function parseData(text: string, kind: SubagentKind): SubagentData | undefined {
 }
 
 export function createSubagentTool(options: SubagentToolOptions): ToolRegistration {
+  // 子代理在创建时就只允许只读工具；写/交互/派生工具不能进入子会话（参考 openclaw 的委派策略）。
+  assertSubagentToolNames(options.childTools.map((tool) => tool.name));
   const { harness, parentId, maxTasks } = options;
   const context = options.context as never;
 
@@ -152,7 +154,11 @@ export function createSubagentTool(options: SubagentToolOptions): ToolRegistrati
     const known = childConversations.get(key);
     if (known) {
       const existing = await harness.conversation(known, context);
-      if (existing) return existing;
+      if (existing) {
+        // 复用的子会话跟随父会话的模型/指令更新；否则用户切换模型后子代理仍走旧模型。
+        await existing.configure({ model: options.model, instructions: options.instructions, maxTurns: options.maxTurns }, context);
+        return existing;
+      }
     }
     const conversation = await harness.createConversation({
       ownership: { kind: 'ownerless' },

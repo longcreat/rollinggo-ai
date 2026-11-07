@@ -12,6 +12,8 @@ import { obj } from '@earendil-works/pi-schema';
 import type { Trip } from '@tripweaver/shared';
 import { AgentBusyError, closeAgentRuntime, runAgentTurn, type AgentStreamEvent } from '../chat/agent/runtime';
 import { createTripTools } from '../chat/agent/tools';
+import { createTripDraft } from '../chat/agent/tripDraft';
+import { createAgentTurnState } from '../chat/agent/turnState';
 import type { DetailSources } from '../chat/detailSources';
 
 const directories: string[] = [];
@@ -124,7 +126,7 @@ describe('agent runtime', () => {
     const result = await runAgentTurn({
       storagePath: await storage(),
       models,
-      tools: createTripTools({ trip, sources, signal: AbortSignal.timeout(30_000) }),
+      tools: createTripTools({ trip, sources, signal: AbortSignal.timeout(30_000), draft: createTripDraft(trip) }),
       instructions: '测试',
       model: { provider: 'faux', modelId: 'faux-1' },
       prompt: '第一天怎么安排？',
@@ -134,9 +136,67 @@ describe('agent runtime', () => {
     assert.equal(result.status, 'done');
     assert.match(result.text, /人民公园/);
     assert.deepEqual(result.toolCalls, ['get_trip']);
-    assert.ok(events.some((event) => event.type === 'tool_start' && event.name === 'get_trip'));
-    assert.ok(events.some((event) => event.type === 'tool_end'));
+    const start = events.find((event) => event.type === 'tool_start');
+    const end = events.find((event) => event.type === 'tool_end');
+    assert.ok(start?.type === 'tool_start' && start.name === 'get_trip');
+    assert.equal(typeof start.startedAt, 'number');
+    assert.equal(end?.type === 'tool_end' && end.status, 'done');
+    assert.ok(end?.type === 'tool_end' && end.durationMs >= 0);
     assert.ok(events.some((event) => event.type === 'done'));
+  });
+
+  it('达到轮次上限时自动 continue，不把 run 当成回答中断', async () => {
+    const { faux, models } = fauxModels();
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall('get_trip', {})], { stopReason: 'toolUse' }),
+      fauxAssistantMessage('续跑后的最终回答'),
+    ]);
+    const { sources } = fakeSources();
+    const result = await runAgentTurn({
+      storagePath: await storage(),
+      models,
+      tools: createTripTools({ trip, sources, signal: AbortSignal.timeout(30_000), draft: createTripDraft(trip) }),
+      instructions: '测试',
+      model: { provider: 'faux', modelId: 'faux-1' },
+      prompt: '多步任务',
+      maxTurns: 1,
+    });
+
+    assert.equal(result.status, 'done');
+    assert.match(result.text, /续跑后的最终回答/);
+  });
+
+  it('ask_user 暂停后拿到用户答案，模型在同一回合继续', async () => {
+    const { faux, models } = fauxModels();
+    faux.setResponses([
+      fauxAssistantMessage([fauxToolCall('ask_user', {
+        questions: [{ id: 'day', question: '想安排在哪一天？', options: [{ label: '第 1 天' }, { label: '第 2 天' }] }],
+      })], { stopReason: 'toolUse' }),
+      fauxAssistantMessage('已按第 2 天安排。'),
+    ]);
+    const { sources } = fakeSources();
+    const state = createAgentTurnState();
+    const asked: unknown[] = [];
+    const result = await runAgentTurn({
+      storagePath: await storage(),
+      models,
+      tools: createTripTools({
+        trip, sources, signal: AbortSignal.timeout(30_000), draft: createTripDraft(trip), state,
+        askUser: async (questions) => {
+          asked.push(questions);
+          return [{ id: questions[0]!.id, selected: ['第 2 天'] }];
+        },
+      }),
+      instructions: '测试',
+      model: { provider: 'faux', modelId: 'faux-1' },
+      prompt: '再帮我排一天',
+    });
+
+    assert.equal(result.status, 'done');
+    assert.deepEqual(result.toolCalls, ['ask_user']);
+    assert.equal(asked.length, 1, '工具应等待 HITL 答案');
+    assert.match(result.text, /第 2 天/, '回答后模型必须继续本轮');
+    assert.deepEqual(state.questions[0]?.selected, ['第 2 天']);
   });
 
   it('搜索类工具把结果交给模型，且不伪造未调用的工具', async () => {
@@ -149,7 +209,7 @@ describe('agent runtime', () => {
     const result = await runAgentTurn({
       storagePath: await storage(),
       models,
-      tools: createTripTools({ trip, sources, signal: AbortSignal.timeout(30_000) }),
+      tools: createTripTools({ trip, sources, signal: AbortSignal.timeout(30_000), draft: createTripDraft(trip) }),
       instructions: '测试',
       model: { provider: 'faux', modelId: 'faux-1' },
       prompt: '附近有什么川菜？',
@@ -163,7 +223,7 @@ describe('agent runtime', () => {
   it('同一会话的第二轮复用 transcript，不重新建会话', async () => {
     const { faux, models } = fauxModels();
     const path = await storage();
-    const tools = () => createTripTools({ trip, sources: fakeSources().sources, signal: AbortSignal.timeout(30_000) });
+    const tools = () => createTripTools({ trip, sources: fakeSources().sources, signal: AbortSignal.timeout(30_000), draft: createTripDraft(trip) });
 
     faux.setResponses([fauxAssistantMessage('第一次回答')]);
     const first = await runAgentTurn({ storagePath: path, models, tools: tools(), instructions: '测试', model: { provider: 'faux', modelId: 'faux-1' }, prompt: '第一问' });

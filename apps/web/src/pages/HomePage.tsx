@@ -110,7 +110,7 @@ export function HomePage() {
         {generation.running && generation.jobId && (
           <button
             type="button"
-            onClick={() => navigate(`/generations/${encodeURIComponent(generation.jobId!)}`)}
+            onClick={() => navigate(`/agent/${encodeURIComponent(generation.jobId!)}`)}
             className="flex items-center justify-between rounded-xl border border-brand/30 bg-white/90 px-4 py-2 text-xs font-medium text-brand shadow-sm backdrop-blur-md hover:bg-white transition-all cursor-pointer"
           >
             <span className="flex items-center gap-2">

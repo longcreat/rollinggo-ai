@@ -122,6 +122,10 @@ export function NewTripPage() {
       if (draft.preferences.length > 0) patch.preferences = draft.preferences;
       if (draft.transportMode) patch.transportMode = draft.transportMode;
       await patchBrief.mutateAsync({ id: conversation.id, patch });
+      // 留一份表单参数：生成失败后「重新生成」直接回本页自动重发，不用重填。
+      const replay = new URLSearchParams(params);
+      replay.delete('autostart');
+      sessionStorage.setItem('tw.lastTripDraftParams', replay.toString());
       run.start({ ...briefToGenerateForm(briefData), conversationId: conversation.id });
     } catch (err) {
       setError(err instanceof Error ? err.message : '创建失败，请稍后重试');
@@ -157,7 +161,7 @@ export function NewTripPage() {
   }
 
   // 生成成功直接进详情页：doneTripId 一置就不再渲染进度面板，下面的 Navigate 接管
-  if (run.running && run.jobId) return <Navigate to={`/generations/${encodeURIComponent(run.jobId)}`} replace />;
+  if (run.running && run.jobId) return <Navigate to={`/agent/${encodeURIComponent(run.jobId)}`} replace />;
 
   // 生成成功即接管：实时 SSE 与快照恢复两条路都落在这里，不再显示进度面板的终态卡片。
   if (doneTripId) return <Navigate to={`/trips/${doneTripId}`} replace />;

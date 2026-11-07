@@ -26,6 +26,44 @@
     background-repeat: no-repeat;
     background-position: right .875rem center;
   }
+.chat-markdown { line-height: 1.65; overflow-wrap: anywhere; }
+  .chat-markdown > :first-child { margin-top: 0; }
+  .chat-markdown > :last-child { margin-bottom: 0; }
+  .chat-markdown p { margin: 0; }
+  .chat-markdown p + p, .chat-markdown p + ul, .chat-markdown p + ol,
+  .chat-markdown ul + p, .chat-markdown ol + p, .chat-markdown blockquote + p { margin-top: .5rem; }
+  .chat-markdown h1, .chat-markdown h2, .chat-markdown h3 {
+    margin: .75rem 0 .25rem; font-weight: 600; line-height: 1.4; color: var(--color-ink-strong);
+  }
+  .chat-markdown h1 { font-size: 1.05em; }
+  .chat-markdown h2 { font-size: 1em; }
+  .chat-markdown h3 { font-size: .95em; }
+  .chat-markdown ul { list-style: disc; margin: .4rem 0 0; padding-left: 1.1rem; }
+  .chat-markdown ol { list-style: decimal; margin: .4rem 0 0; padding-left: 1.1rem; }
+  .chat-markdown li + li { margin-top: .2rem; }
+  .chat-markdown strong { font-weight: 600; }
+  .chat-markdown a { color: var(--color-brand); text-decoration: underline; text-underline-offset: 2px; }
+  .chat-markdown code {
+    border-radius: .3rem; background: rgb(226 232 240 / .8); padding: .08rem .28rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .9em;
+  }
+  .chat-markdown pre {
+    margin: .5rem 0 0; overflow-x: auto; border-radius: .5rem; background: #1e293b;
+    padding: .625rem .75rem; color: #f1f5f9; font-size: .75rem; line-height: 1.6;
+  }
+  .chat-markdown pre code { background: transparent; padding: 0; border-radius: 0; color: inherit; font-size: inherit; }
+  .chat-markdown blockquote {
+    margin: .5rem 0 0; border-left: 2px solid var(--color-hairline-strong);
+    padding-left: .75rem; color: var(--color-ink-muted);
+  }
+  .chat-markdown hr { margin: .75rem 0; border: 0; border-top: 1px solid var(--color-hairline); }
+  .chat-markdown table { width: 100%; border-collapse: collapse; margin: .5rem 0 0; font-size: .75rem; }
+  .chat-markdown th, .chat-markdown td {
+    border: 1px solid var(--color-hairline-strong); padding: .3rem .4rem; text-align: left; vertical-align: top;
+  }
+  .chat-markdown th { background: #f8fafc; font-weight: 600; }
+  .chat-markdown img { max-width: 100%; border-radius: .5rem; }
+  .chat-markdown input[type='checkbox'] { margin-right: .35rem; vertical-align: middle; }
   @supports (appearance: base-select) {
     .ui-select, .ui-select::picker(select) { appearance: base-select; }
     .ui-select { align-items: center; }

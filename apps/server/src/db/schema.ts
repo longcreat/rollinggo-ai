@@ -143,6 +143,17 @@ export const canonicalPlaces = pgTable(
     verified: boolean('verified').notNull().default(false),
     embedding: vector('embedding', { dimensions: 1024 }),
     payload: jsonb('payload'),                     // 原始记录（快照活动对象/高德 POI 等）
+    /** 景区/片区的子点指向父点；父点自身为 NULL */
+    parentId: text('parent_id'),
+    /** point = 单点；area = 面状围栏（可带多边形或半径） */
+    geomKind: text('geom_kind').notNull().default('point'),
+    areaPolygon: jsonb('area_polygon'),            // { ring: "lng,lat|lng,lat|…" }
+    areaRadiusM: integer('area_radius_m'),
+    centerLng: doublePrecision('center_lng'),
+    centerLat: doublePrecision('center_lat'),
+    junk: boolean('junk').notNull().default(false),
+    /** 坐标去重键：round(lng,4)|round(lat,4)，约 11m 网格 */
+    dedupeKey: text('dedupe_key'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   },
   (table) => [index('idx_canonical_places_city_verified').on(table.city, table.verified)],
@@ -327,6 +338,20 @@ export const tripShareImages = pgTable('trip_share_images', {
 // ---------- 行程详情 Agent（P1）：durable 会话绑定 ----------
 // 一个业务会话对应一个 pi-durable conversation；durable 侧的 transcript 才是 Agent 的上下文，
 // 这里只存映射，避免把 SQLite 的内部 id 揉进业务表。
+// ---------- 行程体检（行前精细化）：体检会话持久化 ----------
+export const tripHealthChecks = pgTable('trip_health_checks', {
+  id: text('id').primaryKey(),
+  userId: text('user_id').notNull(),
+  tripId: text('trip_id').notNull(),
+  tripVersion: integer('trip_version').notNull(),
+  status: text('status').$type<'pending' | 'completed' | 'expired'>().notNull(),
+  findings: jsonb('findings').notNull(),
+  decisions: jsonb('decisions'),
+  result: jsonb('result'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+}, (table) => [index('idx_trip_health_checks_trip').on(table.userId, table.tripId)]);
+
 export const agentConversations = pgTable('agent_conversations', {
   userId: text('user_id').notNull(),
   conversationId: text('conversation_id').notNull(),

@@ -5,6 +5,12 @@
 
 /** 全部工具名（运行时清单 = 类型来源）：新增工具先加到这里，TOOL_COPY 漏配文案会被 tsc 拦下。 */
 export const TOOL_NAMES = [
+  // 规划 Agent（11-06）
+  'list_areas',
+  'search_area_places',
+  'plan_day',
+  'validate_plan',
+  'web_search',
   // 调研 Agent
   'search_verified_places',
   'search_pois',
@@ -68,6 +74,11 @@ export const TOOL_COPY = {
   update_description: '补充游玩提示',
   update_titles: '为旅程起个名字',
   submit_plan: '整理每日路线',
+  list_areas: '寻找适合游玩的片区',
+  search_area_places: '盘点片区里的好去处',
+  plan_day: '安排这一天的路线',
+  validate_plan: '检查行程是否顺路',
+  web_search: '参考当地游玩攻略',
 
   geocode_place: '确认景点位置',
   submit_review: '整理旅行手账',

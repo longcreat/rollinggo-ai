@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { Value } from '@sinclair/typebox/value';
 import { TripSchema, uid, type Trip, type TripVersionChain, type TripOperationRequest, type TripOperationResult } from '@tripweaver/shared';
 import { api } from '../../api/client';
-import { restoreVersion } from '../../api/detailChat';
+import { rewindVersion } from '../../api/detailChat';
 import { Modal } from '../Modal';
 import { Button } from '../ui/Button';
 
@@ -38,15 +38,15 @@ export function HistoryPanel({ currentId, chain, loading, failed, busy, initialR
         if (!Value.Check(TripSchema, saved)) throw new Error('最新版本读取失败');
         request.current = { operationId: uid(), expectedTripId: saved.id, updatedAt: saved.updatedAt };
       }
-      const result = await restoreVersion(selected, request.current);
+      const result = await rewindVersion(request.current.expectedTripId, { ...request.current, targetTripId: selected });
       await onTrip(result.trip.id, result); close();
-    } catch (err) { setError(err instanceof Error ? err.message : '恢复失败，请重试'); }
+    } catch (err) { setError(err instanceof Error ? err.message : '回退失败，请重试'); }
     finally { setPending(false); if (acquired) end(); }
   };
   return <Modal title="历史版本" size="drawer" onClose={() => { if (!pending) close(); }} footer={
     <p className="m-0 flex items-start gap-2 text-[12px] leading-[1.7] text-[var(--color-editor-page-editor-muted-56)]">
       <svg className="mt-1 shrink-0" width="13" height="13" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><circle cx="10" cy="10" r="7" /><path d="M10 9v5m0-8v1" /></svg>
-      记录生成、手动修改、修订和恢复产生的版本
+      记录生成、手动修改、修订和版本回退
     </p>
   }>
     {loading && <p role="status" className="rounded-2xl bg-white/70 p-4">正在加载版本…</p>}
@@ -65,9 +65,9 @@ export function HistoryPanel({ currentId, chain, loading, failed, busy, initialR
         <p className="mb-5 mt-0 break-words text-[14px] font-medium leading-[1.6] text-ink">{version.summary ?? version.title}</p>
         <div className="mt-auto flex flex-wrap justify-end gap-3">
           <Button variant="plain" className="min-h-8 min-w-14 rounded-[10px] border border-solid border-ink/10 bg-white px-3 py-1 text-[13px] text-ink-muted hover:bg-brand/5 disabled:opacity-35 max-[600px]:min-h-11" disabled={busy || pending || version.id === currentId} onClick={() => void switchTo(version.id)}>查看</Button>
-          {version.id !== latest?.id && <Button variant="plain" className="min-h-8 min-w-14 rounded-[10px] border border-solid border-brand/20 bg-brand/5 px-3 py-1 text-[13px] text-brand hover:bg-brand/10 disabled:opacity-50 max-[600px]:min-h-11" disabled={busy || pending} onClick={() => { setSelected(version.id); request.current = null; setError(''); }}>恢复</Button>}
+          {version.id !== latest?.id && <Button variant="plain" className="min-h-8 min-w-14 rounded-[10px] border border-solid border-brand/20 bg-brand/5 px-3 py-1 text-[13px] text-brand hover:bg-brand/10 disabled:opacity-50 max-[600px]:min-h-11" disabled={busy || pending} onClick={() => { setSelected(version.id); request.current = null; setError(''); }}>回到</Button>}
         </div>
-        {selected === version.id && <div className="mt-4 rounded-xl bg-brand/5 p-3"><p className="mt-0 text-[14px] leading-[1.7]">将 v{version.version} 的内容恢复为最新版本，现有版本会保留。</p><div className="flex flex-wrap gap-2"><Button variant="primary" disabled={busy || pending} onClick={() => void restore()}>{pending ? '正在恢复…' : '恢复为最新版本'}</Button><Button variant="ghost" disabled={pending} onClick={() => { setSelected(undefined); request.current = null; }}>取消</Button></div></div>}
+        {selected === version.id && <div className="mt-4 rounded-xl bg-brand/5 p-3"><p className="mt-0 text-[14px] leading-[1.7]">回到 v{version.version}：当前最新版 v{latest?.version} 及之后的修改会被移除。</p><div className="flex flex-wrap gap-2"><Button variant="primary" disabled={busy || pending} onClick={() => void restore()}>{pending ? '正在回退…' : '回到此版本'}</Button><Button variant="ghost" disabled={pending} onClick={() => { setSelected(undefined); request.current = null; }}>取消</Button></div></div>}
       </article>
     </li>)}</ol>
     {busy && !pending && <p>当前操作结束后可切换或恢复版本。</p>}

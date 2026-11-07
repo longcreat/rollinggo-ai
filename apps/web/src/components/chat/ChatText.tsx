@@ -1,5 +1,19 @@
-/** 只展示文本与常见加粗标记，不接受模型 HTML；流式未闭合标记继续作为普通文字。 */
-export function ChatText({ text }: { text: string }) {
-  return <>{text.split(/(\*\*[^*\n]+\*\*)/g).map((part, index) => part.startsWith('**') && part.endsWith('**') && part.length > 4
-    ? <strong key={index} className="font-semibold">{part.slice(2, -2)}</strong> : part)}</>;
+/** 助手输出用 Markdown 渲染；默认不执行 HTML。用户消息仍按纯文本显示。 */
+import ReactMarkdown, { type Components } from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+
+const components: Components = {
+  a: ({ node, children, ...props }) => {
+    void node;
+    return <a {...props} target="_blank" rel="noopener noreferrer">{children}</a>;
+  },
+};
+
+export function ChatText({ text, markdown = false }: { text: string; markdown?: boolean }) {
+  if (!markdown) return <>{text}</>;
+  return (
+    <div className="chat-markdown">
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>{text}</ReactMarkdown>
+    </div>
+  );
 }

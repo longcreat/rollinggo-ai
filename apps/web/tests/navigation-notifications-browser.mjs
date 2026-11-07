@@ -138,7 +138,7 @@ try {
   job={jobId:'active-job',status:'running',tripId:null,createdAt:now,destination:'杭州',days:3};
   await page.reload();
   await page.locator('.generation-nav:visible').click();
-  await page.waitForURL('**/generations/active-job');
+  await page.waitForURL('**/agent/active-job');
   await page.getByText('安排每日路线',{exact:true}).waitFor();
   await page.getByRole('link',{name:'我的行程',exact:true}).click();
   await page.getByRole('heading',{name:'我的行程',exact:true}).waitFor();

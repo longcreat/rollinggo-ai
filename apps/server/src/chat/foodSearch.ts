@@ -14,7 +14,7 @@ import { Value } from '@sinclair/typebox/value';
 import type { DetailSources } from './detailSources';
 import type { DetailKnowledge } from './detailKnowledge';
 import { renderOpenHours } from '../generation/scheduling/placeFacts';
-import { asRecord } from './models';
+import { asRecord } from './parse';
 
 export async function searchFood(knowledge: DetailKnowledge, sources: DetailSources, trip: Trip, dayId: string | undefined, query: string, excluded: Set<string>, signal: AbortSignal, meal: FoodCandidate['meal'] = 'lunch') {
   const days = dayId ? trip.days.filter((d) => d.id === dayId) : trip.days;
@@ -56,7 +56,7 @@ export async function searchFood(knowledge: DetailKnowledge, sources: DetailSour
   // 库内候选不足 3 条时，退到高德 POI 搜索补位（类型命中餐饮才收）
   if (candidates.length < 3) {
     const keyword = /清淡/.test(query) ? '清淡 餐厅' : '餐厅';
-    const hits = await sources.poi.searchPois('food', `${anchors[0]?.activity.name ?? ''} ${keyword}`, trip.destination);
+    const hits = await sources.poi.searchPois('food', `${anchors[0]?.activity.name ?? ''} ${keyword}`, trip.destination, signal);
     for (const poi of hits) {
       if (!poi.location || !/餐|饭|食|菜|咖啡|茶|小吃|饮/.test(poi.type + poi.name)) continue;
       add(poi.name, poi.location, poi.address, [{ title: '高德地点搜索', url: 'https://lbs.amap.com/' }], poi.type, poi.opentime);

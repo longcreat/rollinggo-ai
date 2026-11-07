@@ -11,7 +11,11 @@ import { loadPlaceIdentityIndex } from '../../services/placeIdentityService';
 import { isScopedPlace } from '../../lib/placeIdentity';
 import type { IdentityPlace } from '../../lib/placeIdentity';
 import { currentBoundRelations, validateBoundRelations, validateRelationManifest } from '../../services/placeRelationIdentity';
-import { relatedPairKey } from './schedule';
+
+/** 无向 pair key（09-27）：两端用候选池实际名，顺序无关。排程/修复解析关联对时用同一函数。 */
+export function relatedPairKey(a: string, b: string): string {
+  return a < b ? `${a}\u0000${b}` : `${b}\u0000${a}`;
+}
 
 /** 实体键（id:...）→ 关联实体键列表；无向，两侧都登记。旧测试可使用精确名称键。 */
 export type PlaceRelations = ReadonlyMap<string, readonly string[]>;

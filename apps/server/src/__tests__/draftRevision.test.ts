@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { GenerateForm, TransitLeg } from '@tripweaver/shared';
 import { DraftTrip } from '../generation/draft';
-import { buildDraftTools } from '../generation/tools/draftTools';
 
 const form: GenerateForm = { destination: '北京', days: 2, startDate: '', budgetLevel: '舒适', totalBudget: 0, preferences: [], partySize: 2, extraNotes: '' };
 
@@ -89,19 +88,12 @@ test('重复建议同一住宿区域保留已解析坐标，替换区域才清�
   assert.deepEqual(day.legs, [activityLeg], '住宿变更只使首尾住宿路线失效');
 });
 
-test('修订工具禁止重建骨架，跨天移动保留已有活动与定位信息', async () => {
-  const draft = makeDraft();
-  const tools = buildDraftTools(draft, 'revision');
-  assert.equal(tools.some((tool) => tool.name === 'set_trip_skeleton'), false);
-  assert.equal(buildDraftTools(draft).some((tool) => tool.name === 'set_trip_skeleton'), true);
-  const original = structuredClone(draft.mutableDays()[0]!.activities[0]!);
-  const move = tools.find((tool) => tool.name === 'move_activity')!;
-  await move.execute('move', { fromDayIndex: 1, activityId: original.id, toDayIndex: 2 });
-  assert.equal(draft.title, '原行程');
-  assert.deepEqual(draft.mutableDays().map((day) => day.title), ['第一天', '第二天']);
-  assert.equal(draft.mutableDays()[0]!.activities.some((activity) => activity.id === original.id), false);
-  assert.deepEqual(draft.mutableDays()[1]!.activities[0], original);
-  const snapshot = structuredClone(draft.mutableDays());
-  await move.execute('missing', { fromDayIndex: 1, activityId: 'missing', toDayIndex: 2 });
-  assert.deepEqual(draft.mutableDays(), snapshot);
+test('排程草稿持久化保留实体ID，换地点清除旧身份，改说明保留身份', () => {
+  const draft = new DraftTrip({destination:'济南',days:1,startDate:'',budgetLevel:'舒适',totalBudget:0,preferences:[],partySize:2,extraNotes:''});
+  draft.setSkeleton('济南',['游览']);
+  draft.addActivity(1,{name:'大明湖',canonicalPlaceId:'lake',category:'自然'});
+  draft.updateActivity(1,1,{description:'湖边漫步'});
+  assert.equal(draft.toTrip().days[0]!.activities[0]!.canonicalPlaceId,'lake');
+  draft.updateActivity(1,1,{name:'五龙潭'});
+  assert.equal(draft.toTrip().days[0]!.activities[0]!.canonicalPlaceId,undefined);
 });

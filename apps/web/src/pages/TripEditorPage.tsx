@@ -1,9 +1,10 @@
 import { Button } from '../components/ui/Button';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useMatch, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Value } from '@sinclair/typebox/value';
-import { keys, useMe, useLogout, useTrip, useTripConversation, useTripVersions } from '../api/hooks';
+import { keys, useHealthCheck, useMe, useLogout, useTrip, useTripConversation, useTripVersions } from '../api/hooks';
+import { HealthCheckSheet } from '../components/editor/HealthCheckSheet';
 import { api } from '../api/client';
 import { useEditorSave } from '../hooks/useEditorSave';
 import { useAppNavigation } from '../components/NavigationProvider';
@@ -22,6 +23,8 @@ import { TripOverview } from '../components/editor/TripOverview';
 import { NotificationCenter } from '../components/NotificationCenter';
 import { BotIcon, SendIcon, PlusIcon } from '../components/home/HomeIcons';
 import { Compass, PanelLeftClose } from 'lucide-react';
+import { useLiveTrip } from '../hooks/useLiveTrip';
+import { LiveAgentStream } from '../components/live/LiveAgentStream';
 
 type MobileTab = 'chat' | 'list' | 'map';
 
@@ -31,15 +34,19 @@ export function TripEditorPage() {
   const qc = useQueryClient();
   const me = useMe();
   const userId = me.data?.id;
-  const tripQuery = useTrip(id);
-  const weatherQuery = useTripWeather(id, tripQuery.data);
-  const versions = useTripVersions(id);
+  // 直播模式：/agent/:jobId 与 /trips/:id 共用同一个工作区，只切换数据源。
+  const liveJobId = useMatch('/agent/:jobId')?.params.jobId;
+  const live = Boolean(liveJobId);
+  const liveState = useLiveTrip(liveJobId);
+  const tripQuery = useTrip(id, !live);
+  const weatherQuery = useTripWeather(live ? '' : id, tripQuery.data);
+  const versions = useTripVersions(live ? '' : id);
   const latest = versions.data?.versions.reduce((a, b) => b.version > a.version ? b : a);
   const historyVersion = versions.data?.versions.find((v) => v.id === id);
-  const readOnly = !latest || latest.id !== id;
-  const conversationQuery = useTripConversation(id);
-  const conversationId = conversationQuery.data?.conversationId ?? null;
-  const save = useEditorSave(id, readOnly, (saved) => navigate(`/trips/${saved.id}`, { replace: true }));
+  const readOnly = live || !latest || latest.id !== id;
+  const conversationQuery = useTripConversation(live ? '' : id);
+  const conversationId = live ? null : conversationQuery.data?.conversationId ?? null;
+  const save = useEditorSave(live ? '' : id, readOnly, (saved) => navigate(`/trips/${saved.id}`, { replace: true }));
   const { register } = useAppNavigation();
   const flushRef = useRef(save.flush); flushRef.current = save.flush;
   useEffect(() => register(async () => {
@@ -49,7 +56,10 @@ export function TripEditorPage() {
     if (operation.current || Object.values(useEditorStore.getState().routeReplans).some((job) => job.status === 'pending')) throw new Error('行程仍在更新，请稍后再离开');
   }), [register]);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [healthOpen, setHealthOpen] = useState(false);
   const [restoreId, setRestoreId] = useState<string>();
+  const healthCheck = useHealthCheck(live ? '' : id);
+  const healthHard = healthCheck.data?.findings.filter((f) => f.severity === 'hard').length ?? 0;
   const [busy, setBusy] = useState(false);
   const operation = useRef(false);
   const nextView = useRef<{ id: string; dayIndex: number | null; activityId?: string } | null>(null);
@@ -74,7 +84,7 @@ export function TripEditorPage() {
   const clear = useEditorStore((s) => s.clear);
   const addDay = useEditorStore((s) => s.addDay);
 
-  const [mobileTab, setMobileTab] = useState<MobileTab>('list');
+  const [mobileTab, setMobileTab] = useState<MobileTab>(live ? 'chat' : 'list');
   const scrollRef = useRef<HTMLDivElement>(null);
   const setDayFilter = useEditorStore((s) => s.setDayFilter);
 
@@ -100,6 +110,34 @@ export function TripEditorPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadedId]);
   useEffect(() => () => clear(), [clear]);
+
+  // 直播：每天 plan_day 到达就整份替换合成行程，保留当前选中的天。
+  useEffect(() => {
+    const next = liveState.trip;
+    if (!live || !next) return;
+    const current = useEditorStore.getState();
+    if (current.trip?.id === next.id && current.trip.updatedAt === next.updatedAt) return;
+    const filter = current.dayFilter;
+    load(next);
+    if (filter !== null) useEditorStore.getState().setDayFilter(filter);
+  }, [live, liveState.trip, load]);
+
+  // 完成：先把正式行程写进缓存再原地切到 /trips/:id，避免闪屏。
+  useEffect(() => {
+    const completedTripId = liveState.completedTripId;
+    if (!live || !completedTripId) return;
+    let alive = true;
+    void qc.fetchQuery({
+      queryKey: keys.trip(completedTripId),
+      queryFn: () => api.get<unknown>(`/api/trips/${completedTripId}`),
+    }).then((saved) => {
+      if (!alive || !Value.Check(TripSchema, saved)) return;
+      qc.setQueryData(keys.trip(completedTripId), saved);
+      load(saved);
+      navigate(`/trips/${completedTripId}`, { replace: true });
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [live, liveState.completedTripId, qc, load, navigate]);
 
   useEffect(() => { useEditorStore.getState().setReadOnly(readOnly || busy); }, [readOnly, busy]);
   const begin = async () => {
@@ -143,9 +181,13 @@ export function TripEditorPage() {
   // 概览并入行程：候选按名称匹配到活动（内嵌卡片），未命中的进「备选」抽屉；旧行程无 overview → 两者皆空
   const overviewMatch = useMemo(() => matchOverview(trip?.days ?? [], trip?.overview), [trip]);
 
-  if (tripQuery.isPending) return <div className="page-loading p-12 text-center text-slate-400">加载中…</div>;
-  if (tripQuery.isError) return <div className="page-loading p-12 text-center text-red-500">行程加载失败：{tripQuery.error.message}</div>;
-  if (!trip) return <div className="page-loading p-12 text-center text-slate-400">准备编辑器…</div>;
+  if (!live) {
+    if (tripQuery.isPending) return <div className="page-loading p-12 text-center text-slate-400">加载中…</div>;
+    if (tripQuery.isError) return <div className="page-loading p-12 text-center text-red-500">行程加载失败：{tripQuery.error.message}</div>;
+    if (!trip) return <div className="page-loading p-12 text-center text-slate-400">准备编辑器…</div>;
+  } else if (!trip) {
+    return <div className="editor-page flex h-dvh items-center justify-center bg-[#f4f7fb] text-sm text-slate-400">正在启动生成…</div>;
+  }
   const weatherSnapshot = weatherQuery.data ?? (weatherQuery.isError ? undefined : trip.weather);
   const weather = weatherSnapshot?.destination === trip.destination ? weatherSnapshot : undefined;
 
@@ -154,6 +196,17 @@ export function TripEditorPage() {
     ['list', '行程'],
     ['map', '地图'],
   ];
+
+  // 直播终态：失败/停止后顶栏不该继续显示「正在生成」，标题里的「· 生成中」也要摘掉。
+  const liveTerminal = live ? liveState.stream.terminal?.type : undefined;
+  const liveStatus = liveTerminal === 'job_error'
+    ? { label: '生成未完成', dot: 'bg-rose-500' }
+    : liveTerminal === 'job_cancelled'
+      ? { label: '已停止', dot: 'bg-slate-400' }
+      : liveTerminal === 'job_done'
+        ? { label: '已生成', dot: 'bg-emerald-500' }
+        : { label: '正在生成', dot: 'bg-emerald-500 motion-safe:animate-pulse' };
+  const displayTitle = liveTerminal ? trip.title.replace(/\s*·\s*生成中$/, '') : trip.title;
 
   const endDate = dateForDayIndex(trip.startDate, Math.max(1, trip.days.length));
   const dateLabel = trip.startDate && endDate
@@ -192,8 +245,8 @@ export function TripEditorPage() {
             <span>返回</span>
           </Link>
           <div className="flex items-center gap-3 min-w-0">
-            <h1 className="text-base font-bold text-slate-900 truncate m-0 flex items-center gap-1.5" title={trip.title}>
-              <span>{trip.title}</span>
+            <h1 className="text-base font-bold text-slate-900 truncate m-0 flex items-center gap-1.5" title={displayTitle}>
+              <span>{displayTitle}</span>
             </h1>
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/90 text-xs text-slate-600 whitespace-nowrap">
               <EditorIcon name="calendar" />
@@ -212,6 +265,29 @@ export function TripEditorPage() {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {live && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600">
+              <span className={`h-1.5 w-1.5 rounded-full ${liveStatus.dot}`} aria-hidden="true" />
+              {liveStatus.label}
+            </span>
+          )}
+          {!live && <>
+          <Button
+            variant="secondary"
+            onClick={() => setHealthOpen(true)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors cursor-pointer ${
+              healthHard > 0 ? 'border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100' : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+            }`}
+            title="行程体检：检查超载、闭馆日、排不下等硬冲突"
+          >
+            <Compass className="w-3.5 h-3.5" />
+            <span>体检</span>
+            {healthHard > 0 && (
+              <span className="inline-flex items-center justify-center min-w-4 h-4 px-1 rounded-full bg-rose-600 text-white text-[10px] leading-none font-bold">
+                {healthHard}
+              </span>
+            )}
+          </Button>
           <Button
             variant="secondary"
             onClick={() => { setRestoreId(undefined); setHistoryOpen(true); }}
@@ -223,10 +299,18 @@ export function TripEditorPage() {
           </Button>
           <ExportMenu trip={trip} />
           {userId && <NotificationCenter key={userId} userId={userId} />}
+          </>}
+          <HealthCheckSheet
+            open={healthOpen}
+            onClose={() => setHealthOpen(false)}
+            tripId={id}
+            tripUpdatedAt={trip.updatedAt}
+            check={healthCheck.data}
+          />
         </div>
       </header>
 
-      {latest && latest.id !== id && (
+      {!live && latest && latest.id !== id && (
         <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-2 text-xs text-amber-800 shrink-0" role="status">
           <span>正在查看历史版本 v{historyVersion?.version}</span>
           <Button disabled={busy} onClick={() => { void (async () => { await begin(); try { await onTrip(latest.id); } finally { end(); } })().catch(() => setHistoryOpen(true)); }}>返回最新版本</Button>
@@ -252,7 +336,7 @@ export function TripEditorPage() {
       <main className={`editor-body flex-1 flex min-h-0 gap-3 relative max-[768px]:flex-col mobile-${mobileTab}`}>
         {/* 左栏：RollingGo AI 对话面板 */}
         <aside
-          className={`editor-chat w-[360px] lg:w-[380px] shrink-0 flex flex-col rounded-3xl bg-white border border-slate-200/80 shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden min-h-0 z-10 transition-all duration-200 ${
+          className={`editor-chat w-[360px] lg:w-[380px] shrink-0 flex flex-col rounded-3xl bg-white border border-slate-200/80 shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden min-h-0 z-10 transition-all duration-200 max-[768px]:flex-1 max-[768px]:min-h-0 ${
             aiPanelOpen ? 'flex' : 'hidden'
           } max-[768px]:w-full max-[768px]:${mobileTab === 'chat' ? 'flex' : 'hidden'}`}
           aria-label="旅行AI助手"
@@ -278,7 +362,24 @@ export function TripEditorPage() {
 
           {/* 对话内容与输入流 */}
           <div className="flex-1 min-h-0 flex flex-col">
-            {conversationId ? (
+            {live ? (
+              <LiveAgentStream
+                stream={liveState.stream}
+                destination={liveState.trip?.destination ?? ''}
+                days={liveState.trip?.days.length}
+                cancelling={liveState.cancelling}
+                error={liveState.cancellationError ?? liveState.error}
+                lost={liveState.lost}
+                onCancel={liveState.cancel}
+                onHome={() => navigate('/')}
+                onRetry={() => {
+                  // 失败重试：复用手上这份表单参数回 /trips/new 自动再发起一次；
+                  // 没有留档（比如从通知里恢复的任务）时退回首页，别把用户卡死在死路。
+                  const saved = sessionStorage.getItem('tw.lastTripDraftParams');
+                  navigate(saved ? `/trips/new?${saved}&autostart=1` : '/');
+                }}
+              />
+            ) : conversationId ? (
               <ChatPanel
                 conversationId={conversationId}
                 trip={trip}

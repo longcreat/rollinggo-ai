@@ -10,13 +10,10 @@ import {
   simulateTrip,
   type Activity,
   type DaySimContext,
-  type GenerateForm,
   type TransitLeg,
   type Trip,
   type TripDay,
 } from '@tripweaver/shared';
-import { DraftTrip } from '../generation/draft';
-import { buildSubmitPlanTool } from '../generation/tools/draftTools';
 
 // ---------- 夹具 ----------
 
@@ -247,49 +244,6 @@ test('feasibilityReviewNotes：hard 在前、去重、限量（守生成不失�
   const notes = feasibilityReviewNotes(report, 4);
   assert.ok(notes.length > 0 && notes.length <= 4);
   assert.match(notes[0]!, /可行性遗留/);
-});
-
-// ---------- submit_plan 硬门槛的耗尽降级（decision 2：不 throw，最终放行交降级） ----------
-
-function draftForm(): GenerateForm {
-  return { destination: '上海', days: 1, startDate: '', budgetLevel: '经济', totalBudget: 0, preferences: [], partySize: 1, extraNotes: '' };
-}
-
-test('submit_plan 硬门槛：hard 违规先阻断回灌清单，连续 3 次后放行（不死循环）', async () => {
-  const draft = new DraftTrip(draftForm());
-  draft.setSkeleton('测试', ['第一天']);
-  // 单日 08:00-23:00 → overpacked 硬违规（完整性通过、可行性不通过）
-  draft.addActivity(1, { name: 'A（含午餐、晚餐安排）', startTime: '08:00', endTime: '23:00', lat: P.lat, lng: P.lng, coordSource: 'geocoded' });
-  assert.equal(draft.validate().length, 0, '完整性应通过');
-  assert.ok(draft.feasibility().violations.some((v) => v.severity === 'hard'), '应有 hard 违规');
-
-  let passed = false;
-  const tool = buildSubmitPlanTool(draft, () => (passed = true));
-  const call = () => tool.execute('c', {} as never) as Promise<{ details?: { pass?: boolean }; terminate?: boolean }>;
-
-  for (let i = 0; i < 3; i++) {
-    const r = await call();
-    assert.equal(r.details?.pass, false, `第 ${i + 1} 次应被硬门槛阻断`);
-    assert.equal(passed, false);
-  }
-  const final = await call();
-  assert.equal(final.details?.pass, true, '连续阻断后放行，交修订轮/降级处理');
-  assert.equal(final.terminate, true);
-  assert.equal(passed, true);
-});
-
-test('submit_plan：可行的草稿一次通过（feasible plan 不被门槛误伤）', async () => {
-  const draft = new DraftTrip(draftForm());
-  draft.setSkeleton('测试', ['第一天']);
-  draft.addActivity(1, { name: 'A', startTime: '09:00', endTime: '11:00', lat: P.lat, lng: P.lng, coordSource: 'geocoded' });
-  draft.addActivity(1, { name: '午餐｜市中心 · 当地风味', startTime: '11:30', endTime: '12:30', category: '美食', lat: P.lat, lng: P.lng, coordSource: 'geocoded' });
-  draft.addActivity(1, { name: 'B', startTime: '13:00', endTime: '15:00', lat: P.lat, lng: P.lng + 0.005, coordSource: 'geocoded' });
-  draft.addActivity(1, { name: '晚餐｜老城 · 当地风味', startTime: '18:00', endTime: '19:00', category: '美食', lat: P.lat, lng: P.lng, coordSource: 'geocoded' });
-  let passed = false;
-  const tool = buildSubmitPlanTool(draft, () => (passed = true));
-  const r = (await tool.execute('c', {} as never)) as { details?: { pass?: boolean } };
-  assert.equal(r.details?.pass, true);
-  assert.equal(passed, true);
 });
 
 // ---------- closed_on_arrival（硬，09-22-opentime） ----------

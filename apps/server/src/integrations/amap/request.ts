@@ -20,6 +20,8 @@ function report(level: 'info' | 'warn', data: Record<string, unknown>) {
 /** 个人认证 Key 的每秒并发上限（CUQPS_HAS_EXCEEDED_THE_LIMIT）：瞬时拒绝，退避后可恢复。 */
 const CUQPS_INFOCODE = '10021';
 const CUQPS_RETRY_DELAY_MS = 800;
+/** 只计量模式下，超额提醒按「服务 + 自然日」去重，避免每次外呼一条 warn。 */
+const overBudgetWarned = new Set<string>();
 
 function wait(ms: number, signal?: AbortSignal): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -31,15 +33,19 @@ function wait(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 /** No raw URL, upstream body, address, coordinate or credential ever enters diagnostics. */
-export async function amapRequest(service: AmapService, params: URLSearchParams, timeout = 10_000, signal?: AbortSignal): Promise<Record<string, unknown>> {
+export async function amapRequest(service: AmapService, params: URLSearchParams, timeout = 10_000, signal?: AbortSignal, path?: string): Promise<Record<string, unknown>> {
   // 最多两轮：第二轮只发生在 CUQPS 瞬时超限（10021）时。
   for (let attempt = 0; ; attempt += 1) {
     signal?.throwIfAborted();
     const started = Date.now();
     let decision: ServiceQuotaDecision;
     try {
-      do { decision = await amapQuotaGate.acquire(service); }
-      while (decision.allowed && decision.day !== amapDay().day);
+      // 账本在午夜前后可能按旧自然日预扣，重取一次即可；不设上限会在时钟/账本异常时死循环并持续打库。
+      for (let dayRetry = 0; ; dayRetry += 1) {
+        decision = await amapQuotaGate.acquire(service);
+        if (!decision.allowed || decision.day === amapDay().day) break;
+        if (dayRetry >= 1) throw new Error('高德调用计量日期不一致');
+      }
     } catch {
       report('warn', { service, outcome: 'budget_store_error' });
       throw new Error('高德调用计量暂不可用');
@@ -48,11 +54,21 @@ export async function amapRequest(service: AmapService, params: URLSearchParams,
       report('warn', { ...decision, outcome: 'local_budget_exhausted' });
       throw new Error(`高德 ${service} 今日调用预算已用完`);
     }
+    // 关闭拦截后仍保留超额可见性：每种服务每天只提醒一次，不刷屏。
+    if (decision.used > decision.limit) {
+      const key = `${decision.day}:${decision.service}`;
+      if (!overBudgetWarned.has(key)) {
+        overBudgetWarned.add(key);
+        report('warn', { ...decision, outcome: 'over_budget' });
+      }
+    }
     let response: Response;
     try {
       const timeoutSignal = AbortSignal.timeout(timeout);
-      response = await fetch(`https://restapi.amap.com${AMAP_PATHS[service]}?${params}`, { signal: signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal });
+      response = await fetch(`https://restapi.amap.com${path ?? AMAP_PATHS[service]}?${params}`, { signal: signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal });
     } catch (error) {
+      // 取消要穿透成 AbortError：调用方靠它区分「用户取消」与「上游失败」，不能伪装成后者。
+      signal?.throwIfAborted();
       report('warn', { service, outcome: error instanceof Error && ['TimeoutError', 'AbortError'].includes(error.name) ? 'timeout' : 'network_error', used: decision.used, limit: decision.limit, durationMs: Date.now() - started });
       throw new Error('高德请求失败');
     }

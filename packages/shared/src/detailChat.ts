@@ -5,12 +5,6 @@ import { SourceNoteSchema, TripSchema } from './schemas';
 
 export const CHAT_SUGGESTIONS = ['food', 'explore', 'pace', 'more_food', 'light_food', 'dinner'] as const;
 export const CHAT_SUGGESTION_KINDS = [...CHAT_SUGGESTIONS, 'follow_up'] as const;
-export const ChatFollowUpSchema = Type.Object({
-  label: Type.String({ minLength: 1, maxLength: 30, pattern: '\\S' }),
-  text: Type.String({ minLength: 1, maxLength: 300, pattern: '\\S' }),
-  kind: StringEnum(CHAT_SUGGESTION_KINDS),
-}, { additionalProperties: false });
-export type ChatFollowUp = Static<typeof ChatFollowUpSchema>;
 export const MEAL_KINDS = ['lunch', 'dinner', 'snack'] as const;
 export const MealPositionSchema = Type.Object({
   dayId: Type.String({ minLength: 1, maxLength: 100 }),
@@ -32,13 +26,82 @@ export const FoodCandidateSchema = Type.Object({
   position: Type.Optional(MealPositionSchema),
 });
 export type FoodCandidate = Static<typeof FoodCandidateSchema>;
+// Human-in-the-Loop 问题契约（参考 dsh / opencode / openclaw 的 ask_user）：
+// Agent 在工具执行中暂停，前端展示问题卡，用户通过独立接口回答后同一回合继续。
+export const AgentQuestionOptionSchema = Type.Object({
+  label: Type.String({ minLength: 1, maxLength: 80 }),
+  description: Type.Optional(Type.String({ maxLength: 200 })),
+});
+export const AgentQuestionSchema = Type.Object({
+  id: Type.String({ minLength: 1, maxLength: 100 }),
+  question: Type.String({ minLength: 1, maxLength: 300 }),
+  header: Type.Optional(Type.String({ maxLength: 60 })),
+  options: Type.Array(AgentQuestionOptionSchema, { maxItems: 6 }),
+  multiSelect: Type.Optional(Type.Boolean()),
+});
+export const AgentQuestionAnswerSchema = Type.Object({
+  id: Type.String({ minLength: 1, maxLength: 100 }),
+  selected: Type.Array(Type.String({ maxLength: 100 }), { maxItems: 6 }),
+  custom: Type.Optional(Type.String({ maxLength: 300 })),
+});
+export const AgentQuestionAnswersRequestSchema = Type.Object({
+  answers: Type.Array(AgentQuestionAnswerSchema, { minItems: 1, maxItems: 6 }),
+});
+export const PendingQuestionViewSchema = Type.Object({
+  id: Type.String(),
+  requestId: Type.String(),
+  questions: Type.Array(AgentQuestionSchema, { minItems: 1, maxItems: 3 }),
+  createdAt: Type.Integer(),
+  expiresAt: Type.Integer(),
+});
+export type AgentQuestionOption = Static<typeof AgentQuestionOptionSchema>;
+export type AgentQuestion = Static<typeof AgentQuestionSchema>;
+export type AgentQuestionAnswer = Static<typeof AgentQuestionAnswerSchema>;
+export type AgentQuestionAnswersRequest = Static<typeof AgentQuestionAnswersRequestSchema>;
+export type PendingQuestionView = Static<typeof PendingQuestionViewSchema>;
+
+// Agent 处理过程的结构化步骤（只含工具动作，不含参数/结果/思维链）。
+export const AGENT_STEP_STATUSES = ['running', 'done', 'error', 'stopped'] as const;
+export const AgentStepSchema = Type.Object({
+  /** 工具调用 id；SSE 内按它 upsert */
+  id: Type.String({ minLength: 1, maxLength: 100 }),
+  /** 稳定工具名，前端用于分组 */
+  name: Type.String({ minLength: 1, maxLength: 60 }),
+  /** 用户向标签，服务端 TOOL_LABEL 单一来源 */
+  label: Type.String({ minLength: 1, maxLength: 40 }),
+  status: StringEnum(AGENT_STEP_STATUSES),
+  startedAt: Type.Optional(Type.Integer({ minimum: 0 })),
+  durationMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 600000 })),
+}, { additionalProperties: false });
+export type AgentStep = Static<typeof AgentStepSchema>;
+
+// 一轮回答的有序片段：正文段、工具段与 HITL 问答按真实事件顺序排列（对齐 pi transcript / Qoder 的已处理块）。
+export const AgentPartSchema = Type.Union([
+  Type.Object({ type: Type.Literal('text'), text: Type.String({ maxLength: 4000 }) }),
+  Type.Object({ type: Type.Literal('steps'), steps: Type.Array(AgentStepSchema, { maxItems: 24 }) }),
+  /** 指向 `ChatAttachment.questions[index]`：问答记录出现在被问到的位置，而不是统一挪到回答末尾。 */
+  Type.Object({ type: Type.Literal('question'), index: Type.Integer({ minimum: 0 }) }),
+]);
+export type AgentPart = Static<typeof AgentPartSchema>;
+
 export const ChatAttachmentSchema = Type.Object({
   tripId: Type.String(), dayId: Type.Optional(Type.String()),
   notice: Type.Optional(Type.String({ maxLength: 500 })),
   summary: Type.Array(Type.String({ maxLength: 300 }), { maxItems: 20 }),
+  /** 结构化处理过程；旧消息没有时前端用 summary 回退 */
+  steps: Type.Optional(Type.Array(AgentStepSchema, { maxItems: 24 })),
+  /** 正文与工具块的真实顺序；旧消息没有时前端回退到「过程在上、正文在下」 */
+  parts: Type.Optional(Type.Array(AgentPartSchema, { maxItems: 40 })),
+  elapsedMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 3_600_000 })),
   references: Type.Optional(Type.Array(SourceNoteSchema, { maxItems: 8 })),
   candidates: Type.Array(FoodCandidateSchema, { maxItems: 3 }),
-  suggestions: Type.Array(Type.Union([StringEnum(CHAT_SUGGESTIONS), ChatFollowUpSchema]), { maxItems: 3 }),
+  /** 本轮 HITL 问答记录，刷新后仍可回看（Agent 工具内提问，不是文末选项）。 */
+  questions: Type.Optional(Type.Array(Type.Object({
+    question: Type.String({ maxLength: 300 }),
+    options: Type.Array(Type.String({ maxLength: 100 }), { maxItems: 6 }),
+    selected: Type.Array(Type.String({ maxLength: 100 }), { maxItems: 6 }),
+    custom: Type.Optional(Type.String({ maxLength: 300 })),
+  }), { maxItems: 3 })),
   clarification: Type.Optional(Type.Object({
     question: Type.String({ minLength: 1, maxLength: 300 }),
     options: Type.Array(Type.String({ minLength: 1, maxLength: 100 }), { minItems: 2, maxItems: 3 }),
@@ -73,6 +136,12 @@ export const AddFoodRequestSchema = Type.Composite([TripOperationRequestSchema, 
 })]);
 export type AddFoodRequest = Static<typeof AddFoodRequestSchema>;
 export type TripOperationRequest = Static<typeof TripOperationRequestSchema>;
+/** 回退：把 targetTripId 设为当前版本，删除它之后的版本（不做复制）。 */
+export const TripRewindRequestSchema = Type.Composite([TripOperationRequestSchema, Type.Object({
+  targetTripId: Type.String({ minLength: 1, maxLength: 100 }),
+})]);
+export type TripRewindRequest = Static<typeof TripRewindRequestSchema>;
+
 export const TripOperationResultSchema = Type.Object({
   trip: TripSchema, version: Type.Integer({ minimum: 1 }),
   activityId: Type.Optional(Type.String()), dayId: Type.Optional(Type.String()),

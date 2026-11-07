@@ -91,28 +91,6 @@ try {
   await check('.collection-card:nth-child(1) .collection-destination', true, '北京行程封面');
   await check('.collection-card:nth-child(2) .collection-destination', false, '生僻城市封面整段回退');
   await page.screenshot({ path: path.join(out, 'collection.png') });
-  await page.goto(base);
-  await page.waitForSelector('#root > *');
-  await page.evaluate(async () => {
-    const { default: React } = await import('/node_modules/.vite/deps/react.js');
-    const { default: ReactDOM } = await import('/node_modules/.vite/deps/react-dom_client.js');
-    const { GenerationRunPanel } = await import('/src/components/GenerationRunPanel.tsx');
-    document.querySelector('#root').remove();
-    const host = document.createElement('div'); document.body.append(host);
-    ReactDOM.createRoot(host).render(React.createElement(GenerationRunPanel, {
-      city: '北京', days: 3, cancelling: false, cancellationError: null, onCancel() {}, onReset() {}, onOpenTrip() {},
-      events: [
-        { type: 'job_start', at: Date.now(), destination: '北京', days: 3, dataSources: [] },
-        { type: 'phase_start', phase: 'research', round: 1 },
-        { type: 'tool_start', phase: 'research', toolCallId: 'font-status', label: '漫步中轴宫苑' },
-        ...['故宫 · 角楼黄昏', '颐和园 · 昆明湖', '古罍听风'].map((name, i) => ({ type: 'candidate', poi: { id: `font-${i}`, name, category: 'attraction', coverUrl: '/home-bg.png', intro: '' } })),
-      ],
-    }));
-  });
-  await page.waitForFunction(() => document.querySelectorAll('figcaption.gen-polaroid-caption').length === 3);
-  await check('figure:nth-child(1) figcaption', true, '相片题字');
-  await check('figure:nth-child(2) figcaption', true, '颐和园相片题字');
-  await check('figure:nth-child(3) figcaption', false, '生僻地名相片整段回退');
   assert.equal(writes, 0, 'Font rendering must not rewrite stored trips');
   assert.deepEqual(errors, []);
   assert.deepEqual(assetErrors, []);

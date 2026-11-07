@@ -7,15 +7,6 @@ import { currentFixture } from './currentFixture';
 import { checkNotePlaces } from '../noteChecks';
 import { createManifest, reportMarkdown } from '../artifacts';
 import { buildReport, evaluateCase } from '../runner';
-import { intentCases } from '../intentCases';
-
-test('历史选项定位使用未出现的地点，避免把重复地点澄清误判为失败', () => {
-  const trip = currentFixture(MATRIX_CASES[0]!).trip;
-  trip.days[0]!.activities[0]!.name = '玉渊潭公园';
-  const context = intentCases(trip).find((c) => c.id === 'notes-option-context')!;
-  assert.match(context.history![0]!.content, /陶然亭公园/);
-  assert.match(context.expected, /陶然亭公园/);
-});
 
 test('矩阵覆盖每城 3/5 日与四种偏好，云南排除，历史金集 ID 不冲突', () => {
   assert.equal(MATRIX_CASES.length, 88);

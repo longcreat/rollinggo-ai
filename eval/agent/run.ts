@@ -14,7 +14,7 @@ import { fakeSources, fauxModels, fixtureTrip, gateOf, gatedTool } from './fixtu
 import { AgentBusyError, closeAgentRuntime, runAgentTurn } from '../../apps/server/src/chat/agent/runtime';
 import { createTripDraft } from '../../apps/server/src/chat/agent/tripDraft';
 import { createTripTools, tripSnapshot, webSearchPayload } from '../../apps/server/src/chat/agent/tools';
-import { shouldUseAgent } from '../../apps/server/src/chat/agent/routing';
+import { SUBAGENT_READ_ONLY_TOOL_NAMES, assertSubagentToolNames } from '../../apps/server/src/chat/agent/toolPolicy';
 
 export interface CaseResult { id: string; name: string; ok: boolean; detail: string }
 
@@ -44,35 +44,26 @@ export async function runDeterministic(): Promise<CaseResult[]> {
   };
 
   try {
-    await record('route', '分流：咨询与（写模式下的）修改进 Agent', () => {
-      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: false, food: false, intent: 'travel_qa' }), true);
-      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: false, food: false, intent: 'unclear' }), true);
-      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: false, food: false, intent: null }), true);
-      // 写工具关闭时修改意图仍走确定性编辑链（P1 只读边界）
-      assert.equal(shouldUseAgent({ enabled: true, writes: false, isSuggestion: false, food: false, intent: 'modify_itinerary' }), false);
-      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: false, food: false, intent: 'modify_itinerary' }), true);
-      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: false, food: false, intent: 'confirm' }), false);
-      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: true, food: false, intent: 'travel_qa' }), false);
-      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: false, food: true, intent: 'travel_qa' }), false);
-      assert.equal(shouldUseAgent({ enabled: true, writes: true, isSuggestion: false, food: false, clarification: true, intent: 'travel_qa' }), false);
-      assert.equal(shouldUseAgent({ enabled: false, writes: true, isSuggestion: false, food: false, intent: 'travel_qa' }), false);
-      return '10 种组合符合预期';
+    await record('tool-policy', '子代理只读白名单：写/交互/派生工具一律拒绝', () => {
+      assert.deepEqual([...SUBAGENT_READ_ONLY_TOOL_NAMES].sort(), ['get_day', 'get_trip', 'get_weather', 'search_places', 'web_search']);
+      assert.doesNotThrow(() => assertSubagentToolNames([...SUBAGENT_READ_ONLY_TOOL_NAMES]));
+      for (const forbidden of ['add_activity', 'delete_day', 'search_food', 'ask_user', 'update_brief', 'start_generation', 'spawn_subagents']) {
+        assert.throws(() => assertSubagentToolNames(['get_trip', forbidden]), /只读工具/, forbidden);
+      }
+      return '白名单与拒绝规则符合预期';
     });
 
-    await record('tool-inventory', '工具集：只读 5 个，写模式追加 9 个写工具', () => {
+    await record('tool-inventory', '主 Agent 全量工具：只读 6 + 交互/生成 4 + 写 9', () => {
       const signal = AbortSignal.timeout(5_000);
-      const readOnly = createTripTools({ trip: fixtureTrip, sources: fakeSources().sources, signal })
-        .map((tool) => tool.name).sort();
-      assert.deepEqual(readOnly, ['get_day', 'get_trip', 'get_weather', 'search_places', 'web_search']);
-
       const draft = createTripDraft(fixtureTrip);
       const writable = createTripTools({ trip: fixtureTrip, sources: fakeSources().sources, signal, draft })
         .map((tool) => tool.name).sort();
       assert.deepEqual(writable, [
-        'add_activity', 'add_day', 'delete_activity', 'delete_day', 'get_day', 'get_trip', 'get_weather',
-        'move_activity', 'reorder_day', 'search_places', 'update_activity', 'update_day', 'update_trip', 'web_search',
+        'add_activity', 'add_day', 'ask_user', 'delete_activity', 'delete_day', 'get_day', 'get_trip', 'get_weather',
+        'move_activity', 'reorder_day', 'search_area_places', 'search_food', 'search_places', 'start_generation',
+        'update_activity', 'update_brief', 'update_day', 'update_trip', 'web_search',
       ]);
-      return `${readOnly.length} 只读 / ${writable.length} 含写`;
+      return `${writable.length} 个全量工具`;
     });
 
     await record('write-draft', '写工具改草稿，读工具立即看到，不落库', async () => {
@@ -204,7 +195,7 @@ export async function runLive(only = new Set<string>()): Promise<CaseResult[]> {
 
   const ask = async (prompt: string) => runAgentTurn({
     storagePath: await storage(), models,
-    tools: createTripTools({ trip: fixtureTrip, sources: realSources(), signal: AbortSignal.timeout(120_000) }),
+    tools: createTripTools({ trip: fixtureTrip, sources: realSources(), signal: AbortSignal.timeout(120_000), draft: createTripDraft(fixtureTrip) }),
     instructions: '你是行程详情页的旅行助手。先调用工具确认事实再回答，只依据工具结果，不补充自己的知识；中文，不超过 80 字。',
     model, prompt,
   });

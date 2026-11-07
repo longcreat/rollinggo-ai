@@ -21,7 +21,7 @@ import {
   type TripConstraint,
   type Trip,
 } from '@tripweaver/shared';
-import { asRecord, readStringArray } from './models';
+import { asRecord, readStringArray } from './parse';
 
 /** 各文本字段的长度上限，与 shared 的 schema 同源；模型给超长值时截断而不是丢弃 */
 const TEXT_LIMITS = {

@@ -87,7 +87,9 @@ function RouteOptionsForPair({ pairKey, tripId, input, dayId, leg }: {
           return <Button variant="plain" key={mode} type="button" disabled={!valid || option?.status === 'unavailable'}
             aria-pressed={selected} aria-busy={pending}
             className={['flex min-h-12 w-full items-center gap-3 rounded-[10px] border-0 px-3 py-2 text-left text-[13px] shadow-none transition-colors disabled:cursor-not-allowed disabled:opacity-50',
-              selected ? '[background:var(--editor-gradient)] text-white' : 'bg-transparent text-[var(--color-editor-menu-color-83)] hover:bg-[var(--color-editor-menu-list-background-87)]'].join(' ')}
+              // 选中态用主题里真实存在的深墨蓝（与日期 tab 选中同族）；曾用未定义的 --editor-gradient，
+              // 变量缺失导致背景透明 + 白字 = 整行隐形（用户看到的「大空白」就是选中的那一项）。
+              selected ? '[background:var(--color-editor-page-editor-ink-55)] text-white' : 'bg-transparent text-[var(--color-editor-menu-color-83)] hover:bg-[var(--color-editor-menu-list-background-87)]'].join(' ')}
             onClick={() => void select(mode)}>
             <EditorIcon name={mode === 'transit' ? 'route' : mode} />
             <span className="shrink-0">{LEG_MODE_LABEL[mode]}</span>

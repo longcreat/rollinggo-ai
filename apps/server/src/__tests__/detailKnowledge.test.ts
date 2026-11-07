@@ -1,19 +1,19 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeSampleTrip } from '@tripweaver/shared';
 import { createPlaceRetriever, type RetrievedPlace } from '../generation/placeRetrieval';
 import { rankPlaces } from '../generation/retrievalRanking';
 import { createDetailSources } from '../chat/detailSources';
-import { allowsWebSearch, collectReferences, retrieveDetailKnowledge } from '../chat/detailKnowledge';
+import { allowsWebSearch, collectReferences } from '../chat/detailKnowledge';
 
 const place = (id: string, name = id): RetrievedPlace => ({ id, name, city: '北京', category: '文化', source: 'manual', verified: true, lat: 39.9, lng: 116.4, payload: {}, evidence: [], aliases: [] });
 const signal = () => new AbortController().signal;
 const selfCheck = async () => ({ configured: true, checked: true, ok: true, message: '' });
-function sources(options: { search?: () => Promise<any[]>; reserve?: (source: 'poi' | 'search', count: number) => Promise<null | ((used: number) => Promise<void>)>; abort?: AbortSignal } = {}) {
+function sources(options: { search?: () => Promise<any[]>; reserve?: (source: 'poi' | 'search', count: number) => Promise<null | ((used: number) => Promise<void>)>; abort?: AbortSignal; budgets?: { poi: number; search: number } } = {}) {
   return createDetailSources({
     poi: { kind: 'amap', searchPois: async () => [], selfCheck },
     search: { kind: 'websearch', search: options.search ?? (async () => []), selfCheck },
     reserve: options.reserve ?? (async () => async () => {}),
+    ...(options.budgets ? { budgets: options.budgets } : {}),
   }, options.abort ?? signal());
 }
 
@@ -64,24 +64,23 @@ test('无向量配置或向量服务失败时保留 SQL，正式生成关闭向�
   }
 });
 
-test('普通问答复用已有资料；时效性或资料不足才联网，来源协议受限', async () => {
-  const trip = makeSampleTrip(); trip.destination = '北京';
-  let webCalls = 0;
-  const session = sources({ search: async () => { webCalls++; return [{ title: '官方说明', url: 'https://example.com/policy', summary: '说明', siteName: '', datePublished: '2026-10-03' }]; } });
-  const input = { trip, question: '这趟旅行有什么特点', recentQuestions: [], preferences: [], food: false, signal: signal(), sources: session, progress: () => {},
-    retrieve: async (_names: string[], options: any) => { assert.equal(options.vector, 'force'); options.onDiagnostics({ keywordHits: 3, vector: 'used', vectorHits: 1 }); return [place('a'), place('b'), place('c')]; } };
-  await retrieveDetailKnowledge(input); assert.equal(webCalls, 0);
-  const fresh = await retrieveDetailKnowledge({ ...input, question: '现在需要预约吗？' });
-  assert.equal(webCalls, 1); assert.equal(fresh.references[0]!.url, 'https://example.com/policy');
-  await retrieveDetailKnowledge({ ...input, question: '仅用知识库，现在要预约吗？' }); assert.equal(webCalls, 1);
-  await retrieveDetailKnowledge({ ...input, question: '有哪些玩法', retrieve: async () => [] }); assert.equal(webCalls, 2);
+test('联网意愿是纯函数：明确拒绝联网即禁网；引用消毒去凭据/去重/限量', () => {
   assert.equal(allowsWebSearch('不要联网搜索'), false);
-  assert.deepEqual(collectReferences([{ title: 'x', url: 'javascript:alert(1)' }, { title: 'x', url: 'https://user:password@example.com' }, ...fresh.references, ...fresh.references]), fresh.references);
+  assert.equal(allowsWebSearch('只用知识库回答'), false);
+  assert.equal(allowsWebSearch('现在需要预约吗？'), true);
+  const references = collectReferences([
+    { title: 'x', url: 'javascript:alert(1)' },
+    { title: 'x', url: 'https://user:password@example.com' },
+    { title: '官方说明', url: 'https://example.com/policy' },
+    { title: '官方说明', url: 'https://example.com/policy' },
+  ]);
+  assert.deepEqual(references, [{ title: '官方说明', url: 'https://example.com/policy' }]);
 });
 
 test('本轮来源共享去重和额度，预算服务异常必须向上抛', async () => {
   const charged: number[] = []; let requests = 0;
-  const session = sources({ search: async () => { requests++; return []; }, reserve: async () => async (used) => { charged.push(used); } });
+  // 钉住预算：这条测的是「超过上限会被拦」这个机制，不该随默认值调整而失效。
+  const session = sources({ budgets: { poi: 8, search: 2 }, search: async () => { requests++; return []; }, reserve: async () => async (used) => { charged.push(used); } });
   await Promise.all([session.search.search('同一个问题'), session.search.search('同一个问题')]);
   await session.search.search('另一个问题'); await session.search.search('超出本轮上限');
   assert.equal(requests, 2); assert.deepEqual(charged, [1, 1]);

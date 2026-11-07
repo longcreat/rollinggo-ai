@@ -23,7 +23,7 @@ import type {
   TravelPreferences,
   UsageView,
 } from '@tripweaver/shared';
-import { TRIP_LIST_PAGE_SIZE, TravelPreferencesSchema, NotificationPageSchema, GenerationJobViewSchema } from '@tripweaver/shared';
+import { TRIP_LIST_PAGE_SIZE, TravelPreferencesSchema, NotificationPageSchema, GenerationJobViewSchema, type HealthCheckView, type HealthDecisionsRequest } from '@tripweaver/shared';
 import { Value } from '@sinclair/typebox/value';
 import { api, resetAuthState, shouldRetryQuery } from './client';
 
@@ -66,6 +66,7 @@ export const keys = {
   trips: ['trips'] as const,
   trip: (id: string) => ['trips', id] as const,
   conversation: (id: string) => ['conversations', id] as const,
+  healthCheck: (tripId: string) => ['health-check', tripId] as const,
   tripVersions: (id: string) => ['trips', id, 'versions'] as const,
 };
 
@@ -214,8 +215,8 @@ export function useTrips(filters: TripListFilters) {
   });
 }
 
-export function useTrip(id: string) {
-  return useQuery({ queryKey: keys.trip(id), queryFn: () => api.get<Trip>(`/api/trips/${id}`) });
+export function useTrip(id: string, enabled = true) {
+  return useQuery({ queryKey: keys.trip(id), queryFn: () => api.get<Trip>(`/api/trips/${id}`), enabled: enabled && Boolean(id) });
 }
 
 /** 版本链（详情页版本切换）。只有一版时也要请求：用它判断要不要显示切换器 */
@@ -224,6 +225,46 @@ export function useTripVersions(id: string) {
     queryKey: keys.tripVersions(id),
     queryFn: () => api.get<TripVersionChain>(`/api/trips/${id}/versions`),
     enabled: Boolean(id),
+  });
+}
+
+// ---------- 行程体检（行前精细化） ----------
+export function useHealthCheck(tripId: string) {
+  return useQuery({
+    queryKey: keys.healthCheck(tripId),
+    queryFn: () => api.get<HealthCheckView>(`/api/trips/${tripId}/health-check/latest`),
+    enabled: Boolean(tripId),
+    retry: false,   // 404 = 尚未体检，不重试
+  });
+}
+
+export function useStartHealthCheck(tripId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<HealthCheckView>(`/api/trips/${tripId}/health-check`, {}),
+    onSuccess: (view) => { qc.setQueryData(keys.healthCheck(tripId), view); },
+  });
+}
+
+export function useVerifyFinding(tripId: string, checkId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (findingId: string) =>
+      api.post<HealthCheckView>(`/api/trips/${tripId}/health-check/${checkId}/findings/${findingId}/verify`, {}),
+    onSuccess: (view) => { qc.setQueryData(keys.healthCheck(tripId), view); },
+  });
+}
+
+export function useResolveHealthCheck(tripId: string, checkId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: HealthDecisionsRequest) =>
+      api.post<HealthCheckView>(`/api/trips/${tripId}/health-check/${checkId}/decisions`, body),
+    onSuccess: (view) => {
+      qc.setQueryData(keys.healthCheck(tripId), view);
+      void qc.invalidateQueries({ queryKey: keys.trips });
+      void qc.invalidateQueries({ queryKey: keys.tripVersions(tripId) });
+    },
   });
 }
 

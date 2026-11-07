@@ -47,16 +47,12 @@ const run = async (tool: { execute: (...args: never[]) => Promise<unknown> }, ar
 };
 
 describe('工具装配', () => {
-  it('没有草稿时只有 5 个只读工具（P1 行为不变）', () => {
-    const tools = createTripTools({ trip: trip(), sources: sources(), signal: new AbortController().signal });
-    assert.deepEqual(tools.map((tool) => tool.name), ['get_trip', 'get_day', 'search_places', 'web_search', 'get_weather']);
-  });
-
-  it('有草稿时追加 9 个写工具，且读工具仍在', () => {
+  it('主 Agent 全量工具：读 6 + 美食/追问/Brief/生成 4 + 写 9', () => {
     const draft = createTripDraft(trip());
     const tools = createTripTools({ trip: trip(), sources: sources(), signal: new AbortController().signal, draft });
     assert.deepEqual(tools.map((tool) => tool.name), [
-      'get_trip', 'get_day', 'search_places', 'web_search', 'get_weather',
+      'get_trip', 'get_day', 'search_places', 'search_area_places', 'web_search', 'get_weather',
+      'search_food', 'ask_user', 'update_brief', 'start_generation',
       'add_activity', 'update_activity', 'delete_activity', 'move_activity', 'reorder_day',
       'add_day', 'update_day', 'delete_day', 'update_trip',
     ]);

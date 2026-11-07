@@ -21,7 +21,7 @@ import {
 } from './constants';
 import { StringEnum } from './typebox';
 import { EditOpOutcomeSchema } from './editOps';
-import { ChatAttachmentSchema } from './detailChat';
+import { AgentQuestionAnswerSchema, AgentStepSchema, ChatAttachmentSchema, PendingQuestionViewSchema } from './detailChat';
 import type { BriefMissingField, GenerateForm, PlanningBriefData, TripConstraint } from './types';
 
 // ---------- 约束模型 ----------
@@ -136,8 +136,12 @@ export const SendMessageResultSchema = Type.Object({
 const StreamEnvelope = { requestId: Type.String(), sequence: Type.Integer({ minimum: 1 }) };
 export const ChatStreamEventSchema = Type.Union([
   Type.Object({ ...StreamEnvelope, type: Type.Literal('accepted') }),
-  Type.Object({ ...StreamEnvelope, type: Type.Literal('progress'), text: Type.String() }),
-  Type.Object({ ...StreamEnvelope, type: Type.Literal('answer_delta'), text: Type.String() }),
+  Type.Object({ ...StreamEnvelope, type: Type.Literal('progress'), text: Type.String(), step: Type.Optional(AgentStepSchema) }),
+  Type.Object({ ...StreamEnvelope, type: Type.Literal('answer_delta'), text: Type.String(), replace: Type.Optional(Type.Boolean()) }),
+  // HITL：Agent 在工具执行中暂停，用户回答后同一回合继续。
+  Type.Object({ ...StreamEnvelope, type: Type.Literal('question'), question: PendingQuestionViewSchema }),
+  Type.Object({ ...StreamEnvelope, type: Type.Literal('question_answered'), questionId: Type.String(), answers: Type.Array(AgentQuestionAnswerSchema, { maxItems: 6 }) }),
+  Type.Object({ ...StreamEnvelope, type: Type.Literal('question_expired'), questionId: Type.String(), reason: StringEnum(['timeout', 'cancelled'] as const) }),
   Type.Object({ ...StreamEnvelope, type: Type.Literal('recommendations'), attachment: ChatAttachmentSchema }),
   Type.Object({ ...StreamEnvelope, type: Type.Literal('edit_result'), result: Type.Object({ tripId: Type.String(), version: Type.Integer({ minimum: 1 }), outcomes: Type.Array(EditOpOutcomeSchema, { maxItems: 10 }) }) }),
   Type.Object({ ...StreamEnvelope, type: Type.Literal('done'), result: SendMessageResultSchema }),

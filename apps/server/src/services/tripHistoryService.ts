@@ -1,9 +1,9 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, gt } from 'drizzle-orm';
 import { Value } from '@sinclair/typebox/value';
-import { foodAlreadyAdded, foodPositionProblem, foodTimes, ChatAttachmentSchema, TripOperationResultSchema, TripSchema, MEAL_LABELS, effectiveLegMode, estimateTransit, wgs84ToGcj02, uid, type AddFoodRequest, type FoodCandidate, type Trip, type TripOperationRequest } from '@tripweaver/shared';
+import { foodAlreadyAdded, foodPositionProblem, foodTimes, ChatAttachmentSchema, TripOperationResultSchema, TripSchema, MEAL_LABELS, effectiveLegMode, estimateTransit, wgs84ToGcj02, uid, type AddFoodRequest, type FoodCandidate, type Trip, type TripOperationRequest, type TripRewindRequest } from '@tripweaver/shared';
 import { db } from '../db/client';
 import { chatMessages, trips } from '../db/schema';
-import { appendMessages, createConversation, findConversationForTrip, saveBrief, syncConversationTripDates } from './conversationService';
+import { appendMessages, createConversation, findConversationForRoot, findConversationForTrip, saveBrief, syncConversationTripDates } from './conversationService';
 import { assertLatestTrip, createTrip, getTrip, lockTripWriter } from './tripService';
 import { commitOperation, operationFingerprint, readOperation } from './detailOperationService';
 import { getRouteOptions } from './routeOptionsService';
@@ -36,7 +36,7 @@ export async function restoreTrip(userId: string, sourceId: string, input: TripO
     if (source.id === latest.id) throw Object.assign(new Error('当前已是最新版本'), { statusCode: 409 });
     if (!Value.Check(TripSchema, source.data)) throw new Error('历史行程数据无效');
     const trip = await createTrip(userId, source.data, latest.id, tx);
-    const summary = `已从 v${source.version} 恢复为 v${latest.version + 1}`;
+    const summary = `已恢复到 v${source.version} 的内容（新版本 v${latest.version + 1}）`;
     await tx.update(trips).set({ changeSummary: summary }).where(and(eq(trips.id, trip.id), eq(trips.userId, userId)));
     if (conversationId) {
       const messages = await appendMessages({ userId, conversationId, messages: [{ role: 'assistant', content: summary, relatedTripId: trip.id }] }, tx);
@@ -44,6 +44,32 @@ export async function restoreTrip(userId: string, sourceId: string, input: TripO
       await syncConversationTripDates(userId, conversationId, trip, tx);
     }
     return { trip, version: latest.version + 1 };
+  });
+}
+
+/** 真正回退：删除 target 之后的版本，让 target 重新成为当前版本；不复制、不新建版本。 */
+export async function rewindTrip(userId: string, currentId: string, input: TripRewindRequest) {
+  const fingerprint = operationFingerprint('rewind', [currentId, input]);
+  const old = await readOperation(userId, input.operationId, fingerprint);
+  if (old) return old;
+  return commitOperation(userId, input.operationId, fingerprint, async (tx) => {
+    const latest = await assertLatestTrip(userId, input.expectedTripId, input.updatedAt, tx);
+    const [target] = await tx.select().from(trips)
+      .where(and(eq(trips.id, input.targetTripId), eq(trips.userId, userId), eq(trips.rootId, latest.rootId)));
+    if (!target) throw Object.assign(new Error('历史版本不存在'), { statusCode: 404 });
+    if (target.version >= latest.version) throw Object.assign(new Error('没有可回退的修改'), { statusCode: 409 });
+    if (!Value.Check(TripSchema, target.data)) throw new Error('历史行程数据无效');
+    await tx.delete(trips).where(and(eq(trips.userId, userId), eq(trips.rootId, latest.rootId), gt(trips.version, target.version)));
+    // 会话关联（generations.conversationId / chat_messages.relatedTripId）可能只挂在刚删掉的版本上，
+    // 按 target 反查会落空 → Brief 天数不同步；沿同 rootId 的存活版本（本事务视角）再查一次兜底。
+    const conversationId = (await findConversationForTrip(userId, target.id))
+      ?? (await findConversationForRoot(userId, latest.rootId, tx));
+    if (conversationId) {
+      // 关联重新锚回存活版本：否则下一轮「行程 → 会话」反查仍会落空（prepareDetailChat 404 / 重复建会话）。
+      const messages = await appendMessages({ userId, conversationId, messages: [{ role: 'assistant', content: `已回退到 v${target.version} 的内容。`, relatedTripId: target.id }] }, tx);
+      if (messages) await syncConversationTripDates(userId, conversationId, target.data, tx);
+    }
+    return { trip: target.data, version: target.version };
   });
 }
 
@@ -124,10 +150,7 @@ export async function addFood(userId: string, conversationId: string, input: Add
       await tx.update(trips).set({ changeSummary: summary }).where(and(eq(trips.id, trip.id), eq(trips.userId, userId)));
       const messages = await appendMessages({ userId, conversationId, messages: [{
         role: 'assistant', content: summary, relatedTripId: trip.id,
-        attachment: { tripId: trip.id, dayId: input.position.dayId, summary: [], candidates: [], suggestions: [
-          { label: '看看用餐前后怎么走', text: `第 ${day!.dayIndex} 天在「${candidate.name}」吃${MEAL_LABELS[input.position.meal]}，前后景点的交通怎么安排？`, kind: 'follow_up' },
-          { label: '检查用餐后的行程节奏', text: `第 ${day!.dayIndex} 天加入「${candidate.name}」作为${MEAL_LABELS[input.position.meal]}后，行程节奏是否合理？先给建议。`, kind: 'pace' },
-        ] },
+        attachment: { tripId: trip.id, dayId: input.position.dayId, summary: [], candidates: [] },
       }] }, tx);
       if (!messages) throw Object.assign(new Error('关联会话已不存在'), { statusCode: 404 });
     }

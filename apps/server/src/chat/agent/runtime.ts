@@ -11,16 +11,19 @@ import {
   createRegistry,
   defineExtension,
   type ConversationId,
+  type EntryId,
   type Registry,
   type ToolRegistration,
 } from '@earendil-works/pi-durable';
 import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite/node';
 import { createSubagentTool } from './subagent';
+import { assertSubagentToolNames, toolsForRole } from './toolPolicy';
 
 export type AgentStreamEvent =
+  // 当前 generation 的完整正文快照；HITL 后 generation 会重开，增量不可靠。
   | { type: 'text'; text: string }
-  | { type: 'tool_start'; callId: string; name: string }
-  | { type: 'tool_end'; callId: string; name: string; status: string }
+  | { type: 'tool_start'; callId: string; name: string; startedAt: number }
+  | { type: 'tool_end'; callId: string; name: string; status: 'done' | 'error' | 'stopped'; durationMs: number }
   | { type: 'done'; conversationId: ConversationId }
   | { type: 'error'; message: string };
 
@@ -161,7 +164,7 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
     if (conversationId === null) {
       const conversation = await harness.createConversation({
         ownership: { kind: 'ownerless' },
-        agent: { instructions: options.instructions, model: options.model, maxTurns: options.maxTurns ?? 10 },
+        agent: { instructions: options.instructions, model: options.model, maxTurns: options.maxTurns },
       }, context);
       conversationId = conversation.id;
       await options.onConversationCreated?.(conversationId);
@@ -169,14 +172,21 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
     const conversation = await harness.conversation(conversationId, context);
     if (!conversation) throw new Error(`durable 会话 ${conversationId} 不存在`);
 
-    // 模型按轮写回：用户切换 Key/模型后，旧会话也会跟着换。
-    await conversation.configure({ model: options.model }, context);
+    // 模型、系统指令与轮次上限按轮写回：用户切换模型后旧会话跟着换；
+    // 提示词更新也必须应用到已经存在的 durable 会话，否则老行程会一直用旧 instructions。
+    // maxTurns 未设置时传 null：harness 的默认是无上限，同时清掉旧会话里曾经写死的上限。
+    await conversation.configure({
+      model: options.model,
+      instructions: options.instructions,
+      maxTurns: options.maxTurns ?? null,
+    }, context);
 
     // 子代理扩展依赖当前会话 id（子会话按「父会话 + 槽位」复用），只能在会话确定后装配。
     if (options.subagent) {
-      // 白名单按名字从本轮工具里挑：子代理拿到的是同一批只读工具闭包（同一份行程与数据源）。
+      // 构造期收敛：配置里出现写/交互/派生工具直接失败；再按 toolPolicy 的只读白名单取交集。
+      assertSubagentToolNames(options.subagent.childTools);
       const allowed = new Set(options.subagent.childTools);
-      const childTools = options.tools.filter((tool) => allowed.has(tool.name));
+      const childTools = toolsForRole(options.tools, 'subagent').filter((tool) => allowed.has(tool.name));
       registry.install(defineExtension({
         name: 'subagents',
         tools: [createSubagentTool({
@@ -201,9 +211,21 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
     const onAbort = () => { void conversation.abort(context).catch(() => {}); };
     options.signal?.addEventListener('abort', onAbort, { once: true });
 
-    const toolStates = new Map<string, string>();
+    const toolStates = new Map<string, 'running' | 'done' | 'error' | 'stopped'>();
+    const openTools = new Map<string, { name: string; startedAt: number }>();
     const toolCalls: string[] = [];
     let streamed = '';
+
+    const finishOpenTools = () => {
+      for (const [callId, tool] of openTools) {
+        toolStates.set(callId, 'stopped');
+        options.onEvent?.({
+          type: 'tool_end', callId, name: tool.name, status: 'stopped',
+          durationMs: Math.max(0, Date.now() - tool.startedAt),
+        });
+      }
+      openTools.clear();
+    };
 
     live.start(async (call) => {
       if (call.kind !== 'value') return;
@@ -211,42 +233,78 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
       for (const slot of value?.tools ?? []) {
         const previous = toolStates.get(slot.callId);
         if (!previous) {
-          toolStates.set(slot.callId, slot.status);
+          const startedAt = Date.now();
+          toolStates.set(slot.callId, 'running');
+          openTools.set(slot.callId, { name: slot.name, startedAt });
           toolCalls.push(slot.name);
-          options.onEvent?.({ type: 'tool_start', callId: slot.callId, name: slot.name });
+          options.onEvent?.({ type: 'tool_start', callId: slot.callId, name: slot.name, startedAt });
         }
-        if (slot.status === 'done' && previous !== 'done') {
-          toolStates.set(slot.callId, 'done');
-          options.onEvent?.({ type: 'tool_end', callId: slot.callId, name: slot.name, status: slot.status });
+        if (slot.status === 'done' && previous !== 'done' && previous !== 'error') {
+          const startedAt = openTools.get(slot.callId)?.startedAt ?? Date.now();
+          const failed = Boolean(slot.diagnostics?.some((item) => item.severity === 'error')) || slot.entry === undefined;
+          const status = failed ? 'error' : 'done';
+          toolStates.set(slot.callId, status);
+          openTools.delete(slot.callId);
+          options.onEvent?.({
+            type: 'tool_end', callId: slot.callId, name: slot.name, status,
+            durationMs: Math.max(0, Date.now() - startedAt),
+          });
         }
       }
       const partial = value?.generation?.message;
       const text = readAnswerText(partial);
-      if (text.length > streamed.length) {
-        options.onEvent?.({ type: 'text', text: text.slice(streamed.length) });
+      // generation.message 本身就是完整快照；HITL 后会从空重新长，按快照替换而不是累加增量。
+      if (text !== streamed) {
+        options.onEvent?.({ type: 'text', text });
         streamed = text;
       }
     });
 
     try {
       options.signal?.throwIfAborted();
+      // 本轮新产生的 durable entries 边界；HITL 会有多条 assistant entry，全部按顺序读回。
+      const head = await conversation.entries({ order: 'descending' }, 1, undefined, context).catch(() => undefined);
+      const minEntryId = head?.items[0] ? (head.items[0].id + 1) as EntryId : undefined;
       const submission = await conversation.submit({ type: 'input', content: options.prompt }, context);
-      const settled = await submission.wait(context);
+      let settled = await submission.wait(context);
+      // turn_limit 是可续跑的：工具结果已经落盘，continue 会从结果继续并重置轮次计数。
+      for (let resume = 0; settled.status === 'unanswered' && settled.reason === 'turn_limit' && resume < 2; resume++) {
+        const continuation = await conversation.submit({ type: 'continue' }, context);
+        settled = await continuation.wait(context);
+      }
       await conversation.waitForIdle(context);
       // 中断后不再把半截回答当结果返回；抛 AbortError 让调用方走「已停止」分支。
       options.signal?.throwIfAborted();
-      if (settled.status !== 'done' || settled.type !== 'input') {
-        const reason = settled.status === 'unanswered' ? settled.reason : settled.status;
+      if (settled.status !== 'done') {
+        finishOpenTools();
+        const reason = settled.reason;
         options.onEvent?.({ type: 'error', message: String(reason) });
         return { conversationId, status: String(reason), text: '', toolCalls };
       }
-      const entry = await conversation.commit((tx) => tx.entry(AssistantEntry, settled.answer), context);
+      // 普通输入由宿主提交最终回答；continue 的回答已经作为 entry 落盘，直接读 transcript。
+      const entry = settled.type === 'input'
+        ? await conversation.commit((tx) => tx.entry(AssistantEntry, settled.answer), context)
+        : undefined;
       const answer = readAnswerText(entry?.model?.[0]);
-      if (answer.length > streamed.length) options.onEvent?.({ type: 'text', text: answer.slice(streamed.length) });
+      if (answer && answer !== streamed) options.onEvent?.({ type: 'text', text: answer });
+      // 和 pi 的 transcript 一样以 committed entries 为准：ask_user 前后的正文都在，
+      // 不再依赖流式增量拼接（增量在 generation 重开时会重复或缺段）。
+      const transcript = await conversation.entries({
+        ...(minEntryId !== undefined ? { minEntryId } : {}),
+        order: 'ascending',
+      }, 200, undefined, context).catch(() => undefined);
+      const text = transcript?.items
+        .filter((item) => item.kind === AssistantEntry.kind)
+        .flatMap((item) => item.model ?? [])
+        .map((message) => readAnswerText(message))
+        .filter((part) => part.trim())
+        .join('\n\n') || answer;
+      finishOpenTools();
       options.onEvent?.({ type: 'done', conversationId });
-      return { conversationId, status: 'done', text: answer, toolCalls };
+      return { conversationId, status: 'done', text, toolCalls };
     } finally {
       options.signal?.removeEventListener('abort', onAbort);
+      finishOpenTools();
       // 停止失败不能盖住原始错误（尤其是 AbortError，调用方靠它区分「已停止」）。
       await live.stop().catch(() => {});
     }

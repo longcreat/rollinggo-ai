@@ -185,13 +185,15 @@ export type GenerationCancelReason = 'user' | 'timeout';
  *  兼容说明：xhsEnabled / xhsCalls / usedXhs 为小红书时代的旧前端兼容字段——
  *  xhsEnabled 现语义为「有任一外部调研数据源可用」，xhsCalls 恒 0，usedXhs 恒 false */
 type GenerationEventPayload =
-  | { type: 'job_start'; destination: string; /** 任务天数（标题回显用）；旧事件与重放可能缺失，缺失时前端退回 URL 草稿值 */ days?: number; xhsEnabled: boolean; dataSources: DataSourceKind[] }
+  | { type: 'job_start'; destination: string; /** 任务天数（标题回显用）；旧事件与重放可能缺失，缺失时前端退回 URL 草稿值 */ days?: number; /** 起始日期：直播页合成行程用于日期/天气展示，旧事件可能缺失 */ startDate?: string; xhsEnabled: boolean; dataSources: DataSourceKind[] }
   | { type: 'phase_start'; phase: GenerationPhase; round: number; note?: string }
   | { type: 'phase_end'; phase: GenerationPhase; round: number; summary?: string; durationMs?: number }
   | { type: 'thought'; phase: GenerationPhase; text: string }
   | { type: 'tool_start'; phase: GenerationPhase; toolCallId: string; tool: string; label: string; args: string }
   | { type: 'tool_end'; phase: GenerationPhase; toolCallId: string; tool: string; label: string; summary: string; isError: boolean; durationMs?: number }
   | { type: 'candidate'; poi: ResearchPoi }   // 调研 Agent 每写入一条候选即推送（概览卡片实时长出）
+  // 规划 Agent 每排完一天即推送（直播页逐日长出行程与地图点位）；不替代最终落库的 Trip
+  | { type: 'plan_day'; dayIndex: number; title?: string; stops: PlanDayEventStop[] }
   // LLM 请求上下文快照（09-20 调试视图）：每次 API 请求推送完整上下文，响应到后回填结果；turn 在阶段内从 1 递增
   | { type: 'llm_request'; phase: GenerationPhase; turn: number; model: string; systemPrompt: string; messages: unknown[]; tools: unknown[] }
   | { type: 'llm_response'; phase: GenerationPhase; turn: number; stopReason?: string; tokensIn?: number; tokensOut?: number; errorMessage?: string }
@@ -199,6 +201,15 @@ type GenerationEventPayload =
   | { type: 'job_done'; tripId: string; usedXhs: boolean; dataSources: DataSourceKind[]; reviewNotes: string[]; durationMs?: number }
   | { type: 'job_error'; message: string; durationMs?: number }
   | { type: 'job_cancelled'; reason?: GenerationCancelReason; durationMs?: number };
+
+export interface PlanDayEventStop {
+  name: string;
+  lat: number;
+  lng: number;
+  startTime: string;
+  endTime: string;
+  category: ActivityCategory;
+}
 
 /** 服务端事件时间（Unix ms）用于稳定重放耗时；可选以兼容旧事件。 */
 export type GenerationEvent = GenerationEventPayload & { at?: number };

@@ -33,6 +33,11 @@ export async function chatUsageView(userId: string): Promise<UsageView> {
   };
 }
 
-export async function chatHasQuota(userId: string): Promise<boolean> {
-  return (await chatTurnsToday(userId)) < env.chatDailyLimit;
+/**
+ * 对话额度闸门：2026-11-07 定调「测试环境不限量」，恒可用；chatTurnsToday/chatUsageView 仍供 /api/usage 展示。
+ * 生产恢复点：恢复原判定 `(await chatTurnsToday(userId)) < env.chatDailyLimit`。
+ */
+export async function chatHasQuota(_userId: string): Promise<boolean> {
+  void _userId;
+  return true;
 }

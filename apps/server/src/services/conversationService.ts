@@ -95,21 +95,26 @@ export async function getConversation(userId: string, id: string): Promise<Conve
  * 其次 chat_messages.relatedTripId（按需编辑产出，编辑不写 generations）。
  * 都没有（表单时代/导入的行程）返回 null，编辑器据此隐藏对话面板。
  */
-export async function findConversationForTrip(userId: string, tripId: string): Promise<string | null> {
-  const [anchor] = await db
+export async function findConversationForTrip(userId: string, tripId: string, writer: TripWriter = db): Promise<string | null> {
+  const [anchor] = await writer
     .select({ rootId: trips.rootId })
     .from(trips)
     .where(and(eq(trips.id, tripId), eq(trips.userId, userId)));
   if (!anchor) return null;
-  const chainIds = db.select({ id: trips.id }).from(trips).where(and(eq(trips.rootId, anchor.rootId), eq(trips.userId, userId)));
-  const [fromGeneration] = await db
+  return findConversationForRoot(userId, anchor.rootId, writer);
+}
+
+/** 同 rootId 版本链的会话反查：generations.conversationId 优先，其次 chat_messages.relatedTripId，任一命中即返回。 */
+export async function findConversationForRoot(userId: string, rootId: string, writer: TripWriter = db): Promise<string | null> {
+  const chainIds = writer.select({ id: trips.id }).from(trips).where(and(eq(trips.rootId, rootId), eq(trips.userId, userId)));
+  const [fromGeneration] = await writer
     .select({ conversationId: generations.conversationId })
     .from(generations)
     .where(and(eq(generations.userId, userId), inArray(generations.tripId, chainIds)))
     .orderBy(desc(generations.createdAt))
     .limit(1);
   if (fromGeneration?.conversationId) return fromGeneration.conversationId;
-  const [fromMessage] = await db
+  const [fromMessage] = await writer
     .select({ conversationId: chatMessages.conversationId })
     .from(chatMessages)
     .where(and(eq(chatMessages.userId, userId), inArray(chatMessages.relatedTripId, chainIds)))

@@ -28,7 +28,7 @@ function AppLayoutContent({ userId }: { userId: string }) {
   const openLogin = useLoginDialog();
   const navigate = useNavigate();
   const location = useLocation();
-  const isTripEditor = /^\/trips\/[^/]+$/.test(location.pathname) && location.pathname !== '/trips/new';
+  const isTripEditor = /^\/(trips|agent)\/[^/]+$/.test(location.pathname) && location.pathname !== '/trips/new';
 
   const preferences = useTravelPreferencesDraft();
   const navigation = useAppNavigation();
@@ -38,7 +38,7 @@ function AppLayoutContent({ userId }: { userId: string }) {
     event.preventDefault();
     void navigation.go(to);
   };
-  const generationLink = generation.running && generation.jobId ? `/generations/${encodeURIComponent(generation.jobId)}` : null;
+  const generationLink = generation.running && generation.jobId ? `/agent/${encodeURIComponent(generation.jobId)}` : null;
   const progress = (mobile: boolean) => generationLink && <NavLink to={generationLink} onClick={(event) => follow(event, generationLink)} className={`generation-nav items-center justify-center gap-2 rounded-full border border-solid border-brand/10 bg-brand/[0.07] px-4 text-[13px] font-medium text-brand transition-colors hover:bg-brand/10 focus-visible:outline-2 focus-visible:outline-brand ${mobile ? 'mt-2 flex min-h-10 w-full min-[601px]:hidden' : 'mr-3 flex min-h-10 max-w-[240px] max-[600px]:hidden'}`}><Spinner /><span className="truncate">{generation.destination ? `${generation.destination} · ` : ''}生成中</span><NavigationIcon name="arrow" className="h-4 w-4 shrink-0" /></NavLink>;
 
   return <div className={`app-layout flex flex-col [background:var(--color-canvas)_url('/home-bg.webp')_center_/_cover_no-repeat] ${isTripEditor ? 'h-dvh max-h-dvh overflow-hidden min-h-0' : 'min-h-dvh'} [&:has(.home-page-root)_.app-main]:p-0 [@media_screen]:[&:has(.editor-page)]:h-dvh [@media_screen]:[&:has(.editor-page)]:min-h-0 [@media_screen]:[&:has(.editor-page)]:overflow-hidden [@media_screen]:[&:has(.editor-page)_.app-main]:overflow-hidden [@media_screen]:[&_.editor-page]:flex-1 [@media_screen]:[&_.editor-page]:h-auto [@media_screen]:[&_.editor-page]:max-h-none`}>

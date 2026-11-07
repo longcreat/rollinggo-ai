@@ -4,8 +4,9 @@
  * 任务模型：POST 只做闸门校验 + 建 job + 后台跑，立即 202 返回 jobId；
  * 前端拿 jobId 开 SSE 追进度。配额在**任务结束时**扣（取消/失败不计）。
  *
- * 闸门顺序（改之前想清楚）：会话/行程归属 → LLM 配置 → 配额 → 并发；
+ * 闸门顺序（改之前想清楚）：会话/行程归属 → LLM 配置 → 并发；
  * 并发只能一个（`getRunningJobId`），否则同一用户的两份草稿会抢同一份 Brief。
+ * 生成配额闸门已随「测试环境不限量」（2026-11-07）移除；生产恢复点见 quotaService.hasQuota。
  *
  * SSE 重放：每条事件带递增 id，客户端断线重连时用 `Last-Event-ID`（或 query 参数）回补；
  * 已终止的任务也能回放终态，避免前端卡在「进行中」。
@@ -16,7 +17,6 @@ import { GenerateFormSchema, type GenerationEvent } from '@tripweaver/shared';
 import { requireAuth } from '../auth/guard';
 import { resolveLlmConfig } from '../services/settingsService';
 import { getConversation } from '../services/conversationService';
-import { hasQuota, usageView } from '../services/quotaService';
 import { getTrip } from '../services/tripService';
 import { hasSiteLlm } from '../env';
 import { createJob, getJob, getRunningJobId, jobView, subscribe, type StoredEvent } from '../generation/jobManager';
@@ -69,10 +69,7 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
       // PRD F1 异常文案分流：前端按 hasSiteKey 展示「联系站长」或「去高级设置填 Key」
       return reply.code(400).send({ error: '当前没有可用的 AI 配置', code: 'no_llm', hasSiteKey: hasSiteLlm() });
     }
-    if (!(await hasQuota(userId))) {
-      const usage = await usageView(userId);
-      return reply.code(429).send({ error: '今日生成次数已用完', code: 'quota_exhausted', resetAt: usage.resetAt });
-    }
+    // 生成额度不限量（测试环境）：原 429 闸门已移除，恢复点见 quotaService.hasQuota 注释。
     const runningId = getRunningJobId(userId);
     if (runningId) {
       return reply.code(409).send({ error: '已有生成任务进行中', code: 'job_running', jobId: runningId });

@@ -10,6 +10,13 @@ export const AMAP_PATHS: Record<AmapService, string> = {
   transit: '/v5/direction/transit/integrated',
 };
 
+/** 搜索类接口共用 `place` 服务的配额与队列：文本 / 多边形 / 周边。 */
+export const AMAP_SEARCH_PATHS = {
+  text: '/v5/place/text',
+  polygon: '/v5/place/polygon',
+  around: '/v5/place/around',
+} as const;
+
 export function amapDay(now = Date.now()) {
   const start = Math.floor((now + 8 * 3600_000) / 86400_000) * 86400_000 - 8 * 3600_000;
   return { day: String(start), start, resetAt: start + 86400_000 };

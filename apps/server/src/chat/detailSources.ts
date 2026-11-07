@@ -7,7 +7,7 @@
  * 关键约定：额度/账本错误必须**冒泡**（assertHealthy），不能吞成「无资料」——
  * 把预算耗尽伪装成「没查到」会让用户以为没结果，而不是额度用完了。
  */
-import type { PoiSource } from '../integrations/geoContracts';
+import type { PoiSource, SourcedPoi } from '../integrations/geoContracts';
 import type { SearchSource, WebSearchHit } from '../integrations/websearch/searchSource';
 
 interface SourceDeps {
@@ -19,6 +19,10 @@ interface SourceDeps {
    * 这里注入的 reserve 恒成功、结算为空操作。
    */
   reserve: (source: 'poi' | 'search', count: number) => Promise<null | ((used: number) => Promise<void>)>;
+  /** 片区检索（高德周边/多边形）：与 poi 共用单轮预算；未配置时返回空。 */
+  areaSearch?: (query: { center: { lat: number; lng: number }; radiusM: number; keywords?: string }, signal: AbortSignal) => Promise<SourcedPoi[]>;
+  /** 单轮外部检索上限；缺省 8 POI / 4 联网。 */
+  budgets?: { poi: number; search: number };
 }
 
 /** 一轮问答、美食和追加调研共享上限与缓存；预算错误必须冒泡，不能吞成无资料。 */
@@ -39,7 +43,7 @@ export function createDetailSources(deps: SourceDeps, signal: AbortSignal, allow
       const label = kind === 'poi' ? '地点搜索' : '联网搜索';
       if (kind === 'search' && !allowWeb) { notes.add('按要求未使用联网搜索。'); return []; }
       if (!configured) { notes.add(`${label}尚未配置，使用已有资料回答。`); return []; }
-      if (calls[kind] >= (kind === 'poi' ? 4 : 2)) { notes.add(`本轮${label}次数已达上限。`); return []; }
+      if (calls[kind] >= (kind === 'poi' ? (deps.budgets?.poi ?? 8) : (deps.budgets?.search ?? 4))) { notes.add(`本轮${label}次数已达上限。`); return []; }
       calls[kind]++;
       // search 一次一个请求；高德 POI 一次一个请求（配额在适配器内部扣）。
       const cost = 1;
@@ -80,7 +84,12 @@ export function createDetailSources(deps: SourceDeps, signal: AbortSignal, allow
     },
     selfCheck: () => deps.search.selfCheck(),
   };
-  return { poi, search, notes, calls, web, assertHealthy };
+  const searchArea = async (query: { center: { lat: number; lng: number }; radiusM: number; keywords?: string }): Promise<SourcedPoi[]> => {
+    if (!deps.areaSearch) return [];
+    const key = `area|${query.center.lat.toFixed(4)}|${query.center.lng.toFixed(4)}|${query.radiusM}|${query.keywords ?? ''}`;
+    return call('poi', key, deps.poi.kind !== 'null', () => deps.areaSearch!(query, signal));
+  };
+  return { poi, search, searchArea, notes, calls, web, assertHealthy };
 }
 export type DetailSources = ReturnType<typeof createDetailSources>;
 
@@ -90,6 +99,8 @@ export async function resolveDetailSources(userId: string, signal: AbortSignal, 
   const { resolvePoiSourceForUser } = await import('../integrations/geoProvider');
   const { resolveSearchSourceForUser } = await import('../integrations/websearch/searchSource');
   const { reserveEditorGeoBudget } = await import('../services/quotaService');
+  const { searchAreaPois } = await import('../integrations/amap/placeArea');
+  const { env } = await import('../env');
   const { source: search } = await resolveSearchSourceForUser(userId);
   const poi = await resolvePoiSourceForUser(userId);
   // 高德 POI 的配额在适配器内部原子扣（amap_service_usage.place），editor 账本只管 search。
@@ -98,5 +109,7 @@ export async function resolveDetailSources(userId: string, signal: AbortSignal, 
     poi: poi.source,
     search,
     reserve: (source, count) => source === 'search' ? reserveEditorGeoBudget('search', count) : noop(),
+    ...(env.amapKey ? { areaSearch: (query, sig) => searchAreaPois(env.amapKey, query, sig) } : {}),
+    budgets: { poi: env.chatPoiBudget, search: env.chatWebBudget },
   }, signal, allowWeb);
 }

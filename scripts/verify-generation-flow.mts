@@ -33,8 +33,6 @@ const { createSession } = await import('../apps/server/src/auth/session');
 const { generationRoutes } = await import('../apps/server/src/routes/generations');
 const { notificationRoutes } = await import('../apps/server/src/routes/notifications');
 const { recordGenerationNotification, listNotifications } = await import('../apps/server/src/services/notificationService');
-const { applyDeterministicSchedule } = await import('../apps/server/src/generation/scheduling/buildDraft');
-const { DraftTrip } = await import('../apps/server/src/generation/draft');
 const form = { destination: '北京', days: 3, startDate: '', budgetLevel: '经济' as const,
   partySize: 1, preferences: ['美食'] as ['美食'], totalBudget: 0, extraNotes: '', pace: 'tight' as const };
 const cfg = { baseUrl: 'http://127.0.0.1:18808/v1', apiKey: 'mock', model: 'mock-chat', byok: false };
@@ -199,38 +197,6 @@ try {
   assert.equal(facts.get('金集地标')!.recommendScore, undefined);
   assert.equal(poiScore(facts.get('金集地标'), scoreMaxima([...facts.values()])), 65);
   console.log('PASS 数据库缺失评分经加载、合并、评分后仍为中性值');
-
-  const denseDraft = new DraftTrip({ ...form, days: 1 });
-  const names = Array.from({ length: 8 }, (_, i) => `街区${i}`);
-  applyDeterministicSchedule({ draft: denseDraft, form: { ...form, days: 1 }, foodFocused: true,
-    pool: names.map((name) => ({ id: name, name, category: 'attraction', intro: '', reservation: 'unknown', sourceLinks: [] })),
-    locations: new Map(names.map((name, i) => [name, { lat: 39.9, lng: 116.4 + i * .001, adcode: '' }])),
-    facts: new Map(names.map((name) => [name, { name, source: 'xhs', category: '购物', themes: [], aliases: [], placeType: 'street' }])),
-    longHaul: [], relations: new Map(),
-  });
-  assert.deepEqual(denseDraft.validate(), []);
-  assert.equal(denseDraft.mutableDays()[0]!.activities.length, 8);
-  console.log('PASS 紧凑美食排程写入真实草稿满足 8 活动上限');
-
-  const suburbForm = { ...form, days: 1 };
-  const suburbDraft = new DraftTrip(suburbForm);
-  applyDeterministicSchedule({ draft: suburbDraft, form: suburbForm, foodFocused: true,
-    pool: [{ id: 'wall', name: '八达岭长城', category: 'attraction', intro: '长城游览', reservation: 'unknown', sourceLinks: [] }],
-    locations: new Map([['八达岭长城', { lat: 40.36, lng: 116.01, adcode: '' }]]),
-    longHaul: [], facts: new Map(), relations: new Map(),
-  });
-  const suburbMeals = suburbDraft.mutableDays()[0]!.activities.filter((a) => a.category === '美食');
-  assert.equal(suburbMeals.length, 2);
-  for (const meal of suburbMeals) {
-    assert.match(meal.name, /八达岭长城周边/);
-    assert.equal(meal.placeName, '八达岭长城');
-    assert.equal(meal.lat, 40.36);
-    assert.equal(meal.lng, 116.01);
-    assert.equal(meal.poiId, undefined);
-    assert.equal(meal.startTime, '');
-    assert.match(meal.description, /片区锚点/);
-  }
-  console.log('PASS 远郊餐次保留景点周边参考点，不重定位市中心或冒充门店');
 
   await pool.query(`INSERT INTO users (id,email,password_hash,created_at) VALUES ('success','success@verify.test','',NOW())`);
   const auth = `tw_session=${(await createSession('success')).token}`;

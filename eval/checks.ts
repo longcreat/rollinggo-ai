@@ -14,6 +14,7 @@ import {
   type Trip,
   type Violation,
 } from '@tripweaver/shared';
+import { PLAN_POLICY, measurePlan, planViolations, type PlanMetrics, type PlanViolation } from '../apps/server/src/generation/planner/validator';
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
@@ -38,6 +39,8 @@ export interface CaseResult {
   structural: string[];                // 结构问题清单（空 = 通过）
   geoGate: string[];                   // 地理可信度门槛问题清单（空 = 通过）
   geo: GeoQuality;
+  /** 方案质量观测（11-06）：稀薄/跨区/重复坐标；planner 成为默认后再提升为 gate。 */
+  plan: { metrics: PlanMetrics; violations: PlanViolation[] };
   research?: ResearchQuality;          // 快照 v2：研究质量（观测指标，不进 gate）
   timing?: SnapshotTiming;             // 快照 v2：阶段耗时与 token 用量（观测指标）
 }
@@ -208,6 +211,8 @@ export function runChecks(
   const structural = checkStructural(trip, form);
   const geo = checkGeo(trip);
   const geoGate = checkGeoGate(geo);
+  const metrics = measurePlan(trip);
+  const policy = PLAN_POLICY[(form.pace ?? 'moderate') as keyof typeof PLAN_POLICY] ?? PLAN_POLICY.moderate;
   return {
     caseId,
     pass: hard.length === 0 && structural.length === 0 && geoGate.length === 0,
@@ -218,6 +223,7 @@ export function runChecks(
     structural,
     geoGate,
     geo,
+    plan: { metrics, violations: planViolations(metrics, policy, trip.days.length) },
     research: extras?.candidates ? checkResearch(trip, extras.candidates) : undefined,
     timing: extras?.timing,
   };

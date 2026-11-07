@@ -165,12 +165,17 @@ export const env = {
     dims: int('EMBEDDING_DIMS', 1024),
   },
   genDailyLimit: int('GEN_DAILY_LIMIT', 3),
+  // 详情对话单轮外部检索上限（11-06）：规划片区需要成组检索，4/2 的旧值让 Agent 只能查零星点位。
+  chatPoiBudget: int('CHAT_POI_BUDGET', 8),
+  chatWebBudget: int('CHAT_WEB_BUDGET', 4),
   chatDailyLimit: int('CHAT_DAILY_LIMIT', 40),   // 每日对话轮数上限（独立于生成配额；对话轮次不消耗 GEN_DAILY_LIMIT）
   // 调研数据源（均可选；缺失时对应源 Null 降级，两者皆缺 = 纯模型知识调研）
   amapKey,                                              // 高德 Web 服务 Key（路线规划 + 地理编码）
   amapJsKey,                                            // 高德「Web端(JS API)」Key：前端地图渲染，与 Web 服务 Key 不通用
   amapJsSecurityCode,                                   // JS API 2.0 必需的安全密钥，与 amapJsKey 一同下发
   amapServiceBudgets: readAmapServiceBudgets(process.env),
+  // 高德日预算默认只计量不拦截（11-06 起）：计数照写、外呼恒放行；置 true 恢复按预算硬拦截。
+  amapQuotaEnforce: str('AMAP_QUOTA_ENFORCE', 'false') === 'true',
   amapPhotoMaxPerTask: int('AMAP_PHOTO_MAX_PER_TASK', 40),   // 单次生成的高德 POI 图片查找上限；日预算（place）才是硬闸门
   qweatherApiHost,                                     // 和风天气专属 API Host（控制台-设置）
   qweatherKey,                                         // 和风 API Key（或已签好的静态 JWT，会自动识别）

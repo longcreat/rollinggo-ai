@@ -5,7 +5,7 @@ import test from 'node:test';
 import { DraftTrip } from '../generation/draft';
 import { missingTitleCharacters } from '../generation/titleFont';
 import { titleFontSources } from '../generation/titleFont.generated';
-import { buildDraftTools } from '../generation/tools/draftTools';
+import { buildTitleTool } from '../generation/tools/titleTool';
 
 test('字符覆盖数据对应当前部署的全部手写字体分片', async () => {
   const directory = new URL('../../../web/public/fonts/handwriting/', import.meta.url);
@@ -29,7 +29,7 @@ test('任一标题缺字时整批拒绝，改写后可提交且活动不变', as
   draft.addActivity(1, { name: '公园散步' });
   const before = draft.render();
   const activities = structuredClone(draft.mutableDays()[0]!.activities);
-  const tool = buildDraftTools(draft).find((item) => item.name === 'update_titles')!;
+  const tool = buildTitleTool(draft);
   for (const params of [
     { title: '古罍听风', dayTitles: ['山林听溪谷'] },
     { title: '山林听溪谷', dayTitles: ['古罍听风'] },
@@ -51,7 +51,7 @@ test('标题生成成功一次收口；缺字或数量错误不提交、不改�
     totalBudget: 0, preferences: [], partySize: 2, extraNotes: '' });
   draft.setSkeleton('原行程', ['第一天']);
   let submitted = 0;
-  const tool = buildDraftTools(draft, 'plan', () => { submitted++; }).find((item) => item.name === 'update_titles')!;
+  const tool = buildTitleTool(draft, () => { submitted++; });
   for (const params of [{ title: '古罍听风', dayTitles: ['公园漫步'] }, { title: '公园漫步', dayTitles: [] }]) {
     const result = await tool.execute('invalid', params);
     assert.equal(result.details.isError, true);

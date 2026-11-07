@@ -7,7 +7,6 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { GenerateForm } from '@tripweaver/shared';
 import { pool } from '../db/client';
 import { prepareImportedPlaces, reconcileImportedPlaces } from '../services/placeImportIdentity';
 import { createPlaceRetriever } from '../generation/placeRetrieval';
@@ -15,8 +14,6 @@ import { renderRetrievedPlaces } from '../generation/researchContext';
 import { buildResearchTools, type ResearchOutcome } from '../generation/tools/researchTools';
 import { getNullPoiSource } from '../integrations/nullPoiSource';
 import { getNullSearchSource } from '../integrations/websearch/searchSource';
-import { DraftTrip } from '../generation/draft';
-import { applyDeterministicSchedule } from '../generation/scheduling/buildDraft';
 import { loadCityPlaceFacts } from '../generation/scheduling/placeFacts';
 import { createPlaceIdentityIndex } from '../lib/placeIdentity';
 import { captureIdentityImport, recordIdentityImport, rollbackIdentityImport } from '../services/placeIdentityAudit';
@@ -155,10 +152,6 @@ test('导入主实体后旧名只重定向，检索仍可用别名且不串用�
     await tools.find((t) => t.name === 'submit_research')!.execute('submit', { candidates: [{ placeId: root.id, intro: '模型给了一个短句' }] });
     assert.equal(outcome.pool[0]?.intro, root.payload.content.intro, '完整介绍原文复用，不被短句覆盖');
     assert.equal(outcome.pool[0]?.reservation, 'unknown', '主景区不能套用广场预约种子');
-    const form: GenerateForm = { destination: city, days: 1, preferences: [], partySize: 2, budgetLevel: '舒适', totalBudget: 0, extraNotes: '', startDate: '' };
-    const draft = new DraftTrip(form);
-    applyDeterministicSchedule({ draft, form, pool: outcome.pool, locations: outcome.locations, longHaul: [], foodFocused: false, facts: new Map(), relations: new Map() });
-    assert.equal(draft.mutableDays()[0]?.activities[0]?.description, root.payload.content.intro, '排程后不截到60字');
   } finally {
     await client.query('ROLLBACK');
     client.release();

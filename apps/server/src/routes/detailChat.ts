@@ -8,7 +8,7 @@
  */
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
-import { DetailChatRequestSchema, AddFoodRequestSchema, type ChatStreamEvent } from '@tripweaver/shared';
+import { DetailChatRequestSchema, AddFoodRequestSchema, AgentQuestionAnswersRequestSchema, type ChatStreamEvent } from '@tripweaver/shared';
 import { hasSiteLlm } from '../env';
 import { getConversation } from '../services/conversationService';
 import { prepareDetailChat, runDetailChat } from '../services/detailChatService';
@@ -16,6 +16,7 @@ import { readOperation, startDetailTurn, stopDetailTurn } from '../services/deta
 import { resolveLlmConfig } from '../services/settingsService';
 import { streamErrorPayload } from '../chat/streamError';
 import { addFood } from '../services/tripHistoryService';
+import { answerPendingQuestion, cancelPendingQuestions, hasPendingQuestion, pendingQuestion, startHardTimeout } from '../chat/agent/humanInLoop';
 
 const Id = Type.Object({ id: Type.String({ maxLength: 100 }) });
 const Operation = Type.Object({ id: Type.String({ maxLength: 100 }), operationId: Type.String({ maxLength: 100 }) });
@@ -29,8 +30,33 @@ export const detailChatRoutes: FastifyPluginAsyncTypebox = async (app) => {
   // 主动停止：先对服务端 turn 发 abort，再返回当前已有结果（可能是半成品）
   app.post('/:id/operations/:operationId/stop', { schema: { params: Operation } }, async (request, reply) => {
     if (!await getConversation(request.user!.id, request.params.id)) return reply.code(404).send({ error: '会话不存在' });
+    cancelPendingQuestions(request.params.id);
     stopDetailTurn(request.user!.id, request.params.id, request.params.operationId);
     return { result: await readOperation(request.user!.id, request.params.operationId) };
+  });
+
+  // HITL：刷新/断线后拉回当前待回答问题；Agent 回合仍在服务端等待。
+  app.get('/:id/questions/pending', { schema: { params: Id } }, async (request, reply) => {
+    if (!await getConversation(request.user!.id, request.params.id)) return reply.code(404).send({ error: '会话不存在' });
+    return { question: pendingQuestion(request.user!.id, request.params.id) };
+  });
+
+  // HITL：用户回答后，问题 Promise 在原来的 Agent run 内 resolve，模型继续同一回合。
+  app.post('/:id/questions/:questionId/answer', {
+    schema: {
+      params: Type.Object({ id: Type.String({ maxLength: 100 }), questionId: Type.String({ maxLength: 100 }) }),
+      body: AgentQuestionAnswersRequestSchema,
+    },
+  }, async (request, reply) => {
+    if (!await getConversation(request.user!.id, request.params.id)) return reply.code(404).send({ error: '会话不存在' });
+    const result = answerPendingQuestion({
+      userId: request.user!.id,
+      conversationId: request.params.id,
+      questionId: request.params.questionId,
+      answers: request.body.answers,
+    });
+    if (!result.ok) return reply.code(result.statusCode).send({ error: result.message });
+    return { ok: true };
   });
   app.post('/:id/food', { schema: { params: Id, body: AddFoodRequestSchema } }, async (request) =>
     addFood(request.user!.id, request.params.id, request.body));
@@ -63,16 +89,23 @@ export const detailChatRoutes: FastifyPluginAsyncTypebox = async (app) => {
     };
     reply.hijack();                                   // 绕过 Fastify 信封与序列化，直接写原始响应流
     reply.raw.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-cache, no-transform', 'X-Accel-Buffering': 'no', Connection: 'keep-alive' });
-    // 浏览器断开 → abort 服务端 turn（释放模型调用，不再往死连接写）
-    const disconnect = () => { if (!reply.raw.writableEnded) turn.controller.abort(); };
+    // 浏览器断开 → abort 服务端 turn；但有待回答的 HITL 问题时保留回合，用户可通过
+    // GET /questions/pending 恢复、POST answer 回注，Agent 继续同一回合。
+    const disconnect = () => {
+      if (!reply.raw.writableEnded && !hasPendingQuestion(conversationId)) turn.controller.abort();
+    };
     reply.raw.on('close', disconnect);
-    // 15s 心跳防反代/浏览器空闲超时；5min 硬超时防模型挂死占住 turn
+    // 15s 心跳防反代/浏览器空闲超时；5min 硬超时防模型挂死占住 turn。
+    // 有待回答的 HITL 问题时硬超时顺延（见 startHardTimeout）：砍掉挂起回合会把用户已提交的答案变成 502。
     const heartbeat = setInterval(() => { if (!reply.raw.destroyed) reply.raw.write(': heartbeat\n\n'); }, 15000);
     let timedOut = false;
-    const timeout = setTimeout(() => { timedOut = true; turn.controller.abort(); }, 5 * 60 * 1000);
+    const timeout = startHardTimeout(5 * 60 * 1000, () => hasPendingQuestion(conversationId), () => {
+      timedOut = true;
+      turn.controller.abort();
+    });
     try {
       send({ type: 'accepted' });                  // 先确认连接可用，前端据此切换「思考中」态
-      const result = prepared.saved ?? await runDetailChat(userId, conversationId, input, cfg!, turn.controller.signal, (type, text) => send({ type, text }));
+      const result = prepared.saved ?? await runDetailChat(userId, conversationId, input, cfg!, turn.controller.signal, (event) => send(event));
       if (result.replyMessage.attachment) send({ type: 'recommendations', attachment: result.replyMessage.attachment });
       if (result.editResult) send({ type: 'edit_result', result: result.editResult });
       send({ type: 'done', result });
@@ -84,13 +117,14 @@ export const detailChatRoutes: FastifyPluginAsyncTypebox = async (app) => {
       // 同一用户已有回合在跑：这是保护性拒绝，不是故障。单独记 info 便于观察并发发生率。
       const busy = error instanceof Error && (error as { code?: unknown }).code === 'AGENT_BUSY';
       if (busy) request.log.info({ requestId: input.requestId }, '详情对话并发请求被拒绝');
-      if (!stopped && !expected) request.log.warn({ requestId: input.requestId }, '详情对话失败');
+      if (!stopped && !expected) request.log.warn({ err: error, requestId: input.requestId }, '详情对话失败');
       send({ type: 'error', ...streamErrorPayload(error, { timedOut, stopped }) });
     } finally {
       // 无论哪条退出路径都要清定时器 + 释放 turn 锁，否则同会话后续消息会被判「进行中」
       clearInterval(heartbeat);
-      clearTimeout(timeout);
+      timeout.clear();
       reply.raw.removeListener('close', disconnect);
+      cancelPendingQuestions(conversationId);
       turn.release();
       reply.raw.end();
     }

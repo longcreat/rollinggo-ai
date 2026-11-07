@@ -14,7 +14,7 @@ import { db } from '../db/client';
 import { trips, users } from '../db/schema';
 import { commitOperation, operationFingerprint } from './detailOperationService';
 
-export type TripWriter = Pick<typeof db, 'select' | 'insert' | 'update'>;
+export type TripWriter = Pick<typeof db, 'select' | 'insert' | 'update' | 'delete'>;
 
 /** 所有版本创建与原地保存共用用户行锁，包括尚无版本链的首次创建。 */
 export async function lockTripWriter(userId: string, writer: TripWriter) {

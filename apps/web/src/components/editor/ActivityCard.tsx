@@ -47,7 +47,7 @@ export function ActivityCard({
   };
 
   return (
-    <article id={`activity-${activity.id}`} className="activity-entry mb-4" aria-label={activity.name}>
+    <article id={`activity-${activity.id}`} className="activity-entry" aria-label={activity.name}>
       {/* 极简轻量景点卡片：点击弹出完整详情 */}
       <div
         onClick={handleCardClick}
@@ -163,7 +163,7 @@ export function ActivityCard({
 
       {/* 两景点之间的交通连接段 */}
       {index < day.activities.length - 1 && (
-        <div className="my-2">
+        <div className="mt-2">
           <RouteOptions dayId={day.id} fromId={activity.id} leg={nextLeg} />
           {/* 若长距离步行（>20分钟），给出智能出行贴士 */}
           {nextLeg && nextLeg.mode === 'walk' && nextLeg.durationMin > 20 && (

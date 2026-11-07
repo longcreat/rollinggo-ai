@@ -101,7 +101,7 @@ export function NotificationCenter({ userId }: { userId: string }) {
       lastSequence.current = Math.max(lastSequence.current ?? 0, first.readThrough);
       // 只在「正在看这一轮的生成进度页」时抑制：生成完成会自动跳到 /trips/:id，
       // 那是系统跳转而非用户主动查看结果，完成提醒应该照弹（否则红点先亮、弹窗晚到）。
-      if (item && (item.shareImageStyle || location.pathname !== `/generations/${item.jobId}`)) {
+      if (item && (item.shareImageStyle || location.pathname !== `/agent/${item.jobId}`)) {
         shownToasts.current.add(item.id); setPaused(false); setOpenError(null); setToast(item);
       }
     };

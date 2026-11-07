@@ -244,3 +244,11 @@ it('坐标非法或缺失的地点被丢弃；没有可解析内容时回退为�
   assert.equal(second.results[0]!.data, undefined);
   assert.match(second.results[0]!.text, /一段话/);
 });
+
+it('子代理配置里出现写工具时在构造期直接拒绝', () => {
+  assert.throws(() => createSubagentTool({
+    harness: {} as never, context: BACKGROUND_CONTEXT, parentId: 'parent',
+    model: { provider: 'faux', modelId: 'faux-1' }, instructions: '子代理',
+    childTools: [readTool, writeTool], maxTurns: 3, maxTasks: 2,
+  }), /只读工具/);
+});

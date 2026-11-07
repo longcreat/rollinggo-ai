@@ -6,10 +6,10 @@ import { Value } from '@sinclair/typebox/value';
 import {
   GenerateFormSchema,
   briefToGenerateForm,
+  makeSampleTrip,
   type PlanningBriefData,
 } from '@tripweaver/shared';
-import { applyDialogueDecision, briefStatus, normalizeBriefData } from '../chat/brief';
-import { readClarification } from '../chat/models';
+import { applyDialogueDecision, briefStatus, normalizeBriefData, syncBriefTripDates } from '../chat/brief';
 
 const empty: PlanningBriefData = { constraints: [] };
 
@@ -207,19 +207,12 @@ test('修订意见（appendNotes）排在所有约束之前 —— 它是本次�
   assert.ok(Value.Check(GenerateFormSchema, form));
 });
 
-test('readClarification：有 question 就返回；选项去空去重并限量；缺 question 视为没给', () => {
-  assert.deepEqual(readClarification({ clarification: { question: '这次想去哪里？', options: ['成都', '重庆'] } }), {
-    question: '这次想去哪里？',
-    options: ['成都', '重庆'],
-  });
-  // 只要 question、不要选项也是合法的（枚举不出来的字段）
-  assert.deepEqual(readClarification({ clarification: { question: '大概什么时候出发？' } }), {
-    question: '大概什么时候出发？',
-    options: [],
-  });
-  // 只负责「去空白 + 丢非字符串」；去重与限量由调用方（若还有）负责
-  assert.deepEqual(readClarification({ clarification: { question: 'q', options: [' a ', 1, null, 'b'] } })?.options, ['a', 'b']);
-  assert.equal(readClarification({ clarification: { options: ['成都'] } }), null);
-  assert.equal(readClarification({}), null);
-  assert.equal(readClarification(null), null);
+test('日期同步：新增天数跨月并更新旧结束日期，恢复短行程后重新生成不沿用长天数', () => {
+  const current = makeSampleTrip(); current.startDate = '2026-12-31'; current.days = current.days.slice(0, 2);
+  const next = syncBriefTripDates({ constraints: [], days: 10, startDate: '2026-12-20', endDate: '2026-12-29' }, current);
+  assert.equal(next.endDate, '2027-01-01');
+  assert.equal(briefToGenerateForm(next).days, 2);
+  const noDate = syncBriefTripDates(next, { ...current, startDate: '' });
+  assert.equal(noDate.endDate, undefined);
+  assert.equal(noDate.days, 2);
 });

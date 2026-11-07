@@ -59,6 +59,19 @@ const STATEMENTS = [
     PRIMARY KEY (user_id, id)
   )`,
   // ---------- 行程详情 Agent（P1）：业务会话 ↔ pi-durable conversation ----------
+  `CREATE TABLE IF NOT EXISTS trip_health_checks (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    trip_id TEXT NOT NULL,
+    trip_version INTEGER NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('pending', 'completed', 'expired')),
+    findings JSONB NOT NULL,
+    decisions JSONB,
+    result JSONB,
+    created_at TIMESTAMPTZ NOT NULL,
+    resolved_at TIMESTAMPTZ
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_trip_health_checks_trip ON trip_health_checks(user_id, trip_id, created_at DESC)`,
   `CREATE TABLE IF NOT EXISTS agent_conversations (
     user_id TEXT NOT NULL,
     conversation_id TEXT NOT NULL,
@@ -307,6 +320,17 @@ export async function runMigrations(pool: Pool): Promise<void> {
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'generation'`);
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS target_trip_id TEXT`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_generations_conversation ON generations(conversation_id)`);
+    // 景区围栏（11-06）：面状片区 + 子点关系 + 坐标去重键；存量行 dedupe_key 为 NULL，唯一索引只约束新数据。
+    await client.query(`ALTER TABLE canonical_places ADD COLUMN IF NOT EXISTS parent_id TEXT`);
+    await client.query(`ALTER TABLE canonical_places ADD COLUMN IF NOT EXISTS geom_kind TEXT NOT NULL DEFAULT 'point'`);
+    await client.query(`ALTER TABLE canonical_places ADD COLUMN IF NOT EXISTS area_polygon JSONB`);
+    await client.query(`ALTER TABLE canonical_places ADD COLUMN IF NOT EXISTS area_radius_m INTEGER`);
+    await client.query(`ALTER TABLE canonical_places ADD COLUMN IF NOT EXISTS center_lng DOUBLE PRECISION`);
+    await client.query(`ALTER TABLE canonical_places ADD COLUMN IF NOT EXISTS center_lat DOUBLE PRECISION`);
+    await client.query(`ALTER TABLE canonical_places ADD COLUMN IF NOT EXISTS junk BOOLEAN NOT NULL DEFAULT FALSE`);
+    await client.query(`ALTER TABLE canonical_places ADD COLUMN IF NOT EXISTS dedupe_key TEXT`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_canonical_places_parent ON canonical_places(city, parent_id)`);
+    await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_canonical_places_dedupe ON canonical_places(city, dedupe_key) WHERE dedupe_key IS NOT NULL`);
     // First rollout only: historical calls cannot be attributed to services. Conservatively
     // charge the recent legacy total to every service; never re-seed on later restarts.
     const { day, start } = amapDay();

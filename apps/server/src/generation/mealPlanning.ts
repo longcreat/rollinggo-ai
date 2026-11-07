@@ -5,6 +5,9 @@ export type MealKind = 'lunch' | 'dinner';
 /** Deterministic meal insertion keeps a small transfer/settling buffer on both sides. */
 export const MEAL_TRANSIT_BUFFER_MIN = 15;
 
+/** 确定性补餐锚点的 id 前缀：餐次充实据此识别「占位餐」并替换成真实餐厅，不影响用户可见文案。 */
+export const MEAL_ANCHOR_ID_PREFIX = 'meal-anchor-';
+
 interface DraftDayLike {
   activities: Activity[];
   legs?: TransitLeg[];
@@ -56,12 +59,19 @@ function toMinutes(time: string): number | null {
   return hour <= 23 && minute <= 59 ? hour * 60 + minute : null;
 }
 
+/** 只依赖名称/类目/开始时刻，便于排程层用更窄的结构调用。 */
+export interface MealCandidate {
+  name: string;
+  category?: string;
+  startTime?: string;
+}
+
 /** A labelled meal always counts; otherwise a food activity must start in that meal window. */
-export function isMeal(activity: Activity, kind: MealKind): boolean {
+export function isMeal(activity: MealCandidate, kind: MealKind): boolean {
   const rule = MEAL_RULES[kind];
   if (rule.explicit.test(activity.name)) return true;
   if (activity.category !== '美食') return false;
-  const start = toMinutes(activity.startTime);
+  const start = activity.startTime ? toMinutes(activity.startTime) : null;
   return start !== null && start >= rule.windowStart && start <= rule.windowEnd;
 }
 
@@ -93,7 +103,7 @@ export function mealCoverageProblems(days: readonly DraftDayLike[], options: { f
 }
 
 function interval(activity: Activity): readonly [number, number] | null {
-  const start = toMinutes(activity.startTime);
+  const start = activity.startTime ? toMinutes(activity.startTime) : null;
   const end = toMinutes(activity.endTime);
   return start !== null && end !== null && end > start ? [start, end] : null;
 }
@@ -145,9 +155,11 @@ export function ensureMealCoverage(days: DraftDayLike[], destination: string): M
     const rule = MEAL_RULES[kind];
     const slot = chooseSlot(day.activities, kind);
     if (!slot) {
+      // 只有整段盖住用餐窗口的长活动（如远郊一日游）才做成「含午餐安排」；
+      // 景点只是横跨窗口边缘时不整合——那会把「博物馆」改名成含午餐，重排时刻后文案还对不上。
       const overlapping = day.activities.find((activity) => {
         const span = interval(activity);
-        return span !== null && span[0] < rule.windowEnd && span[1] > rule.windowStart;
+        return span !== null && span[0] <= rule.windowStart && span[1] >= rule.windowEnd;
       });
       if (overlapping) {
         const area = `「${overlapping.name}」所在片区`;
@@ -164,7 +176,7 @@ export function ensureMealCoverage(days: DraftDayLike[], destination: string): M
     const activityName = `${rule.label}｜${area} · 当地风味`.slice(0, 100);
     const hasAnchorCoord = Boolean(anchor && (anchor.lat !== 0 || anchor.lng !== 0));
     const activity: Activity = {
-      id: uid(),
+      id: `${MEAL_ANCHOR_ID_PREFIX}${uid()}`,
       name: activityName,
       startTime,
       endTime,

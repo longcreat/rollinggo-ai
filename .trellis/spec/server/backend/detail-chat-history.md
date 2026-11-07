@@ -143,6 +143,9 @@
   内 resolve，模型拿到真实 tool result 继续本轮；不会把选项拼成文末文本或另起一轮。
   同一会话同时只允许一个 pending；默认等待 120s（`HITL_QUESTION_TIMEOUT_MS` 可调），超时/取消返回 pending 并结束本轮，事件区分 `timeout` / `cancelled`。
   `GET /api/conversations/:id/questions/pending` 支持刷新恢复；SSE 断开时若有 pending 不 abort 回合。
+  **超时语义（2026-11-07 定调）**：问题超时但本回合草稿已有写改动时，照常提交为一个新版本并在正文附
+  「已保存为 vN」——版本历史可一键撤销，而丢弃草稿不可恢复；用户主动停止（abort）仍按「回答中断」处理，不落版本。
+  硬超时闸门到点后每 1s 复查，pending 问题 settle 后最迟 1s 内触发（不再等一整段，避免 5min 拖成 ~10min）。
   问答记录写入 `ChatAttachment.questions`，刷新后仍可回看。旧 `understandMessage` 的 detailMode
   链路不再接入详情路由；旧 `clarification` 字段只作历史消息兼容。
   三条起始建议只属于初始化消息，不放在输入框底部常驻；回答之后不再追加建议。

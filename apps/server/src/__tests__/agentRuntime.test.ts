@@ -6,11 +6,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { after, describe, it } from 'node:test';
 import { createModels } from '@earendil-works/pi-ai/models';
+import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { fauxAssistantMessage, fauxProvider, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
 import { defineTool } from '@earendil-works/pi-durable';
 import { obj } from '@earendil-works/pi-schema';
 import type { Trip } from '@tripweaver/shared';
-import { AgentBusyError, closeAgentRuntime, runAgentTurn, type AgentStreamEvent } from '../chat/agent/runtime';
+import { AgentBusyError, closeAgentRuntime, getAgentRuntime, runAgentTurn, type AgentStreamEvent } from '../chat/agent/runtime';
 import { createTripTools } from '../chat/agent/tools';
 import { createTripDraft } from '../chat/agent/tripDraft';
 import { createAgentTurnState } from '../chat/agent/turnState';
@@ -356,5 +357,16 @@ describe('agent runtime', () => {
       model: { provider: 'faux', modelId: 'faux-1' }, prompt: '新问题',
     });
     assert.equal(next.text, '停止后的新回答');
+  });
+
+  it('Harness 关闭后从缓存摘除，下一次请求重新打开', async () => {
+    const path = await storage();
+    const first = await getAgentRuntime(path);
+    // 直接关底层 Harness（模拟存储错误导致的自行关闭），不走 closeAgentRuntime 的显式删缓存。
+    await first.harness.close(BACKGROUND_CONTEXT);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const second = await getAgentRuntime(path);
+    assert.notEqual(second.harness, first.harness, '关闭后的 Harness 不该继续留在缓存里');
+    await closeAgentRuntime(path);
   });
 });

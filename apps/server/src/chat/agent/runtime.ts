@@ -84,6 +84,11 @@ const runtimes = new Map<string, Promise<Runtime>>();
  *
  * 取不到锁直接 409：排队会让用户在几十秒后拿到一份基于旧行程快照的回答，比明确失败更糟。
  * 锁是进程内的，前提与既有 startDetailTurn 一致：单实例部署；多副本需要换成分布式锁。
+ *
+ * 为什么不能用上游的 `submit({ whenBusy: "reject" })` 取代：那是**会话级**判忙，
+ * 而 `configure({ tools })` 只把工具**名字**落盘（durable/harness/agent.ts 的 `names()`），
+ * 执行时仍从 Harness 共享 registry 解析 —— 同一份存储上两个会话的工具闭包照样互相覆盖。
+ * 只要工具还是每轮闭包，这把存储级锁就仍有必要；等工具改为无闭包的纯配置驱动再考虑删。
  */
 const activeStorages = new Set<string>();
 
@@ -119,13 +124,24 @@ async function openRuntime(storagePath: string): Promise<Runtime> {
 export function getAgentRuntime(storagePath: string): Promise<Runtime> {
   const existing = runtimes.get(storagePath);
   if (existing) return existing;
-  // 打开失败不能把失败的 Promise 永久留在缓存里，否则该用户之后每次提问都会命中同一个错误。
-  const opened = openRuntime(storagePath).catch((error: unknown) => {
-    runtimes.delete(storagePath);
-    throw error;
-  });
-  runtimes.set(storagePath, opened);
-  return opened;
+  const opened = openRuntime(storagePath);
+  const entry = opened.then(
+    (runtime) => {
+      // 存储错误会让 Harness 自行关闭（README「a failure closes the Harness by itself」）。
+      // 不摘掉缓存的话，该用户之后每次提问都会命中一个已死的 Harness，只能重启进程。
+      void runtime.harness.closed.then(() => {
+        if (runtimes.get(storagePath) === entry) runtimes.delete(storagePath);
+      });
+      return runtime;
+    },
+    (error: unknown) => {
+      // 打开失败不能把失败的 Promise 永久留在缓存里，否则该用户之后每次提问都会命中同一个错误。
+      if (runtimes.get(storagePath) === entry) runtimes.delete(storagePath);
+      throw error;
+    },
+  );
+  runtimes.set(storagePath, entry);
+  return entry;
 }
 
 /** 测试/关停用：释放某份存储上的 Harness。 */
@@ -204,6 +220,8 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
       }));
     }
 
+    // 用低层 LiveDoc 而非 `conversation.watch()`：后者的 ConversationView 只有
+    // conversation/entries/before/docs，不含 tools 与 generation 流式快照，拿不到进度事件。
     const live = await harness.watchDoc(LiveDoc, conversationId, context);
     if (!live) throw new Error('LiveDoc 不可用');
 

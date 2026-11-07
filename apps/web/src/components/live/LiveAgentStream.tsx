@@ -40,7 +40,6 @@ function phaseSummary(phase: LivePhase): string {
 
 function PhaseCard({ phase, onOpen }: { phase: LivePhase; onOpen: () => void }) {
   const percent = phase.total > 0 ? Math.round((phase.completed / phase.total) * 100) : 0;
-  const duration = durationText(phase.durationMs);
   return (
     <button
       type="button"
@@ -56,14 +55,10 @@ function PhaseCard({ phase, onOpen }: { phase: LivePhase; onOpen: () => void }) 
           <StatusIcon running={phase.running} error={phase.error} done={phase.done} className="h-4 w-4" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-[13px] font-semibold text-slate-800">{phase.label}</span>
-            <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-normal text-slate-500">子 Agent</span>
-          </span>
+          <span className="block truncate text-[13px] font-semibold text-slate-800">{phase.label}</span>
           <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-slate-400">
             <span>{STATUS_LABEL[phase.status]}</span>
             {phase.total > 0 && <span>· {phase.completed}/{phase.total} 步</span>}
-            {duration && <span>· {duration}</span>}
           </span>
         </span>
         <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden="true" />
@@ -76,9 +71,6 @@ function PhaseCard({ phase, onOpen }: { phase: LivePhase; onOpen: () => void }) 
           />
         </span>
       )}
-      <span className={`mt-2 block text-[11px] leading-4 ${phase.running ? 'text-slate-600' : 'text-slate-500'}`}>
-        {phaseSummary(phase)}
-      </span>
     </button>
   );
 }

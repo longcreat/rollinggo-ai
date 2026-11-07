@@ -47,8 +47,8 @@ export interface AgentTurnState {
   questionExpired?: boolean;
   /** 主 Agent 通过 update_brief 提交的 Brief 增量 */
   briefPatch?: Record<string, unknown>;
-  /** generate_trip 当场生成并落库的新行程 id */
-  generatedTripId?: string;
+  /** generate_trip 委派的后台生成任务 id */
+  startedGenerationJobId?: string;
 }
 
 export function createAgentTurnState(excludedFoodKeys: Iterable<string> = []): AgentTurnState {

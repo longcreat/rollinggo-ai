@@ -132,15 +132,15 @@ describe('主 Agent 全功能工具', () => {
     assert.deepEqual(state.briefPatch!.removeConstraintIds, ['c1'], '删除 id 去重');
   });
 
-  it('generate_trip 把生成结果写回回合状态，未启用时明确失败', async () => {
-    const { state, tool } = build(undefined, async () => ({ tripId: 'trip-new' }));
+  it('generate_trip 只委派任务并写回 jobId，未启用时明确失败', async () => {
+    const { state, tool } = build(undefined, async () => ({ jobId: 'job-new' }));
     const result = await run(tool('generate_trip'), {});
     assert.equal(result.isError, undefined);
-    assert.equal(state.generatedTripId, 'trip-new');
+    assert.equal(state.startedGenerationJobId, 'job-new');
 
     const disabled = build();
     const failed = await run(disabled.tool('generate_trip'), {});
     assert.equal(failed.isError, true);
-    assert.equal(disabled.state.generatedTripId, undefined);
+    assert.equal(disabled.state.startedGenerationJobId, undefined);
   });
 });

@@ -37,10 +37,12 @@ export interface TripToolDeps {
   /** 本回合跨工具状态：美食候选、追问、Brief 增量、生成结果 */
   state?: AgentTurnState;
   /**
-   * 按当前 Brief 完整生成一份新行程：作为主会话的 durable 子任务跑完再返回（前台阻塞）。
+   * 按当前 Brief 委派一次后台生成（对齐 openmuse 的 delegate_task：立即返回任务 id，worker 持续跑）。
    * 由 turn 注入（需要 job / 凭据 / 事务），工具本身只负责调用与把结果写回 state。
    */
-  generateTrip?: (api: ToolExecutionApi, context: Context) => Promise<{ tripId?: string; error?: string }>;
+  generateTrip?: (api: ToolExecutionApi, context: Context) => Promise<{ jobId?: string; error?: string }>;
+  /** 当前/最近一次生成任务的状态与阶段进度（供主 Agent 回答「生成到哪了」）。 */
+  generationStatus?: () => unknown;
   /** 当前对话范围（前端选中的某一天）；美食检索默认用它 */
   scopeDayId?: string;
   /** HITL：暂停 Agent，等待用户通过独立接口回答；返回 null 表示超时/取消 */
@@ -376,18 +378,28 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     },
   });
 
-  // 完整生成是一个前台子代理：主 Agent 等它跑完，再把新行程作为结果交给用户。
-  // 对齐 opencode 的 subagent 工具（默认前台阻塞、返回最终结果），不再由回合末偷偷换页。
+  // 生成是后台任务（personal agent 的 delegate_task）：立即返回任务 id，用户在任务页看进度，
+  // 完成后通知并落到新行程；主 Agent 不阻塞，也不假装结果已经出来。
   const generateTrip = defineTool({
     name: 'generate_trip',
-    description: '按当前出行条件完整生成一份新行程（耗时几分钟，前台等待）。仅当用户明确要求「生成 / 重新规划整份行程」时调用；普通咨询或小修改不要用。',
+    description: '按当前出行条件委派一次完整行程生成（后台任务，立即返回任务 id，通常需要几分钟）。仅当用户明确要求「生成 / 重新规划整份行程」时调用；调用后告诉用户已在后台开始，不要等结果、不要说已完成。',
     parameters: obj({}),
     execute: async (_args, api, context) => {
       if (!deps.generateTrip) return { output: text('错误：当前会话未启用生成'), isError: true };
       const result = await deps.generateTrip(api, context);
-      if (!result.tripId) return { output: text(result.error ?? '生成没有完成'), isError: true };
-      state.generatedTripId = result.tripId;
-      return { output: text(JSON.stringify({ ok: true, tripId: result.tripId, note: '新行程已生成并保存；直接向用户说明结果，不要再用写工具修改当前行程。' })) };
+      if (!result.jobId) return { output: text(result.error ?? '生成任务没有启动'), isError: true };
+      state.startedGenerationJobId = result.jobId;
+      return { output: text(JSON.stringify({ ok: true, jobId: result.jobId, status: 'running', note: '后台生成已开始。告诉用户可以在任务页查看进度；完成时会通知。不要声称行程已经生成好。' })) };
+    },
+  });
+
+  const generationStatus = defineTool({
+    name: 'generation_status',
+    description: '读取当前或最近一次生成任务的状态、阶段与已完成步骤。用于回答「生成到哪了 / 好了吗」；不要用它代替用户打开任务页，也不要在没有任务时编造进度。',
+    parameters: obj({}),
+    execute: async () => {
+      if (!deps.generationStatus) return { output: text(JSON.stringify({ running: false })) };
+      return { output: text(JSON.stringify(deps.generationStatus())) };
     },
   });
 
@@ -402,6 +414,7 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     askUser,
     updateBrief,
     generateTrip,
+    generationStatus,
     ...createTripWriteTools({ draft: deps.draft, signal, resolvePlace: deps.resolvePlace, cachedPoint: (name) => points.find(name) }),
   ];
 }

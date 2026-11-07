@@ -119,8 +119,8 @@ export const SendMessageResultSchema = Type.Object({
   replyMessage: ChatMessageSchema,
   brief: PlanningBriefViewSchema,
   intent: StringEnum(CHAT_INTENTS),
-  /** 主 Agent 通过 generate_trip 当场生成并落库的新行程；前端据此切到新行程 */
-  generatedTripId: Type.Optional(Type.String()),
+  /** 主 Agent 通过 generate_trip 委派的后台生成任务；前端据此进入任务直播页 */
+  startedGenerationJobId: Type.Optional(Type.String()),
   /** R1（09-24）：按需修订结果。LLM 判定修改意图即直接执行，落版本链下一版 */
   editResult: Type.Optional(
     Type.Object({

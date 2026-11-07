@@ -32,7 +32,7 @@ import { syncOverviewWithActivities } from './overviewSync';
 import { repairChangedRoutes } from '../../services/tripHistoryService';
 import { createGeoSession } from '../../generation/geoPipeline';
 import { createTrip } from '../../services/tripService';
-import { cancelJob, createJob, getRunningJobId } from '../../generation/jobManager';
+import { cancelJob, createJob, getJob, getRunningJobId } from '../../generation/jobManager';
 import { GenerationTask, type GenerationTaskInput } from '../../generation/generationTask';
 import { SUBAGENT_READ_ONLY_TOOL_NAMES } from './toolPolicy';
 import { createHitlSession } from './humanInLoop';
@@ -52,7 +52,8 @@ const TOOL_LABEL: Record<string, string> = {
   search_food: '找餐厅',
   ask_user: '确认信息',
   update_brief: '更新出行条件',
-  generate_trip: '生成整份行程',
+  generate_trip: '委派生成行程',
+  generation_status: '查看生成进度',
   add_activity: '往行程里加地点',
   update_activity: '调整这个安排',
   delete_activity: '删掉这个安排',
@@ -101,7 +102,7 @@ const SYSTEM_INSTRUCTIONS = [
   '只改用户明确要求的范围；「按这个片区补齐点位」「把某天排顺」本身就是明确要求，直接执行。删除活动、减少天数必须是在用户明确要求时才做。',
   '调用 ask_user 时给 1–3 个问题和可直接点击的短选项；用户在问题卡回答后你会拿到 tool result 并继续本轮，直接使用答案，不要重复问同一个问题。用户留空表示跳过该问题，不要把它当成许可。',
   'ask_user 的每个问题只问一个决定，问题控制在 60 字内，不要把诊断、依据或编号清单塞进问题；需要解释先在正文里简短说，再调用 ask_user。需要两个决定就发两个问题，选项标签控制在 20 字内。',
-  '用户修改下一次完整生成的条件（日期/天数/人数/节奏/偏好/约束）时用 update_brief；用户明确要求按当前条件生成或重新生成整份行程时用 generate_trip（它会在本回合内跑完生成并保存新行程）。普通咨询或小修改不要调用这两个工具。',
+  '用户修改下一次完整生成的条件（日期/天数/人数/节奏/偏好/约束）时用 update_brief；用户明确要求按当前条件生成或重新生成整份行程时用 generate_trip。它是后台委派：调用后立即告诉用户「已在后台开始，可在任务页查看进度」，不要等结果、不要声称行程已生成好。用户问「生成到哪了/好了吗」时用 generation_status 读取真实状态。普通咨询或小修改不要调用这两个工具。',
   '需要同时调研多个主题（多天安排、多个片区、多组候选）时，用 spawn_subagents 并行派发；单点查询直接调 search_places / web_search / search_food，不要为一件小事开子代理。找具体地点用 kind=places，查政策口碑用 kind=notes。',
   '子代理 kind=places 返回的 data.places 带真实坐标：把它加进行程时直接用同一个 name 调 add_activity，系统会复用该坐标，不要自己填经纬度。返回结果是调研材料，引用前核对是否与当前行程一致。',
   '用户要求按片区规划或补点时，先 search_area_places 展开该片区内的真实景点（如西湖→断桥/白堤/苏堤、宽窄巷子→街区内的点），再 search_places 查具体地点；不要把一整片景区当成一个点，也不要只放两三个相距很远的粗点。',
@@ -162,7 +163,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     ? applyDialogueDecision(detail.conversation.brief.data, { ...state.briefPatch, intent: 'update_brief' }, evidenceSequence)
     : detail.conversation.brief.data;
 
-  // 完整生成 = 主 Agent 的前台子任务：条件齐备后创建对话拥有的 durable task，等它跑完再回结果。
+  // 对齐 openmuse 的 delegate_task：只负责把后台任务建起来并立即返回任务 id，不阻塞对话。
   // background 让它不受本回合 stop / waitForIdle 影响；进程重启后任务照常 resume（与表单入口一致）。
   const generateTrip = async (api: ToolExecutionApi, context: Context) => {
     const brief = briefWithPatch();
@@ -173,25 +174,40 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     const job = createJob(userId, { conversationId, kind: 'generation' });
     const input: GenerationTaskInput = { jobId: job.id, userId, form: briefToGenerateForm(brief), provenance: job.provenance };
     try {
-      // 对话拥有的后台任务：不随本回合 stop 结束，进程重启后照常 resume。
-      const taskId = await api.createTask(GenerationTask, input, {
-        ownership: { kind: 'conversation' },
-        background: true,
-      }, context);
-      const settled = await api.waitForTask(taskId, context);
-      const outcome = settled.state.outcome;
-      if (outcome.status === 'completed' && outcome.result?.tripId) return { tripId: outcome.result.tripId };
-      if (outcome.status === 'failed') return { error: outcome.error.message };
-      return { error: '生成已取消。' };
+      await api.createTask(GenerationTask, input, { ownership: { kind: 'conversation' }, background: true }, context);
+      return { jobId: job.id };
     } catch (error) {
       cancelJob(job);
-      return { error: error instanceof Error ? error.message : '生成没有完成' };
+      return { error: error instanceof Error ? error.message : '生成任务没有启动' };
     }
+  };
+
+  // 主 Agent 读任务状态：运行中的任务优先，其次本轮委派过的任务（完成 30 分钟内仍在内存）。
+  const generationStatus = () => {
+    const activeId = getRunningJobId(userId);
+    const job = (activeId ? getJob(activeId, userId) : null)
+      ?? (state.startedGenerationJobId ? getJob(state.startedGenerationJobId, userId) : null);
+    if (!job) return { running: false };
+    const snapshot = job.projection.channel.snapshot;
+    return {
+      running: job.status === 'running',
+      jobId: job.id,
+      status: job.status,
+      ...(job.tripId ? { tripId: job.tripId } : {}),
+      destination: job.destination,
+      days: job.days,
+      phase: snapshot.state.control.phase,
+      steps: snapshot.state.taskGraph
+        .filter((node) => node.status === 'done' || node.status === 'running')
+        .slice(-8)
+        .map((node) => `${node.label}:${node.status}`),
+    };
   };
 
   const tools = createTripTools({
     trip, sources, signal, getWeather: getTripWeather, points, draft, resolvePlace, state,
     generateTrip,
+    generationStatus,
     askUser: (questions) => hitl.ask(questions),
     // 问答记录写入后立刻在有序片段里打点：历史渲染时问答卡片回到它真实发生的位置。
     onQuestionRecorded: (index) => {
@@ -342,7 +358,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     || (state.foodCandidates.length ? `为你找到 ${state.foodCandidates.length} 家可添加的餐厅，卡片见下方。` : '')
     || `已经按你的要求调整行程：${editedSummary}。`).slice(0, 4000);
   // 模型只读却说「已改好」时由服务端纠正：修改是否生效只认草稿结果与新行程，不认措辞。
-  if (claimsUnappliedEdit(answer, Boolean(next) || Boolean(state.generatedTripId))) {
+  if (claimsUnappliedEdit(answer, Boolean(next))) {
     answer = withEditCorrection(answer);
   }
   const references = collectReferences([
@@ -399,7 +415,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     if (!messages?.[0] || !messages[1] || !brief) throw new Error('会话保存失败');
     const intent = outcomes.length
       ? 'modify_itinerary'
-      : state.generatedTripId
+      : state.startedGenerationJobId
         ? 'confirm'
         : state.briefPatch
           ? 'update_brief'
@@ -409,7 +425,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
       replyMessage: messages[1],
       brief,
       intent,
-      ...(state.generatedTripId ? { generatedTripId: state.generatedTripId } : {}),
+      ...(state.startedGenerationJobId ? { startedGenerationJobId: state.startedGenerationJobId } : {}),
       ...(version ? { editResult: { tripId: savedTrip.id, version, previousTripId: latest.id, outcomes } } : {}),
     };
     if (!Value.Check(SendMessageResultSchema, payload)) throw new Error('对话结果无效');

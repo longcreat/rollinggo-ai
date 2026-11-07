@@ -227,6 +227,8 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
     // 实时层已过期（重启后已结束 / 超过 TTL）：用持久任务行合成终态快照。
     const task = await persistedTask(userId, jobId);
     if (!task) return reply.code(404).send({ error: '任务不存在或已过期' });
+    // running 但没有实时层：durable 恢复还没就绪，让客户端退避重试，而不是反复收到「假终态」。
+    if (task.status === 'running') return reply.code(503).send({ error: '任务正在恢复，请稍后重试' });
     return { kind: 'snapshot' as const, snapshot: projectionFromTask(task) };
   });
 
@@ -238,6 +240,8 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
     const run = await resolveLiveRun(jobId, userId);
     const task = run ? null : await persistedTask(userId, jobId);
     if (!run && !task) return reply.code(404).send({ error: '任务不存在或已过期' });
+    // running 但没有实时层：SSE 快速重连会放大恢复延迟，交给客户端退避。
+    if (!run && task?.status === 'running') return reply.code(503).send({ error: '任务正在恢复，请稍后重试' });
 
     reply.hijack();
     const res = reply.raw;

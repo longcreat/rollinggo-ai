@@ -23,6 +23,17 @@ describe('ProjectionChannel', () => {
     assert.deepEqual(ch.snapshot.rows.window.map((row) => row.rowId), [1]);
   });
 
+  it('首次订阅（水位 0）即使缓冲从 0 开始也给快照：增量必须有基线才能应用', () => {
+    const ch = channel();
+    ch.publish(append(1));
+    ch.publish(append(2));
+    const resumed = ch.resume(0);
+    assert.equal(resumed.kind, 'snapshot');
+    if (resumed.kind !== 'snapshot') return;
+    assert.equal(resumed.snapshot.seq, 2);
+    assert.deepEqual(resumed.snapshot.rows.window.map((row) => row.rowId), [1, 2]);
+  });
+
   it('水位一致时无需补发', () => {
     const ch = channel();
     ch.publish(append(1));

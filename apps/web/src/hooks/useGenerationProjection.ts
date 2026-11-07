@@ -11,6 +11,7 @@ import {
   type TripProjectionState,
 } from '@tripweaver/shared';
 import { api, ApiError } from '../api/client';
+import { applyProjectionResume, type ProjectionResumeMessage } from '../lib/projectionResume';
 
 export interface GenerationProjectionState {
   snapshot: TripProjectionSnapshot | null;
@@ -19,6 +20,7 @@ export interface GenerationProjectionState {
 }
 
 type Message = ProjectionMessage<TripProjectionRow, TripProjectionState>;
+type ResumeMessage = ProjectionResumeMessage<TripProjectionRow, TripProjectionState>;
 
 const RETRY_DELAYS_MS = [500, 1_500, 3_000] as const;
 const TERMINAL = new Set(['done', 'error', 'cancelled']);
@@ -87,13 +89,21 @@ export function useGenerationProjection(jobId: string | undefined): GenerationPr
       };
     };
 
+    /** REST 重订阅返回帧序列（可能为空）或整份快照，按序应用；任一帧断档都重订阅。 */
+    const applyResume = (message: ResumeMessage): 'applied' | 'resync' => {
+      const result = applyProjectionResume(snapshotRef.current, message);
+      if (result.kind === 'resync') return 'resync';
+      if (result.snapshot) update(result.snapshot);
+      return 'applied';
+    };
+
     /** REST 重订阅：由服务端裁决补帧还是重发快照；404/401 = 任务过期。 */
     const reload = async () => {
       try {
-        const message = await api.get<Message>(
+        const message = await api.get<ResumeMessage>(
           `/api/generations/${jobId}/projection?fromSeq=${snapshotRef.current?.seq ?? 0}`,
         );
-        if (applyMessage(message) === 'resync') {
+        if (applyResume(message) === 'resync') {
           scheduleReload();
           return;
         }

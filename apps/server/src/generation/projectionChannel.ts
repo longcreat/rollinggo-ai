@@ -48,6 +48,8 @@ export class ProjectionChannel<Row extends ProjectionRowBase, State> {
    * `fromSeq` 超前（客户端比服务端新）同样按快照处理，不做任何猜测。
    */
   resume(fromSeq: number): ProjectionResume<Row, State> {
+    // 水位 0 = 客户端没有基线（首次加载/刷新）：增量必须叠在基线上才能应用，只能先给快照。
+    if (fromSeq === 0) return { kind: 'snapshot', snapshot: this.#snapshot };
     if (fromSeq === this.#snapshot.seq) return { kind: 'delta', frames: [] };
     const oldest = this.#frames[0]?.fromSeq;
     if (fromSeq > this.#snapshot.seq || oldest === undefined || fromSeq < oldest) {

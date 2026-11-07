@@ -900,3 +900,86 @@ memo 的结构性断言：临时脚本 import 组件后确认 `MessageBubble.$$t
 - 历史分页：`getConversationDetail` 当前无 limit 全量返回，要加 `before/limit` 游标；前端用 `useInfiniteQuery` + 上滚加载 + `scrollHeight` 差值补偿滚动位置
 - 展示层：历史消息的工具步骤默认折叠、长回答「展开全文」、按天/时间插话题分隔、未读分隔线
 - 虚拟滚动（>60 条才启用，`@tanstack/react-virtual` + `measureElement` 实测高度），代价是 Ctrl+F 与「跳到某条」要自己做
+
+
+## Session 52: 落地 harness 迁移并归档三任务
+
+**Date**: 2026-11-07
+**Task**: 落地 harness 迁移并归档三任务
+**Branch**: `master`
+
+### Summary
+
+清理 vendor/临时脚本后提交工作区 160 文件；修 amapRequest 日切换死循环与取消语义两处老 bug；typecheck/eval:test/web 单测全绿。
+
+### Main Changes
+
+## 背景
+
+详情对话与生成链路已从手写意图路由迁到 pi-durable harness，但代码一直留在工作区未提交（跨三个 in_progress 任务）。本次先清理、验证、落地这批改动，为后续「照抄上游 harness + 交互流程」的重构让出干净基线。
+
+## 改动
+
+- 代码主体：详情对话改读写主 Agent（只读子代理 + ask_user + 回合草稿提交）、生成改规划 Agent 加确定性校准层、上线行前体检、高德配额改只计量；删除旧意图路由 / 确定性排程 / 旧工具集
+- 顺带修的两处老 bug（HEAD 就有，非本批引入）：
+  - `amapRequest` 的日切换 `do-while` 没有上限，账本日期持续不匹配会死循环并每轮打库 → 改成最多重取一次，仍不一致 fail closed
+  - `amapRequest` 把 fetch 的 abort 包成「高德请求失败」，调用方无法区分取消与失败 → catch 里先 `signal.throwIfAborted()`
+- 三处陈旧测试期望：工具清单补 `search_area_places`、检索上限测试显式钉住预算（不随默认值漂移）、取消测试 stub 的 `day` 与账本同源
+
+## 验证
+
+| 项 | 结果 |
+|---|---|
+| `npm run typecheck` | 四包 exit 0 |
+| `doppler run -- npm run eval:test` | 108/108 |
+| `node --import tsx --test apps/web/tests/*.test.ts` | 39/39 |
+| `doppler run -- npm run eval` | 9 场景 hard 0，门槛 PASS |
+
+全量 `apps/server/src/__tests__/*.test.ts`（615 项）串行跑：剩余失败均为本地环境依赖，非代码回归——`settingsResolve` 需无站点 LLM Key（最小环境 3/3 过）、`emailRegisterGuard` 需 `RESEND_API_KEY`（加假 Key 后 5/5 过）、`placeFacts` / `cityCoverage` 需本地知识库种子数据（测试自己输出「跳过集成断言」）。
+
+### 坑
+
+- `styles.test.mjs` 当前仍红（9 个文件用原生控件），但不在 CI、且 `ChatInput.tsx` 不在本批脏文件里——属既有旧债，留到架构闸门阶段用 baseline 机制处理
+- 并行跑全量单测时，DB 导入类测试会互相干扰（4 个失败串行后全部通过）；排查环境问题时优先串行
+- `node --test` 输出 pipe 到 `tail` 会一直缓冲到结束，看不到进度；写文件再 tail
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1e076b5` | feat(server): 迁移详情与生成到 harness |
+| `b4990a7` | docs(spec): 对齐 harness 与配额口径 |
+| `1cf722c` | chore(tasks): 归档配额文档与生成体验三任务 |
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+按已确认的三阶段底层重构推进：
+
+1. 阶段一：删掉与 pi-durable 重复的 wrapper（runtime/subagent/turnState/tripDraft），交互状态（ask_user、决策卡）持久化到 transcript
+2. 阶段二：orchestrator 迁到 `defineTask`，删 jobManager / runner / 前端事件归约，统一 snapshot+delta 投影协议
+3. 阶段三：领域规则单一事实源，vendor 上游架构闸门与文档漂移检测
+
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `1e076b5` | (see git log) |
+| `b4990a7` | (see git log) |
+| `1cf722c` | (see git log) |
+
+### Testing
+
+- [OK] (Add test results)
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- None - task complete

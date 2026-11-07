@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-2.md`
-- **Total Sessions**: 51
-- **Last Active**: 2026-10-17
+- **Total Sessions**: 52
+- **Last Active**: 2026-11-07
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-2.md` | ~221 | Active |
+| `journal-2.md` | ~985 | Active |
 | `journal-1.md` | ~1927 | Archived |
 <!-- @@@/auto:active-documents -->
 
@@ -30,6 +30,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 52 | 2026-11-07 | 落地 harness 迁移并归档三任务 | `1e076b5`, `b4990a7`, `1cf722c` | `master` |
 | 51 | 2026-10-17 | place_identity_imports 归档与截断 | `2b76ec2` | `master` |
 | 50 | 2026-10-16 | 遗留代码、本地产物与文档口径清理 | `6fed00d`, `a77818c`, `be00848`, `e9c5242`, `b3146ce`, `3effae2` | `master` |
 | 49 | 2026-10-12 | place identity 收尾与测试隔离 | `286e818`, `1065859`, `4defff8` | `master` |

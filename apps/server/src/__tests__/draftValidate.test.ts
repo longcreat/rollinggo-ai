@@ -33,3 +33,25 @@ test('未指定节奏时按 moderate 处理', () => {
   assert.deepEqual(densityProblems(draftWith(undefined, 8, 2)), []);
   assert.equal(densityProblems(draftWith(undefined, 9, 0)).length, 1);
 });
+test('草稿快照往返：结构/渲染/校验一致，且深拷贝互不影响', () => {
+  const form: GenerateForm = {
+    destination: '成都', days: 2, startDate: '2026-11-10', budgetLevel: '舒适', totalBudget: 0,
+    preferences: ['文化'], partySize: 2, extraNotes: '', pace: 'moderate',
+  };
+  const draft = new DraftTrip(form);
+  draft.setSkeleton('成都三日', ['第一天', '第二天']);
+  draft.setLodging('春熙路');
+  draft.addActivity(1, { name: '人民公园', category: '文化', lat: 30.66, lng: 104.06 });
+
+  const snapshot = draft.toSnapshot();
+  const restored = DraftTrip.fromSnapshot(form, snapshot);
+
+  assert.deepEqual(restored.mutableDays(), draft.mutableDays());
+  assert.equal(restored.render(), draft.render());
+  assert.deepEqual(restored.validate(), draft.validate());
+
+  // 修改原草稿不影响快照与恢复体（两边都是深拷贝）
+  draft.mutableDays()[0]!.activities[0]!.name = '改过的公园';
+  assert.equal(restored.mutableDays()[0]!.activities[0]!.name, '人民公园');
+  assert.equal(snapshot.days[0]!.activities[0]!.name, '人民公园');
+});

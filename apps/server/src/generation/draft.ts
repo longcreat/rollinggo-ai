@@ -26,6 +26,14 @@ import { type DraftActivity, type PlaceHint } from './placeLookup';
 /** 排程项类目：不计入每日景点密度（餐次/住宿/交通本来就会叠加在景点之上）。 */
 const SCHEDULE_ONLY_CATEGORIES = new Set<string>(['美食', '住宿', '交通']);
 
+/** 草稿的纯数据快照（durable task 的 checkpoint 单位）。 */
+export interface DraftSnapshot {
+  title: string;
+  lodging?: Lodging;
+  lodgingFromUser: boolean;
+  days: { title: string; activities: DraftActivity[]; legs?: TransitLeg[] }[];
+}
+
 export interface DraftActivityInput extends PlaceHint {
   name: string;
   canonicalPlaceId?: string;
@@ -85,6 +93,26 @@ export class DraftTrip {
       this.lodging = { name: userLodging.slice(0, 60) };
       this.lodgingFromUser = true;
     }
+  }
+
+  /** checkpoint 用的纯数据快照：只含可 JSON 序列化的字段，不含方法。 */
+  toSnapshot(): DraftSnapshot {
+    return {
+      title: this.title,
+      ...(this.lodging ? { lodging: { ...this.lodging } } : {}),
+      lodgingFromUser: this.lodgingFromUser,
+      days: structuredClone(this.days),
+    };
+  }
+
+  /** 从 checkpoint 恢复草稿（form 必须与生成时一致，days 深拷贝避免共享引用）。 */
+  static fromSnapshot(form: GenerateForm, snapshot: DraftSnapshot): DraftTrip {
+    const draft = new DraftTrip(form);
+    draft.title = snapshot.title;
+    draft.lodging = snapshot.lodging ? { ...snapshot.lodging } : undefined;
+    draft.lodgingFromUser = snapshot.lodgingFromUser;
+    draft.days = structuredClone(snapshot.days);
+    return draft;
   }
 
   /** 规划 Agent set_lodging 工具入口：仅在用户未指定时生效 */

@@ -8,7 +8,12 @@ import {
   type GenerationJobStatus,
   type GenerationJobView,
   type GenerationKind,
+  type TripProjectionFrame,
+  type TripProjectionRow,
+  type TripProjectionState,
 } from '@tripweaver/shared';
+import { createGenerationProjection, type GenerationProjection } from './projectionAdapter';
+import type { ProjectionResume } from './projectionChannel';
 
 const RING_SIZE = 512;
 const FINISHED_TTL_MS = 30 * 60 * 1000; // 终态任务保留 30 分钟供刷新恢复
@@ -19,6 +24,7 @@ export interface StoredEvent {
 }
 
 type Listener = (e: StoredEvent) => void;
+type ProjectionListener = (frame: TripProjectionFrame) => void;
 
 /** 生成来源：区分「表单/对话新建」与「基于已有行程的修订」；对话入口时代三列均缺省 */
 export interface JobProvenance {
@@ -42,6 +48,9 @@ export interface Job {
   events: StoredEvent[];
   nextEventId: number;
   listeners: Set<Listener>;
+  /** 统一投影（阶段二过渡桥）：事件在 emit 时同步翻译成投影帧。 */
+  projection: GenerationProjection;
+  projectionListeners: Set<ProjectionListener>;
 }
 
 const jobs = new Map<string, Job>();
@@ -52,8 +61,9 @@ export function getRunningJobId(userId: string): string | null {
 }
 
 export function createJob(userId: string, provenance: JobProvenance = { kind: 'generation' }): Job {
+  const id = uid();
   const job: Job = {
-    id: uid(),
+    id,
     userId,
     status: 'running',
     tripId: null,
@@ -64,6 +74,8 @@ export function createJob(userId: string, provenance: JobProvenance = { kind: 'g
     events: [],
     nextEventId: 1,
     listeners: new Set(),
+    projection: createGenerationProjection(id),
+    projectionListeners: new Set(),
   };
   jobs.set(job.id, job);
   runningByUser.set(userId, job.id);
@@ -85,6 +97,23 @@ export function emit(job: Job, event: GenerationEvent): void {
   const stored: StoredEvent = { id: job.nextEventId++, event: { ...event, at: event.at ?? Date.now() } };
   job.events.push(stored);
   if (job.events.length > RING_SIZE) job.events.splice(0, job.events.length - RING_SIZE);
+  // 投影与事件流同步推进；投影失败绝不能拖垮生成流水线。
+  let frames: TripProjectionFrame[] = [];
+  try {
+    frames = job.projection.consume(stored.event);
+  } catch {
+    frames = [];
+  }
+  for (const listener of job.projectionListeners) {
+    for (const frame of frames) {
+      try {
+        listener(frame);
+      } catch {
+        job.projectionListeners.delete(listener);
+        break;
+      }
+    }
+  }
   for (const listener of job.listeners) {
     try {
       listener(stored);
@@ -130,6 +159,20 @@ export function subscribe(job: Job, afterId: number, listener: Listener): () => 
   }
   if (!isTerminal(job.status)) job.listeners.add(listener);
   return () => job.listeners.delete(listener);
+}
+
+/**
+ * 投影订阅：先按客户端水位裁决补增量或重发快照，再挂实时帧监听。
+ * resume 与 add 之间没有 await，单线程下不会漏帧。
+ */
+export function subscribeProjection(
+  job: Job,
+  fromSeq: number,
+  listener: ProjectionListener,
+): { initial: ProjectionResume<TripProjectionRow, TripProjectionState>; unsubscribe: () => void } {
+  const initial = job.projection.channel.resume(fromSeq);
+  if (!isTerminal(job.status)) job.projectionListeners.add(listener);
+  return { initial, unsubscribe: () => job.projectionListeners.delete(listener) };
 }
 
 export function isTerminal(status: GenerationJobStatus): boolean {

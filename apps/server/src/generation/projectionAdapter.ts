@@ -9,6 +9,8 @@ import {
   emptyTripProjectionState,
   type GenerationEvent,
   type ProjectionTaskNode,
+  type TripProjectionDelta,
+  type TripProjectionFrame,
   type TripProjectionRow,
   type TripProjectionState,
 } from '@tripweaver/shared';
@@ -22,7 +24,8 @@ const MAX_DAYS = 15;
 
 export interface GenerationProjection {
   channel: ProjectionChannel<TripProjectionRow, TripProjectionState>;
-  consume(event: GenerationEvent): void;
+  /** 消费一条事件，返回本次产生的投影帧（供 SSE 下发）。 */
+  consume(event: GenerationEvent): TripProjectionFrame[];
 }
 
 export function createGenerationProjection(jobId: string): GenerationProjection {
@@ -30,9 +33,15 @@ export function createGenerationProjection(jobId: string): GenerationProjection 
     emptySnapshot(emptyTripProjectionState()),
   );
   const tasks = new Map<string, ProjectionTaskNode>();
+  let sink: TripProjectionFrame[] | null = null;
 
+  const publish = (delta: TripProjectionDelta): TripProjectionFrame => {
+    const frame = channel.publish(delta);
+    sink?.push(frame);
+    return frame;
+  };
   const publishTasks = () => {
-    channel.publish({ op: 'state.updated', patch: { taskGraph: [...tasks.values()] } });
+    publish({ op: 'state.updated', patch: { taskGraph: [...tasks.values()] } });
   };
   const setTask = (id: string, node: ProjectionTaskNode) => {
     tasks.set(id, node);
@@ -41,25 +50,21 @@ export function createGenerationProjection(jobId: string): GenerationProjection 
   const phaseTaskId = (phase: string, round: number) => `phase:${phase}:${round}`;
 
   /** 天行按 dayIndex 一一对应：plan_day 早于 job_start 时先补齐占位行，保证行序单调。 */
-  function ensureDayRow(dayIndex: number): TripProjectionRow | undefined {
-    let current = channel.snapshot.rows.window.find((row) => row.rowId === dayIndex);
+  function ensureDayRow(dayIndex: number): void {
     const lastRowId = channel.snapshot.rows.window.at(-1)?.rowId ?? 0;
     for (let day = lastRowId + 1; day <= dayIndex; day += 1) {
-      channel.publish({
+      publish({
         op: 'row.appended',
         row: { rowId: day, kind: 'day', dayIndex: day, title: '', activities: [], legs: [] },
       });
     }
-    current = channel.snapshot.rows.window.find((row) => row.rowId === dayIndex);
-    return current;
   }
 
-  function consume(event: GenerationEvent): void {
+  function handle(event: GenerationEvent): void {
     switch (event.type) {
       case 'job_start': {
-        const days = Math.max(1, Math.min(MAX_DAYS, event.days ?? 1));
-        ensureDayRow(days);
-        channel.publish({
+        ensureDayRow(Math.max(1, Math.min(MAX_DAYS, event.days ?? 1)));
+        publish({
           op: 'state.updated',
           patch: {
             trip: {
@@ -75,7 +80,7 @@ export function createGenerationProjection(jobId: string): GenerationProjection 
         return;
       }
       case 'phase_start': {
-        channel.publish({ op: 'state.updated', patch: { control: { phase: event.phase, status: 'running', jobId } } });
+        publish({ op: 'state.updated', patch: { control: { phase: event.phase, status: 'running', jobId } } });
         setTask(phaseTaskId(event.phase, event.round), {
           id: phaseTaskId(event.phase, event.round), phase: event.phase,
           label: PHASE_LABEL[event.phase] ?? event.phase, status: 'running',
@@ -118,7 +123,7 @@ export function createGenerationProjection(jobId: string): GenerationProjection 
           category: stop.category,
           sourceNotes: [],
         }));
-        channel.publish({
+        publish({
           op: 'row.upserted',
           row: { rowId: event.dayIndex, kind: 'day', dayIndex: event.dayIndex, title: event.title ?? '', activities, legs: [] },
         });
@@ -127,14 +132,14 @@ export function createGenerationProjection(jobId: string): GenerationProjection 
       case 'candidate': {
         const trip = channel.snapshot.state.trip;
         if (!trip) return;
-        channel.publish({
+        publish({
           op: 'state.updated',
           patch: { trip: { ...trip, overview: [...(trip.overview ?? []), event.poi] } },
         });
         return;
       }
       case 'usage':
-        channel.publish({
+        publish({
           op: 'state.updated',
           patch: {
             usage: { tokensIn: event.tokensIn, tokensOut: event.tokensOut, amapCalls: event.amapCalls, searchCalls: event.searchCalls },
@@ -143,7 +148,7 @@ export function createGenerationProjection(jobId: string): GenerationProjection 
         return;
       case 'job_done': {
         const trip = channel.snapshot.state.trip;
-        channel.publish({
+        publish({
           op: 'state.updated',
           patch: {
             control: { phase: 'commit', status: 'done', jobId, tripId: event.tripId },
@@ -155,13 +160,13 @@ export function createGenerationProjection(jobId: string): GenerationProjection 
         return;
       }
       case 'job_error':
-        channel.publish({
+        publish({
           op: 'state.updated',
           patch: { control: { phase: 'idle', status: 'error', jobId, message: event.message } },
         });
         return;
       case 'job_cancelled':
-        channel.publish({
+        publish({
           op: 'state.updated',
           patch: { control: { phase: 'idle', status: 'cancelled', jobId, message: event.reason } },
         });
@@ -170,6 +175,17 @@ export function createGenerationProjection(jobId: string): GenerationProjection 
       default:
         return;
     }
+  }
+
+  function consume(event: GenerationEvent): TripProjectionFrame[] {
+    const frames: TripProjectionFrame[] = [];
+    sink = frames;
+    try {
+      handle(event);
+    } finally {
+      sink = null;
+    }
+    return frames;
   }
 
   return { channel, consume };

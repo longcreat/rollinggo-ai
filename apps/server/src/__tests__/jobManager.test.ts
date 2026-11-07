@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { cancelJob, completeJob, createJob, emit, failJob, getRunningJobId, subscribe, type StoredEvent } from '../generation/jobManager';
+import { cancelJob, completeJob, createJob, emit, failJob, getRunningJobId, subscribe, subscribeProjection, type StoredEvent } from '../generation/jobManager';
 
 test('终态唯一，迟到的阶段消息和重复终态不覆盖结果，终态重放不保留监听器', () => {
   const job = createJob('terminal-once');
@@ -37,8 +37,7 @@ test('job manager timestamps events and fixes terminal duration', () => {
   assert.ok((terminal.durationMs ?? -1) >= 0);
 });
 
-test('cancelJob emits cancel reason (user default, explicit override)', () => {
-  const userJob = createJob(`cancel-reason-user-${Date.now()}`);
+test('cancelJob emits cancel reason (user default, explicit override)', () => {  const userJob = createJob(`cancel-reason-user-${Date.now()}`);
   const userReceived: StoredEvent[] = [];
   const userUnsubscribe = subscribe(userJob, 0, (event) => userReceived.push(event));
   cancelJob(userJob);
@@ -58,4 +57,35 @@ test('cancelJob emits cancel reason (user default, explicit override)', () => {
   assert.equal(timeoutTerminal?.type, 'job_cancelled');
   if (timeoutTerminal?.type !== 'job_cancelled') return;
   assert.equal(timeoutTerminal.reason, 'timeout');
+});
+
+test('投影随事件同步推进：实时帧、补增量、越界重发快照', () => {
+  const job = createJob(`projection-${Date.now()}`);
+  emit(job, { type: 'job_start', destination: '成都', days: 2, startDate: '2026-11-10', xhsEnabled: false, dataSources: [] });
+  emit(job, { type: 'plan_day', dayIndex: 1, title: '市区', stops: [
+    { name: '人民公园', lat: 30.66, lng: 104.06, startTime: '09:00', endTime: '11:00', category: '文化' },
+  ] });
+
+  // 实时：从当前水位订阅，初始无补帧，之后收到实时帧
+  const seq = job.projection.channel.snapshot.seq;
+  const live: string[] = [];
+  const subscription = subscribeProjection(job, seq, (frame) => live.push(frame.delta.op));
+  assert.deepEqual(subscription.initial, { kind: 'delta', frames: [] });
+  emit(job, { type: 'usage', tokensIn: 1, tokensOut: 2, xhsCalls: 0, amapCalls: 0, searchCalls: 0 });
+  subscription.unsubscribe();
+  assert.deepEqual(live, ['state.updated']);
+
+  // 从 0 订阅：补发全部增量
+  const replay = subscribeProjection(job, 0, () => {});
+  assert.equal(replay.initial.kind, 'delta');
+  replay.unsubscribe();
+
+  // 水位超前 / 越界：整体重发快照，不做猜测
+  const ahead = subscribeProjection(job, 999, () => {});
+  assert.equal(ahead.initial.kind, 'snapshot');
+  ahead.unsubscribe();
+
+  const snapshot = job.projection.channel.snapshot;
+  assert.equal(snapshot.state.trip?.destination, '成都');
+  assert.equal(snapshot.rows.window[0]?.activities[0]?.name, '人民公园');
 });

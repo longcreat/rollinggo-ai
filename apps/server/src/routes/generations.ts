@@ -19,7 +19,7 @@ import { resolveLlmConfig } from '../services/settingsService';
 import { getConversation } from '../services/conversationService';
 import { getTrip } from '../services/tripService';
 import { hasSiteLlm } from '../env';
-import { createJob, getJob, getRunningJobId, jobView, subscribe, type StoredEvent } from '../generation/jobManager';
+import { createJob, getJob, getRunningJobId, jobView, subscribe, subscribeProjection, type StoredEvent } from '../generation/jobManager';
 import { runGeneration } from '../generation/orchestrator';
 import { getGenerationResult } from '../services/notificationService';
 
@@ -157,6 +157,75 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
     // 同步重放可能已经结束；包括客户端持有终态 ID、没有新事件可回放的情况。
     if (closed) unsubscribe();
     else if (job.status !== 'running') finish();
+  });
+
+  /**
+   * 统一投影：一次拿到「真相」（快照或补发的增量帧）。
+   * 客户端三条铁律的入口 —— 断档时携 fromSeq 重订阅，由服务端裁决补增量还是重发快照。
+   */
+  app.get('/:jobId/projection', async (request, reply) => {
+    const { jobId } = request.params as { jobId: string };
+    const job = getJob(jobId, request.user!.id);
+    if (!job) return reply.code(404).send({ error: '任务不存在或已过期' });
+    const fromSeq = Number.parseInt((request.query as { fromSeq?: string }).fromSeq ?? '0', 10) || 0;
+    const resumed = job.projection.channel.resume(fromSeq);
+    return resumed.kind === 'snapshot'
+      ? { kind: 'snapshot' as const, snapshot: resumed.snapshot }
+      : { kind: 'delta' as const, frames: resumed.frames };
+  });
+
+  // 投影 SSE：先发 initial（快照或补帧），再推实时帧。
+  app.get('/:jobId/projection/events', async (request, reply) => {
+    const { jobId } = request.params as { jobId: string };
+    const job = getJob(jobId, request.user!.id);
+    if (!job) return reply.code(404).send({ error: '任务不存在或已过期' });
+
+    const fromSeq = Number.parseInt((request.query as { fromSeq?: string }).fromSeq ?? '0', 10) || 0;
+
+    reply.hijack();
+    const res = reply.raw;
+    res.writeHead(200, {
+      'content-type': 'text/event-stream; charset=utf-8',
+      'cache-control': 'no-cache, no-transform',
+      connection: 'keep-alive',
+      'x-accel-buffering': 'no',
+    });
+    res.write(': connected\n\n');
+
+    let closed = false;
+    let unsubscribe = () => {};
+    const finish = () => {
+      if (closed) return;
+      closed = true;
+      unsubscribe();
+      clearInterval(heartbeat);
+      res.end();
+    };
+    const write = (payload: unknown) => {
+      if (closed) return;
+      try {
+        res.write(`data: ${JSON.stringify(payload)}\n\n`);
+      } catch {
+        finish();
+      }
+    };
+
+    const heartbeat = setInterval(() => {
+      if (closed) return;
+      try {
+        res.write(': hb\n\n');
+      } catch {
+        finish();
+      }
+    }, HEARTBEAT_MS);
+    heartbeat.unref?.();
+
+    res.on('close', finish);
+    const { initial, unsubscribe: off } = subscribeProjection(job, fromSeq, (frame) => write({ kind: 'delta', frame }));
+    unsubscribe = off;
+    if (initial.kind === 'snapshot') write({ kind: 'snapshot', snapshot: initial.snapshot });
+    else for (const frame of initial.frames) write({ kind: 'delta', frame });
+    if (job.status !== 'running') finish();
   });
 
   app.post('/:jobId/cancel', async (request, reply) => {

@@ -43,7 +43,7 @@ import { uid } from '@tripweaver/shared';
 import type { LlmConfig } from '../services/settingsService';
 import { searchBudgetRemaining } from '../services/quotaService';
 import { createTrip } from '../services/tripService';
-import { recordGenerationNotification } from '../services/notificationService';
+import { recordGenerationNotification, getGenerationResult } from '../services/notificationService';
 import { publishNotification, type NotificationEvent } from '../services/notificationStream';
 import { poiBudgetRemaining, resolvePoiSourceForUser } from '../integrations/geoProvider';
 import { getNullPoiSource } from '../integrations/nullPoiSource';
@@ -238,6 +238,15 @@ export async function runGeneration(
   };
 
   try {
+    // 幂等：提交与「成功通知」在同一事务里落库（(userId, jobId) 唯一）。
+    // 若进程在提交后、durable 记录终态前崩溃，重跑时这里直接复用已提交结果，绝不生成第二个版本。
+    const committed = await getGenerationResult(job.userId, job.id);
+    if (committed?.status === 'done' && committed.tripId) {
+      completeJob(job, committed.tripId, [], []);
+      terminalStatus = 'done';
+      return;
+    }
+
     assertAlive(signal);
     // 两条安全校验尽早并行，拒绝也立即被观察，避免初始化提前退出后的游离 rejection。
     const modelPromise = buildModel(cfg, { disableDeepSeekThinking: true }).then(

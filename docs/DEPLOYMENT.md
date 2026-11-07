@@ -73,9 +73,10 @@ PostgreSQL + pgvector 用 `docker compose up -d db` 起（或指向已有的本�
 
 | 变量 | 说明 |
 |---|---|
+| `AMAP_QUOTA_ENFORCE` | **默认 `false`（2026-11-06 起，测试环境口径）：高德日预算只记账观测、不拦截**，实际消耗受高德账户自身月配额约束。置 `true` 恢复硬闸门（预检失败降级 Null 源）。详见[高德限额与日志](AMAP_QUOTAS.md) |
 | `AMAP_LBS_MONTHLY_BUDGET` / `AMAP_SEARCH_MONTHLY_BUDGET` | 个人认证默认 150000 / 5000，按 31 天折算服务日预算，详见[高德限额与日志](AMAP_QUOTAS.md) |
-| `AMAP_{GEOCODE,PLACE,WALK,CYCLE,DRIVE,TRANSIT}_DAILY_BUDGET` | 六项独立上限；默认 POI 搜索 161，其余各 967。0 禁用；五项 LBS 合计不得超过月预算 / 31 |
-| `AMAP_DAILY_BUDGET` | 旧配置兼容：仅压低未独立配置项的默认值；新部署留空 |
+| `AMAP_{GEOCODE,PLACE,WALK,CYCLE,DRIVE,TRANSIT}_DAILY_BUDGET` | 六项独立上限；默认 POI 搜索 161，其余各 967。0 禁用（仅 enforce=true 时生效）；五项 LBS 合计不得超过月预算 / 31 |
+| `AMAP_PHOTO_MAX_PER_TASK` | 景点图查询单任务上限（默认 40）；图片已收敛为高德 POI photos 单源 |
 | `SEARCH_DAILY_BUDGET` | 全站搜索调用日额度（默认 500，超出自动降级） |
 | `QWEATHER_DAILY_BUDGET` | 全站和风调用日额度（默认 200，应用上限非官方套餐额度）。每个目的地最多 2 次请求，城市缓存 24h、预报缓存 1h |
 
@@ -83,9 +84,7 @@ PostgreSQL + pgvector 用 `docker compose up -d db` 起（或指向已有的本�
 
 | 变量 | 说明 |
 |---|---|
-| `PEXELS_API_KEY` / `UNSPLASH_ACCESS_KEY` / `PIXABAY_API_KEY` | 景点封面免费图库（均可选）。缺 Key 时后台跳过该源的新检索，旧行程已保存照片保持可用 |
-| `PHOTO_REVIEW_ENABLED` / `PHOTO_REVIEW_BASE_URL` / `PHOTO_REVIEW_API_KEY` / `PHOTO_REVIEW_MODEL` | 后台景点视觉审核（与行程模型独立，需支持图片输入的 Chat Completions 端点） |
-| `PHOTO_REVIEW_DAILY_PLACES` | 滚动 24h 最多处理的景点数，默认 300、上限 300 |
+| `AMAP_PHOTO_MAX_PER_TASK` | 景点图片唯一来源是高德 POI photos（名字闸门 + 类型白名单 + 24h 缓存 + 库内回写），单任务查询上限默认 40。旧的多源图库（Pexels/Unsplash/Pixabay/Wikimedia）与视觉审核队列已于 2026-11-04 删除，`PEXELS/UNSPLASH/PIXABAY/PHOTO_REVIEW_*` 变量不再使用 |
 | `IMAGE_API_BASE_URL` / `IMAGE_MODEL` / `IMAGE_API_KEY` | AI 分享图：默认第三方 OpenAI Images 兼容地址 `https://xjbh.lol/v1`，模型 `gpt-image2.5`，需独立密钥。可用 `_2` / `_3` 后缀追加中转站（最多 3 个，按序降级）。[配置说明](AI_SHARE_IMAGES.md) |
 | `MEDIA_STORE` | 图片与图源索引的存储后端：`local`（默认，宿主机 `./data`）或 `s3`（Cloudflare R2 / MinIO / 任意 S3，桶内布局与 `data/` 一致）。改这一个值即切换读写两侧，不用重导数据库 |
 | `MEDIA_S3_*` | `MEDIA_STORE=s3` 时必填五项（endpoint / bucket / access key / secret / region）。endpoint 只到域名层级（R2：`https://<account_id>.r2.cloudflarestorage.com`）；region 留空即 `auto`。缺任一项启动即报错 |
@@ -93,15 +92,14 @@ PostgreSQL + pgvector 用 `docker compose up -d db` 起（或指向已有的本�
 
 ---
 
-## 调研数据源（地图服务商 + 全网搜索）
+## 调研数据源（高德单源 + 全网搜索）
 
-调研 Agent 采用「结构化底座 + 攻略语义层」双层数据源，模型知识兜底：
+调研 Agent 与详情对话 Agent 的数据源（2026-11-05 起天地图已整体下线，全部走高德）：
 
-1. **地点搜索**：真实地点的名称、地址与坐标。**搜索固定走天地图**——高德 `v5/place/text` 与地理编码主路径共用同一份个人配额，实测会被打满、两者互相挤占。天地图不可用时回空结果、由模型知识兜底（**不回落高德**）
+1. **高德 Web 服务**：地点文本/周边/多边形检索（`v5/place/text|around|polygon`）、地理编码（v3）、路径规划（v5）。个人认证无流量包时基础 LBS 15 万次/月、搜索 5000 次/月，详见[高德限额与日志](AMAP_QUOTAS.md)
 2. **Web 搜索 API**：玩法、避雷与「是否需要预约」等攻略信息，带来源链接。用户可保存个人 API Key 与 Base URL（Key 以 AES-256-GCM 加密、仅显示尾号），个人配置优先，清除后回退站点配置，两者都不可用时 Null 降级
 3. **预约种子表**：仓库内置约 50 条全国热门「需预约」景点（故宫/国博/莫高窟/陕历博等），命中即直接标注预约方式与官方链接，离线可用（`apps/server/src/data/reservationSeeds.json`）
-
-地图侧两家是**互补分工**，不是二选一（**没有 `MAP_PROVIDER` 开关**）：地点搜索固定天地图；路线规划 + 地理编码**高德优先**（个人 Key → 站点 `AMAP_KEY` → 天地图 → Nominatim 降级）。两个 Key 都建议配置。天地图无步行/骑行路径规划（回落启发式）、POI 无评分/人均/营业时间/图片，两家的调用额度分别计数、互不影响。
+4. **和风天气**：15 天逐日预报；配置方式见 `.env.example` 的 `QWEATHER_*` 段（推荐 Ed25519 JWT 现签）
 
 前端底图**默认走 Leaflet + 高德栅格瓦片**；配了高德 **JS API** 凭据后自动切成高德 JS API 渲染 —— 这样才能隐藏未编入行程的 POI 文字（栅格瓦片把文字烘焙进图片，关不掉）。Key 缺失、接口未取到、或 SDK 加载失败/超时都**静默降级**回 Leaflet，编辑器不会出现没有地图的情况。
 

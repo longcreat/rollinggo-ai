@@ -8,8 +8,8 @@
 //
 // 已删除的（首页改成地图选城 + 胶囊收集 Brief 后无前端调用点）：
 //   GET /、DELETE /:id、POST /:id/messages、PATCH /:id/brief 的确认卡分支。
-//   注意「对话理解」本身没有下线 —— 它现在的入口是行程内对话
-//   （/:id/messages/stream → services/detailChatService → chat/understanding）。
+//   注意「对话理解」链路（understanding → editOps）已于 2026-11-06 整体下线 ——
+//   行程内对话的唯一入口是读写主 Agent harness（/:id/messages/stream → chat/agent/）。
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { ConversationCreateSchema, PlanningBriefPatchSchema } from '@tripweaver/shared';

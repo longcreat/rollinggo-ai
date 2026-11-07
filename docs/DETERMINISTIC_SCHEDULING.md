@@ -1,5 +1,9 @@
 # 织程 TripWeaver · 确定性排程算法
 
+> **⚠️ 现状注记（2026-11-07）**：生成主链路已切换为「规划 Agent 选点/分天/排序/时刻（`generation/planner/`）+ 确定性校准层」（见 [技术架构 §5.1](./TECHNICAL_ARCHITECTURE.md)）。
+> 本文描述的 `buildSchedule` 排程引擎**已退出生成主链**，目前仅剩详情对话「再加 N 天」路径（`chat/researchAddedDays.ts`）在消费，待迁移到规划引擎。
+> 本文仍是**校准层的事实来源**：选点打分公式（`scheduling/score.ts`）、闭馆检测（`openHours` + 节假日豁免）、停留分量、路线顺序约束（routeOrderSeeds）都在现役代码中使用。
+>
 > 行程的**结构**（入选哪些点、每个点属于哪一天、当天内什么顺序）由纯代码算出，不经过 LLM。
 > 文案（标题、活动说明）才走模型。本文描述 `apps/server/src/generation/scheduling/` 的实现契约。
 >

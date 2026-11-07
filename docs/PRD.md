@@ -11,6 +11,10 @@
 >
 > **注（2026-07-09）**：本文为 v0.3 快照。新增行程概览页，现状以 [README](../README.md) 与 [技术架构 §6](./TECHNICAL_ARCHITECTURE.md) 为准。
 >
+> **注（2026-11-07）· Agent harness 化**：产品范式已切换（详见 [技术架构 v0.7](./TECHNICAL_ARCHITECTURE.md) 与 [PERSON_AGENT_PLAN](./PERSON_AGENT_PLAN.md)）：
+> F1 的「三 Agent 流水线」现为「调研 Agent → 规划 Agent → 确定性校准层」；F5 编辑升级为**读写 Agent harness**（对话内直接改行程节点 + 回合版本 + rewind 撤销 + ask_user 问题卡）；新增**行前体检**（[TRIP_REFINEMENT_PLAN](./TRIP_REFINEMENT_PLAN.md)）。
+> §5 非功能表中「SQLite」为历史残留——运行态数据库自 09-18 起为 **PostgreSQL 16 + pgvector**；Agent 会话存储为 pi-durable SQLite（每人一份，仅 transcript）。
+>
 > **注（2026-09-21）· 调研数据源更正**：已**放弃「高德地点数据 + 全网搜索」**——实测速度慢、内容质量差。当前方案为：
 > **抓取小红书笔记 → 清洗提纯入库 → 调研阶段 RAG 检索召回**（小红书重新成为调研主数据源，但改为离线语料 + 向量检索，而非早期的实时 MCP 抓取）。
 > 竞品定位与差异化论证见 [竞品与差异化分析](./COMPETITIVE_ANALYSIS.md)。

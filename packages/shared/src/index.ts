@@ -19,3 +19,4 @@ export * from './utils';
 export * from './weather';
 export * from './tripAdvice';
 export { placeNameKey, samePlaceReference, uniquePlaceReferences, type PlaceIdentityReference } from './placeIdentity';
+export { placeNameContains, placeNameContainsKey } from './placeNameMatch';

@@ -1,5 +1,6 @@
 // 行程派生数据（纯函数）：概览候选 ↔ 活动匹配、通勤段查找与展示格式化 —— 编辑器多组件共用
 import type { ResearchPoi, TransitLeg, TripDay } from '@tripweaver/shared';
+import { placeNameContainsKey } from '@tripweaver/shared';
 
 /** 名称归一化：统一小写、去空白与常见中英文标点，供活动与调研候选模糊匹配 */
 function normalizeName(name: string): string {
@@ -14,12 +15,11 @@ export interface OverviewMatch {
 }
 
 /**
- * 包含匹配防误报护栏：短名极易误命中（如「西湖」⊂「西湖醋鱼餐厅」是错配）。
- * 要求被包含侧 ≥2 字且长度不低于另一侧的一半 —— 宁可漏配进备选抽屉，不在活动卡上展示错误信息。
+ * 包含匹配防误报护栏与 server 同源：见 `@tripweaver/shared` 的 `placeNameContainsKey`
+ * （2 字名只认精确匹配，缺 3 字以上才做包含匹配）。这里传入的 key 已由 normalizeName 归一化。
  */
 function containsMatch(a: string, b: string): boolean {
-  const [short, long] = a.length <= b.length ? [a, b] : [b, a];
-  return short.length >= 2 && short.length * 2 >= long.length && long.includes(short);
+  return placeNameContainsKey(a, b);
 }
 
 /**

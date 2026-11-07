@@ -21,6 +21,10 @@ import { getTrip } from '../services/tripService';
 import { hasSiteLlm } from '../env';
 import { createJob, getJob, getRunningJobId, jobView, subscribe, subscribeProjection, type StoredEvent } from '../generation/jobManager';
 import { runGeneration } from '../generation/orchestrator';
+import { GenerationTask, registerGenerationRunner, unregisterGenerationRunner } from '../generation/generationTask';
+import { agentStoragePath, ensureAgentStorageDir } from '../generation/agentStorage';
+import { getAgentRuntime } from '../chat/agent/runtime';
+import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { getGenerationResult } from '../services/notificationService';
 
 const HEARTBEAT_MS = 25_000;
@@ -80,7 +84,27 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
       kind,
       ...(kind === 'revision' && targetTripId ? { targetTripId } : {}),
     });
-    runGeneration(job, request.body, cfg, app.log).catch((err) => app.log.error(err, 'runGeneration 未捕获异常'));
+    // 运行上下文是进程内闭包：先注册，再建 durable 任务；任务被调度时按 jobId 取回。
+    registerGenerationRunner(job.id, async () => {
+      await runGeneration(job, request.body, cfg, app.log);
+      const status = job.status === 'running' ? 'error' : job.status;
+      return { status, tripId: job.tripId };
+    });
+    try {
+      await ensureAgentStorageDir();
+      const runtime = await getAgentRuntime(agentStoragePath(userId));
+      const root = await runtime.harness.root(BACKGROUND_CONTEXT);
+      await root.commit(
+        (tx) => tx.createTask(GenerationTask, { jobId: job.id }, { ownership: { kind: 'conversation' } }),
+        BACKGROUND_CONTEXT,
+      );
+      runtime.harness.resume();
+    } catch (error) {
+      // durable 骨架不可用时退回直接运行：生成不能因为 harness 故障而丢。
+      unregisterGenerationRunner(job.id);
+      app.log.warn(error, 'generation task 创建失败，回退直接运行');
+      runGeneration(job, request.body, cfg, app.log).catch((err) => app.log.error(err, 'runGeneration 未捕获异常'));
+    }
     return reply.code(202).send({ jobId: job.id });
   });
 

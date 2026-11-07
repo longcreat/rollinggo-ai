@@ -4,11 +4,9 @@
 // 回答生成后统一提交——一个新版本 + 一次 editResult + 一次 repairChangedRoutes 重算动线。
 // 一轮对话只产生一个版本：中途失败不会留下半成品，历史面板也不会被刷屏。
 import { and, eq } from 'drizzle-orm';
-import { mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
 import { db } from '../../db/client';
 import { agentConversations, trips } from '../../db/schema';
-import { dataRoot } from '../../lib/dataStore';
+import { agentStoragePath, ensureAgentStorageDir } from '../../generation/agentStorage';
 import { appendMessages, getConversationDetail, saveBrief } from '../../services/conversationService';
 import { commitOperation } from '../../services/detailOperationService';
 import { assertLatestTrip } from '../../services/tripService';
@@ -74,11 +72,6 @@ const SUBAGENT_INSTRUCTIONS = [
   '输出格式（必须严格遵守）：最后只输出一个 JSON 对象，不要代码块、不要解释。kind=places 用 {"places":[{"name","address","lat","lng","category","reason","openTime","rating","cost","sourceUrl"}]}（lat/lng 取自 search_places，最多 6 个）；kind=notes 用 {"notes":[{"topic","detail","sourceUrl"}],"cautions":[{"topic","detail"}]}（各最多 5 条）。没有把握的地点不要放进 places。',
 ].join('\n');
 
-function storagePathFor(userId: string): string {
-  // 单实例部署，一人一份 SQLite；文件名只保留安全字符，避免路径注入。
-  return join(dataRoot, 'agent-runs', `${userId.replace(/[^a-zA-Z0-9_-]/g, '_')}.sqlite`);
-}
-
 async function readBinding(userId: string, conversationId: string): Promise<number | null> {
   const [row] = await db.select({ durableId: agentConversations.durableId })
     .from(agentConversations)
@@ -131,7 +124,7 @@ export interface RunAgentAnswerOptions {
 /** 跑一轮问答（可写）并落库；有改动时提交一个新版本，返回与旧链路一致的 SendMessageResult。 */
 export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<SendMessageResult> {
   const { userId, conversationId, detail, trip, input, cfg, fingerprint, signal, emit } = options;
-  await mkdir(join(dataRoot, 'agent-runs'), { recursive: true });
+  await ensureAgentStorageDir();
   const sources = await resolveDetailSources(userId, signal, allowsWebSearch(input.text));
 
   // 详情页始终是读写主 Agent：本回合所有改动先落内存草稿，回答生成后统一提交（一轮只产生一个版本）。
@@ -216,7 +209,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
   let result: Awaited<ReturnType<typeof runAgentTurn>>;
   try {
     result = await runAgentTurn({
-    storagePath: storagePathFor(userId),
+    storagePath: agentStoragePath(userId),
     models: await buildAgentModels(cfg),
     tools,
     instructions: SYSTEM_INSTRUCTIONS,

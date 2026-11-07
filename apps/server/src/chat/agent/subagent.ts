@@ -13,9 +13,11 @@
 //   - 一个工具一次派发多个任务（Promise.all 并行）：不依赖运行时是否并行执行多个 tool call。
 //   - 子代理固定只读（`childTools` 白名单 + 不注册本工具）→ 深度恒为 1，不会出现子代理改行程。
 //
-// 会话复用：子会话按「父会话 + 任务槽位」复用，同一槽位串行，第一次创建后长期保留。
-// pi-durable 没有删除会话的 API，复用避免每轮新建 SQLite 会话；槽位由主代理任务 id 决定，
-// 因此任务提示必须自包含。工具面在创建时按 toolPolicy 收敛为只读白名单。
+// 会话复用：子会话按「父会话 + 任务槽位」复用，同一槽位串行。pi-durable 没有删除会话的 API，
+// 复用避免每轮新建 SQLite 会话；槽位由主代理任务 id 决定，因此任务提示必须自包含。
+// 工具面在创建时按 toolPolicy 收敛为只读白名单。
+// 缓存有界：slotChains 只保留在跑的链（结束即删），childConversations 超过上限按插入序淘汰最旧的，
+// 否则单实例长期运行会随会话数无限增长。
 import { AssistantEntry, defineTool, type ConversationId, type Harness, type ToolRegistration } from '@earendil-works/pi-durable';
 import { arr, obj, opt, str } from '@earendil-works/pi-schema';
 import { assertSubagentToolNames } from './toolPolicy';
@@ -75,9 +77,10 @@ export interface SubagentToolOptions {
   onPlaces?: (places: readonly SubagentPlace[]) => void;
 }
 
-/** 进程级子会话表：parentId + 槽位 → durable 会话 id */
+/** 进程级子会话表：parentId + 槽位 → durable 会话 id（有界，超限淘汰最旧） */
 const childConversations = new Map<string, ConversationId>();
-/** 同一槽位不允许并发跑两个任务（复用的会话同一时刻只能有一个回合） */
+const CHILD_CACHE_MAX = 256;
+/** 同一槽位不允许并发跑两个任务（复用的会话同一时刻只能有一个回合）；只保存在跑的链 */
 const slotChains = new Map<string, Promise<unknown>>();
 
 function readAnswerText(message: unknown): string {
@@ -172,6 +175,11 @@ export function createSubagentTool(options: SubagentToolOptions): ToolRegistrati
       },
     }, context);
     childConversations.set(key, conversation.id);
+    while (childConversations.size > CHILD_CACHE_MAX) {
+      const oldest = childConversations.keys().next().value;
+      if (oldest === undefined) break;
+      childConversations.delete(oldest);
+    }
     options.onChildCreated?.(conversation.id);
     return conversation;
   }
@@ -215,6 +223,12 @@ export function createSubagentTool(options: SubagentToolOptions): ToolRegistrati
       };
     });
     slotChains.set(key, run);
+    // 只保留在跑的链：结束后摘掉，否则每个槽位都会永久占一条（下一轮从这里续上即可）。
+    // 用 then 的两分支而不是 finally，避免派生出未处理的 rejection。
+    void run.then(
+      () => { if (slotChains.get(key) === run) slotChains.delete(key); },
+      () => { if (slotChains.get(key) === run) slotChains.delete(key); },
+    );
     return run;
   }
 

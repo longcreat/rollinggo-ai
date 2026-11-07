@@ -22,7 +22,7 @@ import { hasSiteLlm } from '../env';
 import { createJob, getJob, getRunningJobId, jobView, subscribeProjection } from '../generation/jobManager';
 import { runGeneration } from '../generation/orchestrator';
 import { GenerationTask, type GenerationTaskInput } from '../generation/generationTask';
-import { agentStoragePath, ensureAgentStorageDir } from '../generation/agentStorage';
+import { generationStoragePath, ensureAgentStorageDir } from '../generation/agentStorage';
 import { getAgentRuntime } from '../chat/agent/runtime';
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { getGenerationResult } from '../services/notificationService';
@@ -49,7 +49,7 @@ async function resolveJob(jobId: string, userId: string): Promise<ReturnType<typ
   if (existing) return existing;
   try {
     await ensureAgentStorageDir();
-    const runtime = await getAgentRuntime(agentStoragePath(userId));
+    const runtime = await getAgentRuntime(generationStoragePath(userId));
     runtime.harness.resume();
   } catch {
     return null;
@@ -106,7 +106,7 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
     const taskInput: GenerationTaskInput = { jobId: job.id, userId, form: request.body, provenance: job.provenance };
     try {
       await ensureAgentStorageDir();
-      const runtime = await getAgentRuntime(agentStoragePath(userId));
+      const runtime = await getAgentRuntime(generationStoragePath(userId));
       const root = await runtime.harness.root(BACKGROUND_CONTEXT);
       await root.commit(
         (tx) => tx.createTask(GenerationTask, taskInput, { ownership: { kind: 'conversation' } }),

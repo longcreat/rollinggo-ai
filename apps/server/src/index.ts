@@ -23,6 +23,7 @@ import { destinationRoutes } from './routes/destinations';
 import { generationRoutes } from './routes/generations';
 import { notificationRoutes } from './routes/notifications';
 import { promptParseRoutes } from './routes/promptParse';
+import { expireOrphanQuestions } from './chat/agent/questionStore';
 
 /**
  * TripWeaver 服务端进程入口。
@@ -45,6 +46,11 @@ async function main() {
   }).withTypeProvider<TypeBoxTypeProvider>();
   setAmapLogger(app.log);
   setQWeatherLogger(app.log);
+
+  // 上一个进程留下的 HITL 问题不可能再被回答：启动时统一标过期，避免前端反复拿到问题卡。
+  await expireOrphanQuestions()
+    .then((expired) => { if (expired) app.log.info({ expired }, 'stale HITL questions expired'); })
+    .catch((error) => app.log.warn({ error }, 'expire stale HITL questions failed'));
 
   await app.register(cookie);
   await app.register(rateLimit, { global: false });

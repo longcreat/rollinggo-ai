@@ -269,6 +269,20 @@ const STATEMENTS = [
     created_at TIMESTAMPTZ NOT NULL
   )`,
   `CREATE INDEX IF NOT EXISTS idx_chat_messages_conversation ON chat_messages(conversation_id, sequence)`,
+  `CREATE TABLE IF NOT EXISTS agent_questions (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    conversation_id TEXT NOT NULL,
+    request_id TEXT NOT NULL,
+    questions JSONB NOT NULL,
+    status TEXT NOT NULL,
+    answers JSONB,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL,
+    answered_at TIMESTAMPTZ
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_agent_questions_conversation ON agent_questions(conversation_id, status)`,
+  `CREATE INDEX IF NOT EXISTS idx_agent_questions_user ON agent_questions(user_id, created_at)`,
   `CREATE TABLE IF NOT EXISTS planning_briefs (
     conversation_id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,

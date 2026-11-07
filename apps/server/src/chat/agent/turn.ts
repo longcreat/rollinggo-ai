@@ -36,6 +36,7 @@ import { GenerationTask } from '../../generation/generationTask';
 import { delegateGeneration, readGenerationStatus } from './delegate';
 import { SUBAGENT_READ_ONLY_TOOL_NAMES } from './toolPolicy';
 import { createHitlSession } from './humanInLoop';
+import { markQuestionAnswered, markQuestionExpired, recordQuestion } from './questionStore';
 import { claimsUnappliedEdit, withEditCorrection } from './editClaim';
 import { readBinding, saveBinding } from './binding';
 import { TOOL_LABEL } from './labels';
@@ -68,7 +69,7 @@ const SYSTEM_INSTRUCTIONS = [
   '只改用户明确要求的范围；「按这个片区补齐点位」「把某天排顺」本身就是明确要求，直接执行。删除活动、减少天数必须是在用户明确要求时才做。',
   '调用 ask_user 时给 1–3 个问题和可直接点击的短选项；用户在问题卡回答后你会拿到 tool result 并继续本轮，直接使用答案，不要重复问同一个问题。用户留空表示跳过该问题，不要把它当成许可。',
   'ask_user 的每个问题只问一个决定，问题控制在 60 字内，不要把诊断、依据或编号清单塞进问题；需要解释先在正文里简短说，再调用 ask_user。需要两个决定就发两个问题，选项标签控制在 20 字内。',
-  '用户修改下一次完整生成的条件（日期/天数/人数/节奏/偏好/约束）时用 update_brief；用户明确要求按当前条件生成或重新生成整份行程时用 generate_trip。它是后台委派：调用后立即告诉用户「已在后台开始，可在任务页查看进度」，不要等结果、不要声称行程已生成好。用户问「生成到哪了/好了吗」时用 generation_status 读取真实状态。普通咨询或小修改不要调用这两个工具。',
+  '用户修改下一次完整生成的条件（日期/天数/人数/节奏/偏好/约束）时用 update_brief；用户明确要求按当前条件生成或重新生成整份行程时用 generate_trip。它是后台委派：有当前行程时会生成它的新版本（不是覆盖，也不是另起一份），调用后立即告诉用户「已在后台开始，可在任务页查看进度」，不要等结果、不要声称行程已生成好。用户问「生成到哪了/好了吗」时用 generation_status 读取真实状态。普通咨询或小修改不要调用这两个工具。',
   '需要同时调研多个主题（多天安排、多个片区、多组候选）时，用 spawn_subagents 并行派发；单点查询直接调 search_places / web_search / search_food，不要为一件小事开子代理。找具体地点用 kind=places，查政策口碑用 kind=notes。',
   '子代理 kind=places 返回的 data.places 带真实坐标：把它加进行程时直接用同一个 name 调 add_activity，系统会复用该坐标，不要自己填经纬度。返回结果是调研材料，引用前核对是否与当前行程一致。',
   '用户要求按片区规划或补点时，先 search_area_places 展开该片区内的真实景点（如西湖→断桥/白堤/苏堤、宽窄巷子→街区内的点），再 search_places 查具体地点；不要把一整片景区当成一个点，也不要只放两三个相距很远的粗点。',
@@ -119,9 +120,27 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
   // HITL：ask_user 工具在 execute 内登记问题并 await；答案从独立接口回注后同一回合继续。
   const hitl = createHitlSession({
     userId, conversationId, requestId: input.requestId, signal,
-    onQuestion: (question) => emit({ type: 'question', question }),
-    onAnswered: (questionId, answers) => emit({ type: 'question_answered', questionId, answers }),
-    onExpired: (questionId, reason) => emit({ type: 'question_expired', questionId, reason }),
+    // 先落库再推流：回答接口到达时，问题记录必须已经在库里。
+    onQuestion: async (question) => {
+      await recordQuestion({
+        id: question.id,
+        userId,
+        conversationId,
+        requestId: input.requestId,
+        questions: question.questions,
+        createdAt: question.createdAt,
+        expiresAt: question.expiresAt,
+      }).catch(() => {});
+      emit({ type: 'question', question });
+    },
+    onAnswered: (questionId, answers) => {
+      void markQuestionAnswered(userId, questionId, answers).catch(() => {});
+      emit({ type: 'question_answered', questionId, answers });
+    },
+    onExpired: (questionId, reason) => {
+      void markQuestionExpired(userId, questionId).catch(() => {});
+      emit({ type: 'question_expired', questionId, reason });
+    },
   });
   // 回合内已记录的 Brief 增量 + 库里的 Brief：generate_trip 与回合末落库共用同一份推导。
   const evidenceSequence = (detail.messages.at(-1)?.sequence ?? 0) + 1;
@@ -135,6 +154,8 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     userId,
     conversationId,
     brief: briefWithPatch(),
+    // 行程内重新生成 = 当前行程的下一版，保持版本链与同一个会话。
+    targetTripId: trip.id,
     onRunning: 'error',
     createTask: async (input) => {
       await api.createTask(GenerationTask, input, { ownership: { kind: 'conversation' }, background: true }, context);

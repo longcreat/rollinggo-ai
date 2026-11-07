@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { PlanningBriefData } from '@tripweaver/shared';
 import { delegateGeneration, type DelegateStore } from '../chat/agent/delegate';
-import { cancelJob, createJob, getRunningJobId } from '../generation/jobManager';
+import { cancelJob, createJob, getJob, getRunningJobId } from '../generation/jobManager';
+import type { GenerationTaskInput } from '../generation/generationTask';
 import type { GenerationTaskView } from '../generation/taskStore';
 
 const brief: PlanningBriefData = {
@@ -69,6 +70,21 @@ test('已有任务在跑：工具模式报错，表单模式复用该任务', as
   } finally {
     cancelJob(job);
   }
+});
+
+test('有当前行程时委派修订：provenance 带 revision 与 targetTripId', async () => {
+  const { store } = fakeStore();
+  const userId = `delegate-rev-${Date.now()}`;
+  let seen: GenerationTaskInput | undefined;
+  const result = await delegateGeneration({
+    userId, conversationId: 'c1', brief, targetTripId: 'trip-current',
+    onRunning: 'error', createTask: async (input) => { seen = input; },
+  }, store);
+  assert.ok(result.jobId);
+  assert.equal(seen?.provenance.kind, 'revision');
+  assert.equal(seen?.provenance.targetTripId, 'trip-current');
+  const job = getJob(result.jobId!, userId);
+  if (job) cancelJob(job);
 });
 
 test('同一 requestId 命中已有任务：直接返回，不重复创建', async () => {

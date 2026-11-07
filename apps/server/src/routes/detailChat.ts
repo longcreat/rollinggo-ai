@@ -17,6 +17,7 @@ import { resolveLlmConfig } from '../services/settingsService';
 import { streamErrorPayload } from '../chat/streamError';
 import { addFood } from '../services/tripHistoryService';
 import { answerPendingQuestion, cancelPendingQuestions, hasPendingQuestion, pendingQuestion, startHardTimeout } from '../chat/agent/humanInLoop';
+import { expireConversationQuestions, getQuestion, markQuestionAnswered, markQuestionExpired } from '../chat/agent/questionStore';
 
 const Id = Type.Object({ id: Type.String({ maxLength: 100 }) });
 const Operation = Type.Object({ id: Type.String({ maxLength: 100 }), operationId: Type.String({ maxLength: 100 }) });
@@ -37,8 +38,13 @@ export const detailChatRoutes: FastifyPluginAsyncTypebox = async (app) => {
 
   // HITL：刷新/断线后拉回当前待回答问题；Agent 回合仍在服务端等待。
   app.get('/:id/questions/pending', { schema: { params: Id } }, async (request, reply) => {
-    if (!await getConversation(request.user!.id, request.params.id)) return reply.code(404).send({ error: '会话不存在' });
-    return { question: pendingQuestion(request.user!.id, request.params.id) };
+    const userId = request.user!.id;
+    const conversationId = request.params.id;
+    if (!await getConversation(userId, conversationId)) return reply.code(404).send({ error: '会话不存在' });
+    const question = pendingQuestion(userId, conversationId);
+    // 内存里没有等待者 = 产生它的回合已不在（重启/断线）：把遗留 pending 标过期，不返回一张答不上的卡。
+    if (!question) await expireConversationQuestions(userId, conversationId).catch(() => {});
+    return { question };
   });
 
   // HITL：用户回答后，问题 Promise 在原来的 Agent run 内 resolve，模型继续同一回合。
@@ -48,15 +54,24 @@ export const detailChatRoutes: FastifyPluginAsyncTypebox = async (app) => {
       body: AgentQuestionAnswersRequestSchema,
     },
   }, async (request, reply) => {
-    if (!await getConversation(request.user!.id, request.params.id)) return reply.code(404).send({ error: '会话不存在' });
-    const result = answerPendingQuestion({
-      userId: request.user!.id,
-      conversationId: request.params.id,
-      questionId: request.params.questionId,
-      answers: request.body.answers,
-    });
-    if (!result.ok) return reply.code(result.statusCode).send({ error: result.message });
-    return { ok: true };
+    const userId = request.user!.id;
+    const conversationId = request.params.id;
+    const questionId = request.params.questionId;
+    if (!await getConversation(userId, conversationId)) return reply.code(404).send({ error: '会话不存在' });
+    const result = answerPendingQuestion({ userId, conversationId, questionId, answers: request.body.answers });
+    if (result.ok) {
+      await markQuestionAnswered(userId, questionId, request.body.answers).catch(() => {});
+      return { ok: true };
+    }
+    // 重试幂等：同一问题已答过就直接成功，不因内存等待者已清理而报错。
+    const stored = await getQuestion(userId, conversationId, questionId).catch(() => null);
+    if (stored?.status === 'answered') return { ok: true };
+    if (stored?.status === 'pending') {
+      await markQuestionExpired(userId, questionId).catch(() => {});
+      return reply.code(409).send({ error: '本轮对话已结束，请重新提问' });
+    }
+    if (stored?.status === 'expired') return reply.code(409).send({ error: '问题已过期，请重新提问' });
+    return reply.code(result.statusCode).send({ error: result.message });
   });
   app.post('/:id/food', { schema: { params: Id, body: AddFoodRequestSchema } }, async (request) =>
     addFood(request.user!.id, request.params.id, request.body));

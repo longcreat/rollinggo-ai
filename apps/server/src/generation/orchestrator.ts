@@ -40,6 +40,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import { db } from '../db/client';
 import { getTripWeather } from '../services/tripWeatherService';
 import { finalizeGenerationTask } from './taskStore';
+import { appendGenerationCompletion } from './completionMessage';
 import type { LlmConfig } from '../services/settingsService';
 import { searchBudgetRemaining } from '../services/quotaService';
 import { createTrip } from '../services/tripService';
@@ -701,6 +702,17 @@ export async function runGeneration(
       return saved;
     });
     // COMMIT 是成功边界：事务内取消会回滚；提交成功后不再把已保存结果宣告取消。
+    // 先补对话完成消息再发终态：直播页跳转/刷新时，会话里已经能看到结果。
+    await appendGenerationCompletion({
+      userId: job.userId,
+      jobId: job.id,
+      conversationId: job.provenance.conversationId,
+      status: 'done',
+      tripId: trip.id,
+      tripTitle: trip.title,
+      days: trip.days.length,
+      summary: research.summary,
+    }).catch(() => {});
     completeJob(job, trip.id, dataSources, reviewNotes);
     publishNotification(job.userId, doneNotification!);
     terminalStatus = 'done';
@@ -726,6 +738,17 @@ export async function runGeneration(
           jobCreatedAt: new Date(job.createdAt),
         });
       } catch { logger?.error({ jobId: job.id }, 'generation notification write failed'); }
+    }
+    if (failureMessage) {
+      await appendGenerationCompletion({
+        userId: job.userId,
+        jobId: job.id,
+        conversationId: job.provenance.conversationId,
+        status: 'error',
+        destination: form.destination,
+        days: form.days,
+        message: failureMessage,
+      }).catch(() => {});
     }
     try {
       await finalizeTask(terminalStatus as Exclude<GenerationJobStatus, 'running'>, null, failureMessage ? { error: failureMessage } : {});

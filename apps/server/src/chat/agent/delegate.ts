@@ -12,6 +12,8 @@ export interface DelegateGenerationInput {
   brief: PlanningBriefData;
   /** 表单入口的幂等键：同一请求重试返回同一个任务，而不是再建一个。 */
   requestId?: string;
+  /** 已有行程的重新生成：挂到同一版本链的下一版，而不是新建 root。 */
+  targetTripId?: string;
   /** 已有任务时的策略：工具内报错；表单入口复用已在跑的任务。 */
   onRunning: 'error' | 'adopt';
   createTask: (input: GenerationTaskInput) => Promise<void>;
@@ -76,7 +78,9 @@ export async function delegateGeneration(
   }
 
   const form = briefToGenerateForm(input.brief);
-  const job = createJob(input.userId, { conversationId: input.conversationId, kind: 'generation' });
+  const job = createJob(input.userId, input.targetTripId
+    ? { conversationId: input.conversationId, kind: 'revision', targetTripId: input.targetTripId }
+    : { conversationId: input.conversationId, kind: 'generation' });
   const taskInput: GenerationTaskInput = {
     jobId: job.id,
     userId: input.userId,

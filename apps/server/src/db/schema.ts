@@ -1,5 +1,5 @@
 import { bigserial, boolean, doublePrecision, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, vector } from 'drizzle-orm/pg-core';
-import type { DataSourceKind, GenerationWarning, TripShareImageStyle } from '@tripweaver/shared';
+import type { AgentQuestion, AgentQuestionAnswer, DataSourceKind, GenerationWarning, TripShareImageStyle } from '@tripweaver/shared';
 
 export const amapServiceUsage = pgTable('amap_service_usage', {
   day: text('day').notNull(),
@@ -260,6 +260,28 @@ export const chatMessages = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   },
   (table) => [index('idx_chat_messages_conversation').on(table.conversationId, table.sequence)],
+);
+
+// HITL 问答审计：问题产生即落库，回答/超时原地更新。进程内的 Promise 仍只活在当前回合；
+// 重启后 pending 行统一标 expired，用户不会看到一张永远答不上的问题卡。
+export const agentQuestions = pgTable(
+  'agent_questions',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id').notNull(),
+    conversationId: text('conversation_id').notNull(),
+    requestId: text('request_id').notNull(),
+    questions: jsonb('questions').$type<AgentQuestion[]>().notNull(),
+    status: text('status').notNull(),                 // pending | answered | expired
+    answers: jsonb('answers').$type<AgentQuestionAnswer[]>(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    answeredAt: timestamp('answered_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('idx_agent_questions_conversation').on(table.conversationId, table.status),
+    index('idx_agent_questions_user').on(table.userId, table.createdAt),
+  ],
 );
 
 // 一个会话一份 Brief。missing_fields 不落库——由 shared 的 requiredBriefFields 从 data 派生，避免两处状态漂移。

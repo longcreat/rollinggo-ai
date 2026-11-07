@@ -155,7 +155,7 @@ function delegationTools(
   // 完成后通知并落到新行程；主 Agent 不阻塞，也不假装结果已经出来。
   const generateTrip = defineTool({
     name: 'generate_trip',
-    description: '按当前出行条件委派一次完整行程生成（后台任务，立即返回任务 id，通常需要几分钟）。仅当用户明确要求「生成 / 重新规划整份行程」时调用；调用后告诉用户已在后台开始，不要等结果、不要说已完成。',
+    description: '按当前出行条件委派一次完整行程生成（后台任务，立即返回任务 id，通常需要几分钟）。有当前行程时生成它的新版本，不会覆盖旧版本。仅当用户明确要求「生成 / 重新规划整份行程」时调用；调用后告诉用户已在后台开始，不要等结果、不要说已完成。',
     parameters: obj({}),
     execute: async (_args, api, context) => {
       if (!deps.generateTrip) return { output: text('错误：当前会话未启用生成'), isError: true };

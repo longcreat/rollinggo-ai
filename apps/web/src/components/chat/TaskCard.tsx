@@ -1,15 +1,23 @@
 // 对话里的生成任务卡（openmuse 的 Activity 精简版）：运行中看阶段/取消，完成看行程与摘要。
 // 数据来自持久任务行，刷新/重启后仍能读到终态。
+import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { useCancelGeneration, useGenerationTask } from '../../api/hooks';
+import { keys, useCancelGeneration, useGenerationTask } from '../../api/hooks';
 import { Spinner } from '../ui/Button';
 
-export function TaskCard({ jobId }: { jobId: string }) {
+export function TaskCard({ jobId, conversationId }: { jobId: string; conversationId?: string }) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const task = useGenerationTask(jobId);
   const cancel = useCancelGeneration();
   const data = task.data;
   const status = data?.status ?? 'running';
+  // 任务终态时刷新会话：服务端已补了一条完成消息，卡片旁边的对话要立即看到。
+  useEffect(() => {
+    if (!conversationId || status === 'running') return;
+    void qc.invalidateQueries({ queryKey: keys.conversation(conversationId) });
+  }, [conversationId, status, qc]);
   const running = status === 'running';
   const title = data?.destination
     ? `${data.destination}${data.days ? ` · ${data.days} 天` : ''}`

@@ -56,7 +56,8 @@ export function createHitlSession(options: {
   conversationId: string;
   requestId: string;
   signal: AbortSignal;
-  onQuestion: (view: PendingQuestionView) => void;
+  /** 可异步：先落库/推流，再把问题暴露给用户（避免回答先于记录到达）。 */
+  onQuestion: (view: PendingQuestionView) => void | Promise<void>;
   onAnswered: (questionId: string, answers: AgentQuestionAnswer[]) => void;
   onExpired: (questionId: string, reason: QuestionExpiryReason) => void;
 }): HitlSession {
@@ -87,30 +88,32 @@ export function createHitlSession(options: {
         createdAt: now,
         expiresAt: now + timeoutMs,
       };
-      return await new Promise<AgentQuestionAnswer[] | null>((resolve) => {
-        const entry: PendingQuestionEntry = {
-          view,
-          userId: options.userId,
-          conversationId: options.conversationId,
-          requestId: options.requestId,
-          resolve,
-          settled: false,
-          timer: setTimeout(() => {
-            if (entry.settled) return;
-            if (currentId === id) currentId = null;
-            options.onExpired(id, 'timeout');
-            settle(entry, null);
-          }, timeoutMs),
-          onAnswered: options.onAnswered,
-          onExpired: options.onExpired,
-        };
-        pending.set(id, entry);
-        try {
-          options.onQuestion(view);
-        } catch {
-          // SSE 已断开时问题仍保留，用户可通过 GET pending 恢复并回答。
-        }
-      });
+      let resolve!: (answers: AgentQuestionAnswer[] | null) => void;
+      const response = new Promise<AgentQuestionAnswer[] | null>((settle) => { resolve = settle; });
+      const entry: PendingQuestionEntry = {
+        view,
+        userId: options.userId,
+        conversationId: options.conversationId,
+        requestId: options.requestId,
+        resolve,
+        settled: false,
+        timer: setTimeout(() => {
+          if (entry.settled) return;
+          if (currentId === id) currentId = null;
+          options.onExpired(id, 'timeout');
+          settle(entry, null);
+        }, timeoutMs),
+        onAnswered: options.onAnswered,
+        onExpired: options.onExpired,
+      };
+      pending.set(id, entry);
+      try {
+        // 先记录再暴露：回答接口到达时，DB 里必须已经有这条问题。
+        await options.onQuestion(view);
+      } catch {
+        // SSE 已断开或落库失败时问题仍保留，用户可通过 GET pending 恢复并回答。
+      }
+      return response;
     },
     hasPending() {
       return Boolean(byConversation(options.conversationId));

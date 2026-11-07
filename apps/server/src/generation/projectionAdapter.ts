@@ -72,6 +72,7 @@ export function createGenerationProjection(jobId: string): GenerationProjection 
               title: `${event.destination} · 生成中`,
               destination: event.destination,
               startDate: event.startDate ?? '',
+              ...(event.days !== undefined ? { days: event.days } : {}),
               updatedAt: 0,
             },
             control: { phase: 'idle', status: 'running', jobId },

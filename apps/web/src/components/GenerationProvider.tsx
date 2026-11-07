@@ -43,7 +43,7 @@ export function GenerationProvider({ userId, children }: { userId: string; child
   });
   // 已有任务在跟踪时不再查：该查询只用于发现「重新进入页面时的孤儿任务」，见下方 adopt effect
   const current = useCurrentGeneration(userId, !run.jobId);
-  const terminal = run.events.some((event) => event.type === 'job_done' || event.type === 'job_error' || event.type === 'job_cancelled');
+  const terminal = run.terminal;
   // 用 isLoading 而非 isPending：查询被禁用时（已有任务在跟踪）isPending 仍为 true，会让加载态永远不结束。
   const discovering = current.isLoading;
   const running = Boolean(run.jobId && !terminal && run.completed?.jobId !== run.jobId);
@@ -72,10 +72,10 @@ export function GenerationProvider({ userId, children }: { userId: string; child
     };
     run.start(form);
   };
-  const startEvent = run.events.find((event) => event.type === 'job_start');
+  const startEvent = { destination: run.destination, days: run.days };
   return <Context.Provider value={{ ...run, start, running, discovering,
-    destination: startEvent?.destination ?? current.data?.destination ?? '',
-    days: startEvent?.days ?? current.data?.days ?? 0,
+    destination: startEvent.destination || current.data?.destination || '',
+    days: startEvent.days || current.data?.days || 0,
   }}>{children}</Context.Provider>;
 }
 

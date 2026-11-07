@@ -66,6 +66,8 @@ export interface TripProjectionHeader {
   title: string;
   destination: string;
   startDate: string;
+  /** 任务天数（job_start 回显；旧事件可能缺失）。 */
+  days?: number;
   updatedAt: number;
   /** 调研候选（概览卡片）；完成后以落库行程为准。 */
   overview?: ResearchPoi[];

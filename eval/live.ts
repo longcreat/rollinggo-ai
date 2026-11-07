@@ -111,7 +111,7 @@ export async function startLive(options: {
     await seedKnowledge(pool, knowledge);
     await pool.query(`INSERT INTO users (id,email,password_hash,created_at) VALUES ('eval-user','eval@invalid.local','disabled',NOW())`);
     const { runGeneration } = await import('../apps/server/src/generation/orchestrator');
-    const { createJob, subscribe } = await import('../apps/server/src/generation/jobManager');
+    const { createJob, observe } = await import('../apps/server/src/generation/jobManager');
     const { getTrip } = await import('../apps/server/src/services/tripService');
     const config = { baseUrl: process.env.SITE_LLM_BASE_URL!, apiKey: process.env.SITE_LLM_API_KEY!, model: process.env.SITE_LLM_MODEL!, byok: false };
     console.log(`live：专用 PostgreSQL｜知识库 ${knowledge.places.length} 地点`);
@@ -128,7 +128,7 @@ export async function startLive(options: {
         signal.addEventListener('abort', stop, { once: true });
         if (signal.aborted) stop();
         const timeout = setTimeout(() => { job.cancelReason = 'timeout'; stop(); }, options.timeoutMs);
-        const unsubscribe = subscribe(job, 0, ({ event }: { event: GenerationEvent }) => {
+        const unsubscribe = observe(job, (event: GenerationEvent) => {
           if (event.type === 'tool_end') {
             const count = execution.tasks[event.tool] ??= { ok: 0, errors: 0 };
             if (event.isError) count.errors++; else count.ok++;

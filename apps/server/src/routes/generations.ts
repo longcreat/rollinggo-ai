@@ -13,13 +13,13 @@
  */
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
-import { GenerateFormSchema, type GenerationEvent } from '@tripweaver/shared';
+import { GenerateFormSchema } from '@tripweaver/shared';
 import { requireAuth } from '../auth/guard';
 import { resolveLlmConfig } from '../services/settingsService';
 import { getConversation } from '../services/conversationService';
 import { getTrip } from '../services/tripService';
 import { hasSiteLlm } from '../env';
-import { createJob, getJob, getRunningJobId, jobView, subscribe, subscribeProjection, type StoredEvent } from '../generation/jobManager';
+import { createJob, getJob, getRunningJobId, jobView, subscribeProjection } from '../generation/jobManager';
 import { runGeneration } from '../generation/orchestrator';
 import { GenerationTask, type GenerationTaskInput } from '../generation/generationTask';
 import { agentStoragePath, ensureAgentStorageDir } from '../generation/agentStorage';
@@ -39,10 +39,6 @@ const GenerateBodySchema = Type.Intersect([
     targetTripId: Type.Optional(Type.String({ maxLength: 64 })),   // kind=revision 时的修订目标
   }),
 ]);
-
-function isTerminalEvent(event: GenerationEvent): boolean {
-  return event.type === 'job_done' || event.type === 'job_error' || event.type === 'job_cancelled';
-}
 
 /**
  * 懒恢复：内存里没有该任务时（进程重启），打开用户存储并 resume —— durable task 会按输入
@@ -140,64 +136,6 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
       return result ?? reply.code(404).send({ error: '任务不存在或已过期' });
     }
     return jobView(job);
-  });
-
-  // SSE 进度流：先 hijack 再写头，否则 Fastify 会尝试序列化并加上信封
-  app.get('/:jobId/events', async (request, reply) => {
-    const { jobId } = request.params as { jobId: string };
-    const job = getJob(jobId, request.user!.id);
-    if (!job) return reply.code(404).send({ error: '任务不存在或已过期' });
-
-    const lastHeader = request.headers['last-event-id'];
-    const lastQuery = (request.query as { lastEventId?: string }).lastEventId;
-    const afterId = Number.parseInt((Array.isArray(lastHeader) ? lastHeader[0] : lastHeader) ?? lastQuery ?? '0', 10) || 0;
-
-    reply.hijack();
-    const res = reply.raw;
-    res.writeHead(200, {
-      'content-type': 'text/event-stream; charset=utf-8',
-      'cache-control': 'no-cache, no-transform',
-      connection: 'keep-alive',
-      'x-accel-buffering': 'no',           // nginx 类反代禁缓冲；Caddy 用 flush_interval -1
-    });
-    res.write(': connected\n\n');
-
-    let closed = false;
-    let unsubscribe = () => {};
-    const finish = () => {
-      if (closed) return;
-      closed = true;
-      unsubscribe();
-      clearInterval(heartbeat);
-      res.end();
-    };
-
-    const send = (stored: StoredEvent) => {
-      if (closed) return;
-      try {
-        res.write(`id: ${stored.id}\ndata: ${JSON.stringify(stored.event)}\n\n`);
-      } catch {
-        finish();                            // 连接已死：立即退订，绝不影响生成流水线
-        return;
-      }
-      if (isTerminalEvent(stored.event)) finish();   // 终态事件送达后干净收尾
-    };
-
-    const heartbeat = setInterval(() => {
-      if (closed) return;
-      try {
-        res.write(': hb\n\n');
-      } catch {
-        finish();
-      }
-    }, HEARTBEAT_MS);
-    heartbeat.unref?.();
-
-    res.on('close', finish);
-    unsubscribe = subscribe(job, afterId, send);
-    // 同步重放可能已经结束；包括客户端持有终态 ID、没有新事件可回放的情况。
-    if (closed) unsubscribe();
-    else if (job.status !== 'running') finish();
   });
 
   /**

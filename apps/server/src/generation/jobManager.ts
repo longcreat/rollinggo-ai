@@ -1,5 +1,5 @@
-// 生成任务管理：内存任务表 + 512 条事件环形缓冲 + Last-Event-ID 重放 + 取消
-// 单实例边界（架构 §7）：重启即丢任务 —— 路由层在启动时不做恢复，进行中任务由前端超时兜底
+// 生成任务管理：内存任务表 + 统一投影 + 取消。
+// 单实例边界：重启即丢内存任务；durable task（generationTask）负责按输入重建。
 import {
   uid,
   type DataSourceKind,
@@ -15,16 +15,11 @@ import {
 import { createGenerationProjection, type GenerationProjection } from './projectionAdapter';
 import type { ProjectionResume } from './projectionChannel';
 
-const RING_SIZE = 512;
 const FINISHED_TTL_MS = 30 * 60 * 1000; // 终态任务保留 30 分钟供刷新恢复
 
-export interface StoredEvent {
-  id: number;
-  event: GenerationEvent;
-}
-
-type Listener = (e: StoredEvent) => void;
 type ProjectionListener = (frame: TripProjectionFrame) => void;
+/** 仅实时的原始事件观测（评测诊断用）：不缓冲、不重放。 */
+type EventListener = (event: GenerationEvent) => void;
 
 /** 生成来源：区分「表单/对话新建」与「基于已有行程的修订」；对话入口时代三列均缺省 */
 export interface JobProvenance {
@@ -45,12 +40,11 @@ export interface Job {
   abort: AbortController;
   /** 取消来源：路由层用户取消置 'user'；orchestrator 超时置 'timeout'。默认 'user' */
   cancelReason: GenerationCancelReason;
-  events: StoredEvent[];
-  nextEventId: number;
-  listeners: Set<Listener>;
-  /** 统一投影（阶段二过渡桥）：事件在 emit 时同步翻译成投影帧。 */
+  /** 统一投影：事件的唯一消费者，真相在这里，不再保留事件环形缓冲。 */
   projection: GenerationProjection;
   projectionListeners: Set<ProjectionListener>;
+  /** 实时事件观测者（评测）；事件本身不保留。 */
+  eventListeners: Set<EventListener>;
 }
 
 const jobs = new Map<string, Job>();
@@ -82,11 +76,9 @@ function registerJob(id: string, userId: string, provenance: JobProvenance): Job
     provenance,
     abort: new AbortController(),
     cancelReason: 'user',
-    events: [],
-    nextEventId: 1,
-    listeners: new Set(),
     projection: createGenerationProjection(id),
     projectionListeners: new Set(),
+    eventListeners: new Set(),
   };
   jobs.set(job.id, job);
   runningByUser.set(userId, job.id);
@@ -105,13 +97,11 @@ export function jobView(job: Job): GenerationJobView {
 export function emit(job: Job, event: GenerationEvent): void {
   if (event.type === 'job_start') { job.destination = event.destination; job.days = event.days; }
   if (job.status !== 'running' && event.type !== 'job_done' && event.type !== 'job_error' && event.type !== 'job_cancelled') return;
-  const stored: StoredEvent = { id: job.nextEventId++, event: { ...event, at: event.at ?? Date.now() } };
-  job.events.push(stored);
-  if (job.events.length > RING_SIZE) job.events.splice(0, job.events.length - RING_SIZE);
-  // 投影与事件流同步推进；投影失败绝不能拖垮生成流水线。
+  const stamped: GenerationEvent = { ...event, at: event.at ?? Date.now() };
+  // 投影是唯一消费者；投影失败绝不能拖垮生成流水线。
   let frames: TripProjectionFrame[] = [];
   try {
-    frames = job.projection.consume(stored.event);
+    frames = job.projection.consume(stamped);
   } catch {
     frames = [];
   }
@@ -125,13 +115,19 @@ export function emit(job: Job, event: GenerationEvent): void {
       }
     }
   }
-  for (const listener of job.listeners) {
+  for (const listener of job.eventListeners) {
     try {
-      listener(stored);
+      listener(stamped);
     } catch {
-      job.listeners.delete(listener);   // 坏监听器（如已断开的 SSE）绝不能拖垮流水线
+      job.eventListeners.delete(listener);
     }
   }
+}
+
+/** 订阅实时事件（评测诊断用，无重放）。 */
+export function observe(job: Job, listener: EventListener): () => void {
+  job.eventListeners.add(listener);
+  return () => job.eventListeners.delete(listener);
 }
 
 function finish(job: Job, status: GenerationJobStatus): void {
@@ -164,14 +160,6 @@ export function cancelJob(job: Job, reason: GenerationCancelReason = job.cancelR
 }
 
 /** 重放 afterId 之后的事件，再挂实时监听；返回退订函数 */
-export function subscribe(job: Job, afterId: number, listener: Listener): () => void {
-  for (const stored of job.events) {
-    if (stored.id > afterId) listener(stored);
-  }
-  if (!isTerminal(job.status)) job.listeners.add(listener);
-  return () => job.listeners.delete(listener);
-}
-
 /**
  * 投影订阅：先按客户端水位裁决补增量或重发快照，再挂实时帧监听。
  * resume 与 add 之间没有 await，单线程下不会漏帧。

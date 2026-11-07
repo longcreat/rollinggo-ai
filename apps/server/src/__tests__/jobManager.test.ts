@@ -1,62 +1,43 @@
+// 任务表与投影：终态唯一、取消来源、断档重订阅。事件环形缓冲已删除，终态只看投影。
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { cancelJob, completeJob, createJob, emit, failJob, getRunningJobId, subscribe, subscribeProjection, type StoredEvent } from '../generation/jobManager';
+import {
+  cancelJob,
+  completeJob,
+  createJob,
+  emit,
+  failJob,
+  getRunningJobId,
+  rehydrateJob,
+  subscribeProjection,
+} from '../generation/jobManager';
 
-test('终态唯一，迟到的阶段消息和重复终态不覆盖结果，终态重放不保留监听器', () => {
+test('终态唯一：迟到消息与重复终态都不覆盖结果，也不再进投影', () => {
   const job = createJob('terminal-once');
   completeJob(job, 'saved', [], []);
+  const seqAtDone = job.projection.channel.snapshot.seq;
+
   cancelJob(job);
   failJob(job, 'late error');
   emit(job, { type: 'thought', phase: 'review', text: 'late writer' });
+
   assert.equal(job.status, 'done');
   assert.equal(job.tripId, 'saved');
   assert.equal(getRunningJobId(job.userId), null);
-  assert.equal(job.events.length, 1);
-  const replay: StoredEvent[] = [];
-  subscribe(job, 0, (event) => replay.push(event));
-  assert.equal(replay.length, 1);
-  assert.equal(job.listeners.size, 0);
+  assert.equal(job.projection.channel.snapshot.seq, seqAtDone, '终态之后的事件不再进投影');
 });
 
-test('job manager timestamps events and fixes terminal duration', () => {
-  const job = createJob(`timing-user-${Date.now()}`);
-  const received: StoredEvent[] = [];
-  const unsubscribe = subscribe(job, 0, (event) => received.push(event));
-
-  emit(job, { type: 'thought', phase: 'research', text: 'working' });
-  cancelJob(job);
-  unsubscribe();
-
-  assert.equal(job.status, 'cancelled');
-  assert.equal(received.length, 2);
-  assert.equal(typeof received[0]?.event.at, 'number');
-  const terminal = received[1]?.event;
-  assert.equal(terminal?.type, 'job_cancelled');
-  if (terminal?.type !== 'job_cancelled') return;
-  assert.equal(typeof terminal.at, 'number');
-  assert.ok((terminal.durationMs ?? -1) >= 0);
-});
-
-test('cancelJob emits cancel reason (user default, explicit override)', () => {  const userJob = createJob(`cancel-reason-user-${Date.now()}`);
-  const userReceived: StoredEvent[] = [];
-  const userUnsubscribe = subscribe(userJob, 0, (event) => userReceived.push(event));
+test('cancelJob 的取消来源进入投影控制态', () => {
+  const userJob = createJob(`cancel-reason-user-${Date.now()}`);
   cancelJob(userJob);
-  userUnsubscribe();
-  const userTerminal = userReceived.at(-1)?.event;
-  assert.equal(userTerminal?.type, 'job_cancelled');
-  if (userTerminal?.type !== 'job_cancelled') return;
-  assert.equal(userTerminal.reason, 'user');
+  assert.deepEqual(userJob.projection.channel.snapshot.state.control, {
+    phase: 'idle', status: 'cancelled', jobId: userJob.id, message: 'user',
+  });
 
   const timeoutJob = createJob(`cancel-reason-timeout-${Date.now()}`);
   timeoutJob.cancelReason = 'timeout';
-  const timeoutReceived: StoredEvent[] = [];
-  const timeoutUnsubscribe = subscribe(timeoutJob, 0, (event) => timeoutReceived.push(event));
   cancelJob(timeoutJob);
-  timeoutUnsubscribe();
-  const timeoutTerminal = timeoutReceived.at(-1)?.event;
-  assert.equal(timeoutTerminal?.type, 'job_cancelled');
-  if (timeoutTerminal?.type !== 'job_cancelled') return;
-  assert.equal(timeoutTerminal.reason, 'timeout');
+  assert.equal(timeoutJob.projection.channel.snapshot.state.control.message, 'timeout');
 });
 
 test('投影随事件同步推进：实时帧、补增量、越界重发快照', () => {
@@ -88,4 +69,11 @@ test('投影随事件同步推进：实时帧、补增量、越界重发快照',
   const snapshot = job.projection.channel.snapshot;
   assert.equal(snapshot.state.trip?.destination, '成都');
   assert.equal(snapshot.rows.window[0]?.activities[0]?.name, '人民公园');
+});
+
+test('rehydrateJob 按原 id 重建且已存在时复用', () => {
+  const id = `rehydrate-${Date.now()}`;
+  const job = rehydrateJob(id, 'u1');
+  assert.equal(job.id, id);
+  assert.equal(rehydrateJob(id, 'u1'), job);
 });

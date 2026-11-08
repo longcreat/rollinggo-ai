@@ -26,10 +26,9 @@
 
 ## 3. Contracts
 
-- 工具调用前的中间回复（11-08）：assistant 消息按 pi 的 content 顺序渲染
-  （thinking → text → toolCall）。产品提示词要求开始处理或需要 ask_user 时先用一句短话说明接下来做什么，
-  禁止整轮只有思考和工具行；不要用模板话术，也不要在投影层合成回复。durable transcript 里没有 text 块时，
-  说明模型确实没写，不要伪造。
+- 文本流跨工具轮：`streamed` 记录本轮已经发给前端的上一段正文，不能在 generation 切换时清空，
+  否则回合结束的最终 entry 回退会把工具前那段正文再发一遍（历史 parts 已由启动迁移去重）。
+  工具调用前要求模型先给一句中间回复；durable transcript 里没有 text 块时说明模型没写，不要伪造。
 - 真实思考流（11-08）：模型/端点声明 reasoning 且会话 `thinkingLevel` 非 off 时，pi-ai 会把
   `thinking` 块透传到 LiveDoc；runtime 按 `thinking_start` / `thinking_delta` / `thinking_end`
   做快照差分（正文开始、generation 切换或回合结束即收口），SSE 增加同名事件。

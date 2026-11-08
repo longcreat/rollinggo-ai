@@ -319,7 +319,7 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
         endThinking();
         thinkingAttempt = attempt;
         thinkingSent = '';
-        streamed = '';
+        // streamed 不能清空：它记录的是本轮已经发给前端的上一段正文；清空后结束回退会把旧正文再发一遍。
       }
       const thinking = readThinkingText(partial);
       if (thinking && thinking !== thinkingSent) {

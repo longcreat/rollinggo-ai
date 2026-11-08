@@ -353,6 +353,30 @@ export async function runMigrations(pool: Pool): Promise<void> {
       WHERE m.task_id IS NULL AND m.related_trip_id = g.trip_id AND m.conversation_id = g.conversation_id
         AND m.user_id = g.user_id AND g.job_id IS NOT NULL`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_chat_messages_task ON chat_messages(conversation_id, task_id)`);
+    // 历史重复正文修复（11-08）：工具结束后 runtime 曾把工具前已流过的长正文再发一遍，
+    // parts 里留下前后相同的大段 text。移除重复项、保留第一次出现；只处理 >20 字，避免误删「好的」这类短句。
+    await client.query(`WITH candidates AS (
+        SELECT id, attachment->'parts' AS parts
+        FROM chat_messages
+        WHERE attachment ? 'parts' AND jsonb_typeof(attachment->'parts') = 'array'
+          AND jsonb_array_length(attachment->'parts') > 1
+      ), cleaned AS (
+        SELECT id, (
+          SELECT jsonb_agg(part ORDER BY ord)
+          FROM jsonb_array_elements(c.parts) WITH ORDINALITY AS t(part, ord)
+          WHERE NOT (
+            part->>'type' = 'text' AND length(part->>'text') > 20 AND EXISTS (
+              SELECT 1 FROM jsonb_array_elements(c.parts) WITH ORDINALITY AS p(prev, pord)
+              WHERE prev->>'type' = 'text' AND pord < ord AND prev->>'text' = part->>'text'
+            )
+          )
+        ) AS parts
+        FROM candidates c
+      )
+      UPDATE chat_messages m
+      SET attachment = jsonb_set(m.attachment, '{parts}', cleaned.parts)
+      FROM cleaned
+      WHERE m.id = cleaned.id AND cleaned.parts IS DISTINCT FROM m.attachment->'parts'`);
     // 任务卡唯一归属（11-08）：历史完成消息与委派消息重复挂 task，清掉完成消息上的重复引用。
     await client.query(`UPDATE chat_messages SET attachment = attachment - 'task'
       WHERE attachment ? 'task' AND related_trip_id IS NOT NULL

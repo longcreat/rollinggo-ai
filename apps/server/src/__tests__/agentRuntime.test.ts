@@ -441,6 +441,28 @@ describe('agent runtime', () => {
     await closeAgentRuntime(path);
   });
 
+  it('工具调用结束后不重复回放工具前已经流过的正文', async () => {
+    const path = await storage();
+    const { faux, models } = fauxModels();
+    const finish = defineTool({
+      name: 'finish', description: '结束本轮', parameters: obj({}),
+      execute: async () => ({ output: [{ type: 'text' as const, text: 'ok' }], control: { terminate: true } }),
+    });
+    faux.setResponses([fauxAssistantMessage([fauxText('先确认一下。'), fauxToolCall('finish', {})], { stopReason: 'toolUse' })]);
+    const events: AgentStreamEvent[] = [];
+    await runAgentTurn({
+      storagePath: path, models, tools: [finish], instructions: '测试',
+      model: { provider: 'faux', modelId: 'faux-1' }, prompt: '问题', maxTurns: 2,
+      onEvent: (event) => events.push(event),
+    });
+    assert.deepEqual(
+      events.filter((event) => event.type === 'text').map((event) => event.text).filter((text) => text.trim()),
+      ['先确认一下。'],
+      '工具前已经流过的正文不能在回合结束时再发一遍',
+    );
+    await closeAgentRuntime(path);
+  });
+
   it('真实 thinking 块按 start/delta/end 透传，且不混入正文', async () => {
     const path = await storage();
     const { faux, models } = fauxModels();

@@ -41,6 +41,8 @@ export async function appendGenerationCompletion(input: GenerationCompletionInpu
       messages: [{
         role: 'assistant',
         content,
+        turnId: `gen-completion:${input.jobId}`,
+        taskId: input.jobId,
         attachment,
         ...(done ? { relatedTripId: input.tripId! } : {}),
       }],

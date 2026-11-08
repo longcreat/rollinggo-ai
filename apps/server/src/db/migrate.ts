@@ -266,6 +266,8 @@ const STATEMENTS = [
     role TEXT NOT NULL,
     content TEXT NOT NULL,
     sequence INTEGER NOT NULL,
+    turn_id TEXT,
+    task_id TEXT,
     intake JSONB,
     related_trip_id TEXT,
     created_at TIMESTAMPTZ NOT NULL
@@ -339,6 +341,18 @@ export async function runMigrations(pool: Pool): Promise<void> {
     await client.query(`ALTER TABLE trips ADD COLUMN IF NOT EXISTS parent_id TEXT`);
     await client.query(`ALTER TABLE trips ADD COLUMN IF NOT EXISTS change_summary TEXT`);
     await client.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS attachment JSONB`);
+    // turn/task 单一事实源（11-08）：同一主 Agent 回合共享 turn_id，同一子 Agent 任务共享 task_id。
+    // 存量行没有这两列：turn_id 先按单条消息回填（历史配对已无法还原，UI 分组以 task_id 为准）；
+    // task_id 先取委派消息上的附件任务，再按 generations(job_id, conversation_id, trip_id) 关联完成消息。
+    await client.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS turn_id TEXT`);
+    await client.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS task_id TEXT`);
+    await client.query(`UPDATE chat_messages SET turn_id = id WHERE turn_id IS NULL`);
+    await client.query(`UPDATE chat_messages SET task_id = attachment->'task'->>'jobId'
+      WHERE task_id IS NULL AND attachment ? 'task' AND attachment->'task'->>'jobId' IS NOT NULL`);
+    await client.query(`UPDATE chat_messages m SET task_id = g.job_id FROM generations g
+      WHERE m.task_id IS NULL AND m.related_trip_id = g.trip_id AND m.conversation_id = g.conversation_id
+        AND m.user_id = g.user_id AND g.job_id IS NOT NULL`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_chat_messages_task ON chat_messages(conversation_id, task_id)`);
     // 任务卡唯一归属（11-08）：历史完成消息与委派消息重复挂 task，清掉完成消息上的重复引用。
     await client.query(`UPDATE chat_messages SET attachment = attachment - 'task'
       WHERE attachment ? 'task' AND related_trip_id IS NOT NULL

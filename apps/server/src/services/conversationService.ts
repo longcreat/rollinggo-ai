@@ -64,6 +64,8 @@ function toChatMessage(row: MessageRow): ChatMessage {
     role: oneOf(CHAT_MESSAGE_ROLES, row.role, 'assistant'),
     content: row.content,
     sequence: row.sequence,
+    ...(row.turnId ? { turnId: row.turnId } : {}),
+    ...(row.taskId ? { taskId: row.taskId } : {}),
     ...(row.relatedTripId ? { relatedTripId: row.relatedTripId } : {}),
     ...(Value.Check(ChatAttachmentSchema, row.attachment) ? { attachment: row.attachment } : {}),
     createdAt: row.createdAt.getTime(),
@@ -200,6 +202,10 @@ export async function createConversation(userId: string, title?: string, writer?
 export interface AppendMessageInput {
   role: 'user' | 'assistant';
   content: string;
+  /** 一次主 Agent 回合：同回合的用户消息与回复写同一个 turnId；缺省按单条消息生成。 */
+  turnId?: string;
+  /** 子 Agent 任务：任务的开始回复与完成总结写同一个 taskId。 */
+  taskId?: string;
   relatedTripId?: string;
   attachment?: ChatAttachment;
 }
@@ -239,6 +245,7 @@ export async function appendMessages(input: AppendMessagesInput, writer?: TripWr
     for (const message of input.messages) {
       sequence += 1;
       const id = uid();
+      const turnId = message.turnId ?? uid();
       const values: typeof chatMessages.$inferInsert = {
         id,
         conversationId: input.conversationId,
@@ -246,8 +253,10 @@ export async function appendMessages(input: AppendMessagesInput, writer?: TripWr
         role: message.role,
         content: message.content,
         sequence,
+        turnId,
         createdAt: now,
       };
+      if (message.taskId) values.taskId = message.taskId;
       if (message.relatedTripId) values.relatedTripId = message.relatedTripId;
       if (message.attachment) values.attachment = message.attachment;
       await tx.insert(chatMessages).values(values);
@@ -257,6 +266,8 @@ export async function appendMessages(input: AppendMessagesInput, writer?: TripWr
         role: message.role,
         content: message.content,
         sequence,
+        turnId,
+        ...(message.taskId ? { taskId: message.taskId } : {}),
         ...(message.relatedTripId ? { relatedTripId: message.relatedTripId } : {}),
         ...(message.attachment ? { attachment: message.attachment } : {}),
         createdAt: now.getTime(),

@@ -258,6 +258,10 @@ export const chatMessages = pgTable(
     role: text('role').notNull(),                   // user | assistant
     content: text('content').notNull(),
     sequence: integer('sequence').notNull(),        // 会话内自增，前端据此稳定排序
+    /** 主 Agent 回合 id：同一回合的用户消息与回复共享。 */
+    turnId: text('turn_id'),
+    /** 子 Agent 任务 id：同一任务的开始回复与完成总结共享。 */
+    taskId: text('task_id'),
     intake: jsonb('intake'),                        // 遗留列：追问控件已下线（10-17），历史消息仍可能带值
     relatedTripId: text('related_trip_id'),         // 该轮产出的行程（修订/生成结果卡片用）
     attachment: jsonb('attachment'),

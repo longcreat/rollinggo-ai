@@ -20,11 +20,19 @@
 | `PUT /api/trips/:id` | 完整 `Trip`（含旧 `updatedAt`）→ 新版本 `Trip`；原版本冻结，无变化返回原版本 |
 
 数据库双更新：`trips.change_summary TEXT`、`chat_messages.attachment JSONB` 可空；
+`chat_messages.turn_id TEXT` / `task_id TEXT` 归属回合与子 Agent 任务；
 `detail_operations(user_id, id, fingerprint, result JSONB, created_at)` 以 `(user_id, id)` 为主键。
 迁移须覆盖带旧行的存量数据库且可重复运行。没有新环境变量，沿用站点/BYOK模型、地点和网页适配器。
 
 ## 3. Contracts
 
+- 会话消息的 turn/task 归属（11-08）：`chat_messages.turn_id` / `task_id` 是用户可见会话的单一事实源。
+  同一次主 Agent 回合的用户消息与回复共享 `turnId`（= 请求的 `requestId`）；同一子 Agent 任务的委派回复与
+  完成总结共享 `taskId`（= `jobId`，完成消息另有 `gen-completion:<jobId>` 的独立 turnId）。
+  `ChatPanel` 只按 `taskId` 聚合任务回合，不再根据消息相邻位置推断。
+  **真相边界**：pi-durable transcript 是执行真相（模型实际看到与调用过的内容）；`chat_messages` 是该回合
+  提交后的展示投影（正文、附件、turn/task 归属）。两者不互相反写：子 Agent 详情页读 durable transcript，
+  主对话只读投影。
 - `DetailChatRequest`：`requestId`（8～100 字符）、`tripId`、已保存 `updatedAt`、
   `text`（1～1000 字符）、可选 `dayId` / `suggestion`。服务端核验所有权、会话、最新版、时间戳和日期。
 - 事件为 `accepted / progress / answer_delta / question / question_answered / question_expired /

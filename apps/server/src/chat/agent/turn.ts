@@ -373,8 +373,15 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
       userId,
       conversationId,
       messages: [
-        { role: 'user', content: input.text },
-        { role: 'assistant', content: answer, attachment: savedAttachment, ...(version ? { relatedTripId: savedTrip.id } : {}) },
+        { role: 'user', content: input.text, turnId: input.requestId },
+        {
+          role: 'assistant',
+          content: answer,
+          turnId: input.requestId,
+          ...(state.startedGenerationJobId ? { taskId: state.startedGenerationJobId } : {}),
+          attachment: savedAttachment,
+          ...(version ? { relatedTripId: savedTrip.id } : {}),
+        },
       ],
     }, tx);
     const brief = await saveBrief(userId, conversationId, briefData, nextBriefStatus, tx);

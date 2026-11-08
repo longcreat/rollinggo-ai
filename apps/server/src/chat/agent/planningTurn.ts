@@ -135,8 +135,14 @@ export async function runPlanningAnswer(options: RunPlanningAnswerOptions): Prom
       userId,
       conversationId,
       messages: [
-        { role: 'user', content: input.text },
-        { role: 'assistant', content: answer, attachment },
+        { role: 'user', content: input.text, turnId: input.requestId },
+        {
+          role: 'assistant',
+          content: answer,
+          turnId: input.requestId,
+          ...(startedJobId ? { taskId: startedJobId } : {}),
+          attachment,
+        },
       ],
     }, tx);
     const brief = await saveBrief(userId, conversationId, briefData, nextBriefStatus, tx);

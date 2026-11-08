@@ -82,6 +82,10 @@ export const ChatMessageSchema = Type.Object({
   role: StringEnum(CHAT_MESSAGE_ROLES),
   content: Type.String({ maxLength: 4000 }),
   sequence: Type.Integer({ minimum: 0 }),
+  /** 一次主 Agent 回合：同一回合的用户消息与回复共享 turnId。 */
+  turnId: Type.Optional(Type.String()),
+  /** 子 Agent 任务：同一任务的开始回复与完成总结共享 taskId。 */
+  taskId: Type.Optional(Type.String()),
   relatedTripId: Type.Optional(Type.String()),
   attachment: Type.Optional(ChatAttachmentSchema),
   createdAt: Type.Number(),

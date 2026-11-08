@@ -39,6 +39,9 @@ test('完成消息写入来源会话，重复回调只有一条', async () => {
   assert.match(message.content, /行程已生成：上海（2 天）/);
   assert.equal(message.relatedTripId, 'trip-new');
   assert.equal(message.attachment?.task, undefined, '任务卡只属于发起任务的委派消息，完成消息不重复挂');
+  // 完成消息通过 taskId 与委派消息归为同一任务回合，完成回合自己也有独立的 turnId。
+  assert.equal(message.taskId, input.jobId);
+  assert.equal(message.turnId, `gen-completion:${input.jobId}`);
 });
 
 test('主 Agent 完成回合的回答覆盖固定完成文案', async () => {

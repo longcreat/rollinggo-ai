@@ -34,12 +34,10 @@ async function appendDelegationMessage(
   userText: string,
 ): Promise<void> {
   // 条件已经由任务节点和行程页承载，这里不再复述，避免用户看到重复/错误的天数信息。
-  const content = '已在后台开始规划行程。';
   const attachment: ChatAttachment = {
     tripId: '',
     summary: [],
     candidates: [],
-    steps: [{ id: `delegation:${jobId}`, name: 'generate_trip', label: '委派生成行程', status: 'done', startedAt: Date.now(), durationMs: 0 }],
     task: { jobId },
   };
   await commitOperation(userId, `gen-delegation:${jobId}`, 'generation-delegation', async (tx) => {
@@ -49,7 +47,7 @@ async function appendDelegationMessage(
       messages: [
         // 首页发送的那句话原样留在同一个 Agent 会话里，而不是消失在一个过渡页。
         { role: 'user', content: userText.slice(0, 1000) },
-        { role: 'assistant', content, attachment },
+        { role: 'assistant', content: '', attachment },
       ],
     }, tx);
     return { messages };

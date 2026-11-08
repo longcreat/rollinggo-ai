@@ -346,6 +346,9 @@ export async function runMigrations(pool: Pool): Promise<void> {
     // 表单直达的委派消息不再复述条件（历史消息里可能带错误的「0 天」）。
     await client.query(`UPDATE chat_messages SET content = '已在后台开始规划行程。'
       WHERE content LIKE '条件已齐备：%' AND attachment ? 'task'`);
+    // 委派消息只留任务引用：清掉旧文案与工具步骤，对话里只渲染任务节点。
+    await client.query(`UPDATE chat_messages SET content = '', attachment = attachment - 'steps'
+      WHERE content = '已在后台开始规划行程。' AND attachment ? 'task'`);
     await client.query(`UPDATE trips SET root_id = id WHERE root_id IS NULL`);
     await client.query(`ALTER TABLE trips ALTER COLUMN root_id SET NOT NULL`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_trips_root ON trips(root_id, version DESC)`);

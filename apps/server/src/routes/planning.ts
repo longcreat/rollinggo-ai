@@ -3,12 +3,10 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import {
-  PACE_LABELS,
   PlanningTurnRequestSchema,
   requiredBriefFields,
   type ChatAttachment,
   type ChatStreamEvent,
-  type TripPace,
 } from '@tripweaver/shared';
 import { hasSiteLlm } from '../env';
 import { preparePlanningChat, runPlanningChat } from '../services/planningChatService';
@@ -33,11 +31,9 @@ async function appendDelegationMessage(
   userId: string,
   conversationId: string,
   jobId: string,
-  brief: { destination: string; days: number; startDate: string; partySize: number; pace?: string },
 ): Promise<void> {
-  const pace = PACE_LABELS[(brief.pace ?? 'moderate') as TripPace] ?? '放松';
-  const days = brief.days > 0 ? ` ${brief.days} 天` : '';
-  const content = `条件已齐备：${brief.destination}${days}，${brief.startDate} 出发，${brief.partySize} 人，${pace}节奏。已在后台开始生成，可在任务里查看进度。`;
+  // 条件已经由任务节点和行程页承载，这里不再复述，避免用户看到重复/错误的天数信息。
+  const content = '已在后台开始规划行程。';
   const attachment: ChatAttachment = {
     tripId: '',
     summary: [],
@@ -91,18 +87,7 @@ export const planningRoutes: FastifyPluginAsyncTypebox = async (app) => {
       createTask: (input) => startGenerationTask(input),
     });
     if (!result.jobId) return reply.code(409).send({ error: result.error ?? '生成没有启动' });
-    const start = merged.startDate ? Date.parse(`${merged.startDate}T00:00:00Z`) : Number.NaN;
-    const end = merged.endDate ? Date.parse(`${merged.endDate}T00:00:00Z`) : Number.NaN;
-    const days = merged.days ?? (Number.isFinite(start) && Number.isFinite(end) && end >= start
-      ? Math.round((end - start) / 86_400_000) + 1
-      : 0);
-    await appendDelegationMessage(userId, conversationId, result.jobId, {
-      destination: merged.destination ?? '',
-      days,
-      startDate: merged.startDate ?? '',
-      partySize: merged.partySize ?? 1,
-      ...(merged.pace ? { pace: merged.pace } : {}),
-    });
+    await appendDelegationMessage(userId, conversationId, result.jobId);
     return { jobId: result.jobId };
   });
 

@@ -486,9 +486,10 @@ Generation live UI, durable phase agents, and any sub-agent transcript read surf
   `conversation.id` into `generations.agent_conversations` (JSONB) when created. The column is
   the durable mapping; do not rely on terminal task state (pi-durable drops `checkpoint` when a
   task is terminal) and do not add a third task table.
-- The main timeline renders phase-level sub-agent rows (`research` / `plan` / `review`) with
-  label, status, duration, and step count only. No result summary on the row; the row links to
-  `/agent/:jobId/agents/:stage`. `review` aggregates `writer` + `advice`.
+- The main timeline / chat shows one `旅行规划助手` node only. Expanding it renders the phase
+  timeline (`research` / `plan` / `review`, status only); each phase links to
+  `/agent/:jobId/agents/:stage`. `review` aggregates `writer` + `advice`. Do not expose steps,
+  duration, or result summaries on the collapsed node.
 - `GET /api/generations/:jobId/agents/:stage` is read-only and lazy. It normalizes durable
   conversation entries to tool steps (label/status/duration) only: never expose user/system
   prompts, thinking/reasoning, tool arguments, or raw assistant prose.

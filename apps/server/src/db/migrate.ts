@@ -343,6 +343,9 @@ export async function runMigrations(pool: Pool): Promise<void> {
     await client.query(`UPDATE chat_messages SET attachment = attachment - 'task'
       WHERE attachment ? 'task' AND related_trip_id IS NOT NULL
         AND attachment->>'tripId' = related_trip_id`);
+    // 表单直达的委派消息不再复述条件（历史消息里可能带错误的「0 天」）。
+    await client.query(`UPDATE chat_messages SET content = '已在后台开始规划行程。'
+      WHERE content LIKE '条件已齐备：%' AND attachment ? 'task'`);
     await client.query(`UPDATE trips SET root_id = id WHERE root_id IS NULL`);
     await client.query(`ALTER TABLE trips ALTER COLUMN root_id SET NOT NULL`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_trips_root ON trips(root_id, version DESC)`);

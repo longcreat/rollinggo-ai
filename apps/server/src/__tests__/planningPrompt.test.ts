@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { PlanningBriefData } from '@tripweaver/shared';
-import { buildPlanningPrompt } from '../chat/agent/planningPrompt';
+import { PLANNING_INSTRUCTIONS, buildPlanningPrompt } from '../chat/agent/planningPrompt';
 
 const brief: PlanningBriefData = {
   destination: '成都',
@@ -27,6 +27,13 @@ test('行前提示包含用户原文与结构化出行条件', () => {
 test('autostart 才附加「立即调用 generate_trip」指令', () => {
   assert.match(buildPlanningPrompt({ brief, text: '', autostart: true }), /立即调用 generate_trip/);
   assert.doesNotMatch(buildPlanningPrompt({ brief, text: '', autostart: false }), /立即调用 generate_trip/);
+});
+
+test('行前回答禁止固定话术与逐项复述', () => {
+  assert.doesNotMatch(PLANNING_INSTRUCTIONS, /已在后台开始，可在任务里查看进度/);
+  assert.match(PLANNING_INSTRUCTIONS, /不要逐项复述/);
+  assert.match(PLANNING_INSTRUCTIONS, /真人接单/);
+  assert.match(PLANNING_INSTRUCTIONS, /任务节点已经展示进度/);
 });
 
 test('缺字段在条件行里明确标出，不编造默认值', () => {

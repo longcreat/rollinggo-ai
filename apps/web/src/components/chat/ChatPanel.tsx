@@ -269,8 +269,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
       {!detail.isPending && !detail.isError && messages.length === 0 && !pending && (
         <div className="pb-2 pt-1">{renderSuggestions(dayId)}</div>
       )}
-      {(() => { const consumed = new Set<string>(); return messages.map((message, index) => {
-        if (consumed.has(message.id)) return null;
+      {messages.map((message) => {
         const content = message.content.trim();
         // 版本操作是系统动作，不应渲染成带“复制”的普通回答气泡。
         const restoreNotice = message.role === 'assistant' && !message.attachment
@@ -285,19 +284,6 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
         // 旧消息没有标记时锚到 ask_user 工具段之后，实在找不到才退回回答末尾。
         const questionRecords = message.attachment?.questions ?? [];
         const hasQuestionParts = parts?.some((part) => part.type === 'question') ?? false;
-        // 主 Agent 的委派输出是一个整体：开始回复 → 子 Agent 行 → 完成总结。
-        // 不再拆成两个 assistant 气泡或一张独立任务卡。
-        if (message.role === 'assistant' && message.attachment?.task) {
-          const next = messages[index + 1];
-          const completion = next && next.role === 'assistant' && next.relatedTripId && !next.attachment?.task ? next : null;
-          if (completion) consumed.add(completion.id);
-          return <div key={message.id} className="chat-msg chat-msg-assistant flex w-full min-w-0 flex-col gap-2">
-            {content && <div className="text-sm leading-relaxed text-slate-800"><ChatText text={message.content} markdown /></div>}
-            <TaskCard jobId={message.attachment.task.jobId} conversationId={conversationId} />
-            {completion?.content.trim() && <div className="text-sm leading-relaxed text-slate-800"><ChatText text={completion.content} markdown /></div>}
-            {message.attachment.candidates.map((candidate) => <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />)}
-          </div>;
-        }
         const questionRow = (item: (typeof questionRecords)[number], key: string) => (
           <div key={key} className="flex flex-col gap-0.5">
             <p className="m-0"><span className="text-white/50">问：</span><span className="text-white/85">{item.question}</span></p>
@@ -336,12 +322,13 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
           </>}
         {!hasQuestionParts && legacyAnchor < 0 && questionsCard(questionRecords, `q-${message.id}-tail`)}
         {message.attachment?.notice && <p className="mb-0 mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">{message.attachment.notice}</p>}
+        {message.attachment?.task && <TaskCard jobId={message.attachment.task.jobId} conversationId={conversationId} />}
         {message.attachment?.candidates.map((candidate) => <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />)}
         {message.role === 'assistant' && message.attachment?.clarification && <div className="chat-answer-options mt-3 flex flex-wrap gap-1.5" role="group" aria-label={message.attachment.clarification.question}>
           {message.attachment.clarification.options.map((option) => <button type="button" key={option} className="rounded-full border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-left text-xs font-medium text-slate-800 transition-colors cursor-pointer shadow-2xs" disabled={busy || readOnly || running || message.id !== messages.at(-1)?.id} onClick={() => void send(option, undefined, undefined, message.attachment?.dayId ?? null)}>{option}</button>)}
         </div>}
       </div>;
-      }); })()}
+      })}
       {pending && <PendingAnswer pending={pending} busy={busy} readOnly={readOnly}
         onRetry={() => void send(pending.input.text, pending.input.suggestion, pending.input)}
         onRestore={() => setRestoreDraft({ text: pending.input.text, key: Date.now() })} />}

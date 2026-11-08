@@ -53,6 +53,32 @@ const AGENT_STAGES = {
 } as const;
 type AgentStage = keyof typeof AGENT_STAGES;
 
+const AGENT_STAGE_LABEL: Record<AgentStage, string> = {
+  research: '查找地点与资料',
+  plan: '规划每日行程',
+  review: '整理文案与建议',
+};
+
+/** 读取一个阶段（review 合并 writer+advice）的工具步骤；只读 durable conversation。 */
+async function readAgentSteps(
+  runtime: Awaited<ReturnType<typeof getAgentRuntime>>,
+  task: GenerationTaskView,
+  stage: AgentStage,
+) {
+  const steps = [];
+  for (const key of AGENT_STAGES[stage]) {
+    const conversationId = task.agentConversations?.[key];
+    if (!conversationId) continue;
+    const conversation = await runtime.harness.conversation(
+      conversationId as unknown as ConversationId,
+      BACKGROUND_CONTEXT,
+    );
+    const page = await conversation?.entries({ order: 'ascending' }, 400, undefined, BACKGROUND_CONTEXT);
+    steps.push(...normalizeAgentTranscript(page?.items ?? [], task.status !== 'running'));
+  }
+  return steps;
+}
+
 const HEARTBEAT_MS = 25_000;
 /** running 行超过单任务上限仍没有终态：视作中断，让任务卡给出重试出口而不是永远转圈。 */
 const STALE_TASK_MS = GENERATION_TIMEOUT_MINUTES * 60_000;
@@ -230,21 +256,45 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
     try {
       await ensureAgentStorageDir();
       const runtime = await getAgentRuntime(agentStoragePath(userId));
-      const agents = task.agentConversations ?? {};
-      const steps = [];
-      for (const key of AGENT_STAGES[stage as AgentStage]) {
-        const conversationId = agents[key];
-        if (!conversationId) continue;
-        const conversation = await runtime.harness.conversation(
-          conversationId as unknown as ConversationId,
-          BACKGROUND_CONTEXT,
-        );
-        const page = await conversation?.entries({ order: 'ascending' }, 400, undefined, BACKGROUND_CONTEXT);
-        steps.push(...normalizeAgentTranscript(page?.items ?? [], task.status !== 'running'));
-      }
+      const steps = await readAgentSteps(runtime, task, stage as AgentStage);
       return { stage, steps, running: task.status === 'running' };
     } catch (error) {
       request.log.error(error, 'generation agent transcript read failed');
+      return reply.code(503).send({ error: '子 Agent 记录暂时不可用' });
+    }
+  });
+
+  /**
+   * 主 Agent 对话里的子 Agent 节点列表：只返回已有 durable 会话的阶段。
+   * 状态/耗时用于时间线展示，详情仍由 /agents/:stage 懒加载。
+   */
+  app.get('/:jobId/agents', async (request, reply) => {
+    const { jobId } = request.params as { jobId: string };
+    const userId = request.user!.id;
+    const task = await getGenerationTask(userId, jobId);
+    if (!task) return reply.code(404).send({ error: '任务不存在或已过期' });
+    const mapped = (Object.keys(AGENT_STAGES) as AgentStage[])
+      .filter((stage) => AGENT_STAGES[stage].some((key) => task.agentConversations?.[key]));
+    if (!mapped.length) return { agents: [] };
+    try {
+      await ensureAgentStorageDir();
+      const runtime = await getAgentRuntime(agentStoragePath(userId));
+      const agents = [];
+      for (const stage of mapped) {
+        const steps = await readAgentSteps(runtime, task, stage);
+        const done = steps.filter((step) => step.status === 'done').length;
+        agents.push({
+          stage,
+          label: AGENT_STAGE_LABEL[stage],
+          status: task.status === 'done' ? 'done' : task.status === 'running' ? (steps.length > 0 && done === steps.length ? 'done' : 'running') : 'error',
+          total: steps.length,
+          completed: done,
+          durationMs: steps.reduce((sum, step) => sum + (step.durationMs ?? 0), 0),
+        });
+      }
+      return { agents };
+    } catch (error) {
+      request.log.error(error, 'generation agent list read failed');
       return reply.code(503).send({ error: '子 Agent 记录暂时不可用' });
     }
   });

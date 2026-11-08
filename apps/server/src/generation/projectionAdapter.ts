@@ -47,6 +47,16 @@ export function createGenerationProjection(jobId: string): GenerationProjection 
     tasks.set(id, node);
     publishTasks();
   };
+  /** 终态收口：停止/失败后不能还有阶段或工具在转圈。 */
+  const settleTasks = (status: 'done' | 'error') => {
+    let changed = false;
+    for (const [id, node] of tasks) {
+      if (node.status !== 'running' && node.status !== 'pending') continue;
+      tasks.set(id, { ...node, status });
+      changed = true;
+    }
+    if (changed) publishTasks();
+  };
   const phaseTaskId = (phase: string, round: number) => `phase:${phase}:${round}`;
 
   /** 天行按 dayIndex 一一对应：plan_day 早于 job_start 时先补齐占位行，保证行序单调。 */
@@ -155,6 +165,7 @@ export function createGenerationProjection(jobId: string): GenerationProjection 
         });
         return;
       case 'job_done': {
+        settleTasks('done');
         const trip = channel.snapshot.state.trip;
         publish({
           op: 'state.updated',
@@ -168,12 +179,14 @@ export function createGenerationProjection(jobId: string): GenerationProjection 
         return;
       }
       case 'job_error':
+        settleTasks('error');
         publish({
           op: 'state.updated',
           patch: { control: { phase: 'idle', status: 'error', jobId, message: event.message } },
         });
         return;
       case 'job_cancelled':
+        settleTasks('error');
         publish({
           op: 'state.updated',
           patch: { control: { phase: 'idle', status: 'cancelled', jobId, message: event.reason } },

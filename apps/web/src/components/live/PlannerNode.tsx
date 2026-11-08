@@ -12,10 +12,9 @@ export interface PlannerStage {
   href: string;
 }
 
-export function PlannerNode({ stages, status, tripHref, from, defaultOpen = false, bare = false }: {
+export function PlannerNode({ stages, status, from, defaultOpen = false, bare = false }: {
   stages: readonly PlannerStage[];
   status: 'pending' | 'running' | 'done' | 'error';
-  tripHref?: string;
   /** 从对话进入阶段页时，返回来源页面。 */
   from?: string;
   defaultOpen?: boolean;
@@ -56,11 +55,6 @@ export function PlannerNode({ stages, status, tripHref, from, defaultOpen = fals
               <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" aria-hidden="true" />
             </Link>
           ))}
-          {tripHref && (
-            <Link to={tripHref} className="mt-1 flex w-full items-center justify-center rounded-lg px-1 py-1.5 text-[11px] font-medium text-brand no-underline hover:bg-brand/[0.06]">
-              查看行程
-            </Link>
-          )}
         </div>
       )}
     </div>

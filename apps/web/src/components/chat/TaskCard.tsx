@@ -36,7 +36,6 @@ export function TaskCard({ jobId, conversationId }: { jobId: string; conversatio
         status={nodeStatus}
         from={from}
         bare
-        {...(status === 'done' && data?.tripId ? { tripHref: `/trips/${encodeURIComponent(data.tripId)}` } : {})}
       />
       {running && (
         <button

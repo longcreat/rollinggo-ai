@@ -29,9 +29,12 @@
 - 真实思考流（11-08）：模型/端点声明 reasoning 且会话 `thinkingLevel` 非 off 时，pi-ai 会把
   `thinking` 块透传到 LiveDoc；runtime 按 `thinking_start` / `thinking_delta` / `thinking_end`
   做快照差分（正文开始、generation 切换或回合结束即收口），SSE 增加同名事件。
-  UI 只显示「思考了约 N 秒 / N 段推理」，**不渲染原始 CoT**；消息附件只持久化
-  `thinking: { chunks, durationMs }` 供刷新后回看。生成阶段、完成回流和只读子代理保持
-  `thinkingLevel=off`，不把预算烧在隐藏推理上；没有真实 thinking 事件时不显示任何“正在思考”占位。
+  思考段作为 `AgentPart {type:'thinking'}` 按真实顺序进入 parts（thinking → steps → question →
+  下一轮 thinking → text），与 pi assistant content 的顺序一致；服务端在回合事件里同步写 parts，
+  只保留时间与耗时，**不写原始 CoT**。UI 是一行时间线节点，只显示「思考中 · Ns」/「思考 Ns」，
+  不加说明、不展开原文；消息附件另存 `thinking: { chunks, durationMs }` 供没有 parts 的旧回合
+  回看。生成阶段、完成回流和只读子代理保持 `thinkingLevel=off`；没有真实 thinking 事件时
+  不显示任何“正在思考”占位。
 - 会话消息的 turn/task 归属（11-08）：`chat_messages.turn_id` / `task_id` 是用户可见会话的单一事实源。
   同一次主 Agent 回合的用户消息与回复共享 `turnId`（= 请求的 `requestId`）；同一子 Agent 任务的委派回复与
   完成总结共享 `taskId`（= `jobId`，完成消息另有 `gen-completion:<jobId>` 的独立 turnId）。

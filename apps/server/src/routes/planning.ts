@@ -31,6 +31,7 @@ async function appendDelegationMessage(
   userId: string,
   conversationId: string,
   jobId: string,
+  userText: string,
 ): Promise<void> {
   // 条件已经由任务节点和行程页承载，这里不再复述，避免用户看到重复/错误的天数信息。
   const content = '已在后台开始规划行程。';
@@ -45,7 +46,11 @@ async function appendDelegationMessage(
     const messages = await appendMessages({
       userId,
       conversationId,
-      messages: [{ role: 'assistant', content, attachment }],
+      messages: [
+        // 首页发送的那句话原样留在同一个 Agent 会话里，而不是消失在一个过渡页。
+        { role: 'user', content: userText.slice(0, 1000) },
+        { role: 'assistant', content, attachment },
+      ],
     }, tx);
     return { messages };
   });
@@ -87,7 +92,12 @@ export const planningRoutes: FastifyPluginAsyncTypebox = async (app) => {
       createTask: (input) => startGenerationTask(input),
     });
     if (!result.jobId) return reply.code(409).send({ error: result.error ?? '生成没有启动' });
-    await appendDelegationMessage(userId, conversationId, result.jobId);
+    await appendDelegationMessage(
+      userId,
+      conversationId,
+      result.jobId,
+      text || `规划${merged.destination ?? ''}行程`,
+    );
     return { jobId: result.jobId };
   });
 

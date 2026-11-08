@@ -1,8 +1,8 @@
 import { memo, useState } from 'react';
 import type { ChatMessage } from '@tripweaver/shared';
-import { Check, Copy } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { ChatText } from './ChatText';
+import { CopyButton } from './CopyButton';
 
 interface Props {
   message: ChatMessage;
@@ -15,45 +15,26 @@ interface Props {
   canUndo?: boolean;
   /** 这次修改产生的版本是否还在链上；回退后为 false */
   editExists?: boolean;
+  /** Assistant 正文不套气泡，按 harness 的 turn 文本渲染。 */
+  plain?: boolean;
+  /** turn 被拆成多个片段时只在最后一段显示复制按钮。 */
+  showCopy?: boolean;
 }
 
-export const MessageBubble = memo(function MessageBubble({ message, copyText, onUndo, undoing = false, canUndo = true, editExists = true }: Props) {
+export const MessageBubble = memo(function MessageBubble({ message, copyText, onUndo, undoing = false, canUndo = true, editExists = true, plain = false, showCopy = true }: Props) {
   const isUser = message.role === 'user';
   const edit = message.attachment?.edit;
-  const [copied, setCopied] = useState(false);
   const [showEdits, setShowEdits] = useState(false);
-
-  const handleCopy = () => {
-    void navigator.clipboard.writeText(copyText ?? message.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <div className={`chat-msg flex min-w-0 flex-col gap-1.5 ${isUser ? 'chat-msg-user ml-auto max-w-[85%] items-end' : 'chat-msg-assistant w-full items-start'}`}>
-      <div className={`chat-bubble break-words rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed ${
-        isUser
-          ? 'whitespace-pre-wrap bg-slate-900 text-white shadow-2xs'
-          : 'bg-slate-50/90 text-slate-800'
-      }`}>
+      <div className={isUser
+        ? 'chat-bubble break-words whitespace-pre-wrap rounded-2xl bg-slate-900 px-3.5 py-2.5 text-sm leading-relaxed text-white shadow-2xs'
+        : plain
+          ? 'break-words px-1 py-0.5 text-sm leading-relaxed text-slate-800'
+          : 'chat-bubble break-words rounded-2xl bg-slate-50/90 px-3.5 py-2.5 text-sm leading-relaxed text-slate-800'}>
         <ChatText text={message.content} markdown={!isUser} />
       </div>
-      {!isUser && (
-        <div className="flex items-center px-1 text-slate-400">
-          <Button
-            variant="plain"
-            type="button"
-            onClick={handleCopy}
-            aria-label={copied ? '已复制' : '复制回答'}
-            title={copied ? '已复制' : '复制回答'}
-            className="p-0 hover:text-slate-700"
-          >
-            {copied
-              ? <Check className="h-3.5 w-3.5" aria-hidden="true" />
-              : <Copy className="h-3.5 w-3.5" aria-hidden="true" />}
-          </Button>
-        </div>
-      )}
       {!isUser && edit && editExists && (
         <div className="mt-1 w-full">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-xs text-slate-400">
@@ -95,6 +76,7 @@ export const MessageBubble = memo(function MessageBubble({ message, copyText, on
           )}
         </div>
       )}
+      {!isUser && showCopy && <CopyButton text={copyText ?? message.content} />}
     </div>
   );
 });

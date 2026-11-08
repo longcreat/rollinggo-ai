@@ -13,7 +13,7 @@ import { ChatText } from './ChatText';
 import { CopyButton } from './CopyButton';
 import { ChatInput } from './ChatInput';
 import { MessageBubble } from './MessageBubble';
-import { ThinkingPanel } from './ThinkingPanel';
+import { ThinkingRow } from './ThinkingRow';
 import { PendingAnswer, type PendingExchange } from './PendingAnswer';
 import { FoodCard } from './FoodCard';
 import { Button } from '../ui/Button';
@@ -32,11 +32,11 @@ interface Props {
 const labels = { food: '推荐美食', explore: '看看沿途玩法', pace: '检查行程节奏', more_food: '再推荐几家', light_food: '换成清淡口味', dinner: '看看晚餐' };
 const initialSuggestions = ['food', 'explore', 'pace'] as const;
 
-/** 历史消息上的思考记录：只保留真实耗时与规模，不存原文。 */
+/** 历史消息上的思考记录：只保留真实耗时；有 parts 时刻在时间线里，不再重复渲染。 */
 function HistoryThinking({ message }: { message?: ChatMessage }) {
   const meta = message?.attachment?.thinking;
-  if (!meta) return null;
-  return <ThinkingPanel thinking={{ active: false, chunks: meta.chunks, ...(meta.durationMs !== undefined ? { durationMs: meta.durationMs } : {}) }} />;
+  if (!meta || message?.attachment?.parts?.some((part) => part.type === 'thinking')) return null;
+  return <ThinkingRow thinking={{ durationMs: meta.durationMs }} />;
 }
 
 export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, end, onTrip, live = false, liveStatus = 'running', liveSend }: Props) {
@@ -315,6 +315,9 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
         return <div key={message.id} className="min-w-0">
         {message.role === 'assistant' && <HistoryThinking message={message} />}
         {parts?.length ? parts.map((part, index) => {
+          if (part.type === 'thinking') {
+            return <ThinkingRow key={`thinking-${message.id}-${index}`} thinking={part} />;
+          }
           if (part.type === 'question') {
             const record = questionRecords[part.index];
             return record ? questionsCard([record], `q-${message.id}-${index}`) : null;

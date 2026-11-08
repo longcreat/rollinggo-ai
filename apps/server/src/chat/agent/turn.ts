@@ -289,16 +289,31 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
       }
       if (event.type === 'thinking_start') {
         openText = -1;
+        openSteps = -1;
         state.thinking = { startedAt: Date.now(), chunks: 0 };
+        parts.push({ type: 'thinking', startedAt: state.thinking.startedAt, chunks: 0 });
         emit({ type: 'thinking_start' });
       }
       if (event.type === 'thinking_delta') {
         if (!state.thinking) state.thinking = { startedAt: Date.now(), chunks: 0 };
         state.thinking.chunks += 1;
+        for (let index = parts.length - 1; index >= 0; index -= 1) {
+          const part = parts[index];
+          if (part?.type !== 'thinking') continue;
+          part.chunks = (part.chunks ?? 0) + 1;
+          break;
+        }
         emit({ type: 'thinking_delta', text: event.text });
       }
       if (event.type === 'thinking_end') {
         if (state.thinking) state.thinking.endedAt = Date.now();
+        for (let index = parts.length - 1; index >= 0; index -= 1) {
+          const part = parts[index];
+          if (part?.type !== 'thinking') continue;
+          part.endedAt = state.thinking?.endedAt ?? Date.now();
+          part.durationMs = Math.max(0, part.endedAt - part.startedAt);
+          break;
+        }
         emit({ type: 'thinking_end' });
       }
     },

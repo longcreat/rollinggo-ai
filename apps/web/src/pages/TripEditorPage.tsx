@@ -14,7 +14,7 @@ import { ChatPanel } from '../components/chat/ChatPanel';
 import { DaySection } from '../components/editor/DaySection';
 import { AutoRoutePlanner } from '../components/editor/AutoRoutePlanner';
 import { MapView } from '../components/editor/MapView';
-import { TripSchema, dateForDayIndex, type Trip, type TripOperationResult } from '@tripweaver/shared';
+import { TripSchema, dateForDayIndex, uid, type Trip, type TripOperationResult } from '@tripweaver/shared';
 import { EditorIcon } from '../components/editor/EditorIcon';
 import { ExportMenu } from '../components/ExportMenu';
 import { matchOverview } from '../lib/tripDerive';
@@ -402,6 +402,19 @@ export function TripEditorPage() {
                   onTrip={async () => {}}
                   live
                   liveStatus={liveTask.data?.status ?? 'running'}
+                  liveSend={liveTask.data?.conversationId ? async (text) => {
+                    const cid = liveTask.data!.conversationId!;
+                    const result = await api.post<{ startedGenerationJobId?: string; replyMessage?: { content?: string } }>(
+                      `/api/conversations/${encodeURIComponent(cid)}/planning?stream=0`,
+                      { requestId: uid(), text, autostart: true },
+                    );
+                    if (result.startedGenerationJobId) {
+                      navigate(`/agent/${encodeURIComponent(result.startedGenerationJobId)}`, { replace: true });
+                      return;
+                    }
+                    void qc.invalidateQueries({ queryKey: keys.conversation(cid) });
+                    throw new Error(result.replyMessage?.content || '没有开始新的规划，请换个说法');
+                  } : undefined}
                 />
               ) : liveTask.isPending ? (
                 <div className="flex flex-1 items-center justify-center text-xs text-slate-400">正在连接主 Agent…</div>

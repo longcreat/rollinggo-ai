@@ -24,11 +24,13 @@ interface Props {
   /** 生成直播期：复用同一个主 Agent 对话，只读并实时更新任务节点。 */
   live?: boolean;
   liveStatus?: 'running' | 'done' | 'error' | 'cancelled';
+  /** 直播停止/失败后继续向主 Agent 提要求；成功后由页面切到新任务。 */
+  liveSend?: (text: string) => Promise<void>;
 }
 const labels = { food: '推荐美食', explore: '看看沿途玩法', pace: '检查行程节奏', more_food: '再推荐几家', light_food: '换成清淡口味', dinner: '看看晚餐' };
 const initialSuggestions = ['food', 'explore', 'pace'] as const;
 
-export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, end, onTrip, live = false, liveStatus = 'running' }: Props) {
+export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, end, onTrip, live = false, liveStatus = 'running', liveSend }: Props) {
   const qc = useQueryClient();
   const detail = useConversation(conversationId);
   const versions = useTripVersions(trip.id);
@@ -43,6 +45,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
   const [recovered, setRecovered] = useState<PendingQuestionView | null>(null);
   const [recoveredState, setRecoveredState] = useState<'pending' | 'answered' | 'expired'>('pending');
   const [recoveredAnswers, setRecoveredAnswers] = useState<AgentQuestionAnswer[] | undefined>();
+  const [liveSending, setLiveSending] = useState(false);
   const [atBottom, setAtBottom] = useState(true);
   const scroll = useRef<HTMLDivElement>(null);
   const following = useRef(true);
@@ -264,7 +267,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
     }}>
       {detail.isPending && <p className="text-xs text-slate-400">正在加载对话…</p>}
       {detail.isError && <p className="text-xs text-red-500" role="alert">对话加载失败 <Button variant="ghost" onClick={() => void detail.refetch()}>重试</Button></p>}
-      {!detail.isPending && !detail.isError && <div className="chat-welcome pb-2 pt-1">
+      {!live && !detail.isPending && !detail.isError && <div className="chat-welcome pb-2 pt-1">
         <h2 className="m-0 flex items-start gap-2 text-sm font-semibold leading-snug text-slate-800"><span className="mt-0.5 text-slate-800" aria-hidden="true"><Compass className="w-4 h-4" /></span>{live
           ? liveStatus === 'cancelled' ? '规划已停止。'
             : liveStatus === 'error' ? '规划未完成。'
@@ -361,16 +364,32 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
         submitting={answering} disabled={readOnly} error={questionError} onSubmit={(answers) => void answerRecovered(answers)} />
     </div>}
 
-    {live ? (
-      <p className="m-0 text-center text-xs text-slate-400">
-        {liveStatus === 'cancelled' ? '规划已停止' : liveStatus === 'error' ? '规划未完成' : liveStatus === 'done' ? '正在打开行程…' : '规划中，完成后可以继续对话'}
-      </p>
-    ) : <ChatInput disabled={readOnly || detail.isPending || detail.isError || (busy && !running) ||
-      Boolean(pending?.questionState === 'pending') ||
-      Boolean(recovered && (recoveredState === 'pending' || recoveredState === 'answered'))} sending={running} stopping={stopping} restoreDraft={restoreDraft} onSend={(text) => void send(text)} onStop={() => {
-      if (!pending || stopping) return;
-      setStopping(true);
-      void stopChat(conversationId, pending.input.requestId).catch(() => { controller.current?.abort(); });
-    }} />}
+    <ChatInput
+      disabled={live
+        ? liveStatus === 'running' || liveSending || !liveSend
+        : readOnly || detail.isPending || detail.isError || (busy && !running) ||
+          Boolean(pending?.questionState === 'pending') ||
+          Boolean(recovered && (recoveredState === 'pending' || recoveredState === 'answered'))}
+      sending={live ? false : running}
+      stopping={stopping}
+      restoreDraft={restoreDraft}
+      placeholder={live
+        ? liveStatus === 'running' ? '正在规划…' : liveSending ? '正在理解你的调整…' : '让 RollingGo 继续调整行程…'
+        : undefined}
+      onSend={(text) => {
+        if (!live) { void send(text); return; }
+        if (!liveSend || liveSending) return;
+        setError('');
+        setLiveSending(true);
+        void liveSend(text)
+          .catch((err) => setError(err instanceof Error ? err.message : '发送失败，请重试'))
+          .finally(() => setLiveSending(false));
+      }}
+      onStop={live ? undefined : () => {
+        if (!pending || stopping) return;
+        setStopping(true);
+        void stopChat(conversationId, pending.input.requestId).catch(() => { controller.current?.abort(); });
+      }}
+    />
   </div>;
 }

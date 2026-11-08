@@ -9,9 +9,10 @@ interface Props {
   onStop?: () => void;
   stopping?: boolean;
   restoreDraft?: { text: string; key: number };
+  placeholder?: string;
 }
 
-export function ChatInput({ disabled, sending, onSend, onStop, stopping, restoreDraft }: Props) {
+export function ChatInput({ disabled, sending, onSend, onStop, stopping, restoreDraft, placeholder = '让 RollingGo 帮你微调行程…' }: Props) {
   const [text, setText] = useState('');
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => { if (restoreDraft) setText(restoreDraft.text); }, [restoreDraft]);
@@ -40,7 +41,7 @@ export function ChatInput({ disabled, sending, onSend, onStop, stopping, restore
         value={text}
         maxLength={1000}
         disabled={disabled}
-        placeholder="让 RollingGo 帮你微调行程…"
+        placeholder={placeholder}
         aria-label="输入你的行程想法"
         onChange={(e) => setText(e.target.value)}
         onKeyDown={onKeyDown}

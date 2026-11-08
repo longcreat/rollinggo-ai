@@ -389,6 +389,22 @@ export function TripEditorPage() {
                   stream={liveState.stream}
                   onBack={() => navigate(backFrom ?? `/agent/${liveJobId}`)}
                 />
+              ) : liveState.trip && liveTask.data?.conversationId ? (
+                // 直播期直接复用主 Agent 对话：任务节点实时更新，不再另起一套“进度页”。
+                <ChatPanel
+                  conversationId={liveTask.data.conversationId}
+                  trip={liveState.trip}
+                  dayId={liveState.trip.days.find((day) => day.dayIndex === dayFilter)?.id}
+                  readOnly
+                  busy={false}
+                  begin={begin}
+                  end={end}
+                  onTrip={async () => {}}
+                  live
+                  liveStatus={liveTask.data?.status ?? 'running'}
+                />
+              ) : liveTask.isPending ? (
+                <div className="flex flex-1 items-center justify-center text-xs text-slate-400">正在连接主 Agent…</div>
               ) : (
                 <LiveAgentStream
                   jobId={liveJobId ?? ''}

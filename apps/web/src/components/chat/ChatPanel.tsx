@@ -21,11 +21,14 @@ interface Props {
   conversationId: string; trip: Trip; dayId?: string; readOnly: boolean; busy: boolean;
   begin: () => Promise<Trip>; end: () => void;
   onTrip: (id: string, result?: TripOperationResult) => Promise<void>;
+  /** 生成直播期：复用同一个主 Agent 对话，只读并实时更新任务节点。 */
+  live?: boolean;
+  liveStatus?: 'running' | 'done' | 'error' | 'cancelled';
 }
 const labels = { food: '推荐美食', explore: '看看沿途玩法', pace: '检查行程节奏', more_food: '再推荐几家', light_food: '换成清淡口味', dinner: '看看晚餐' };
 const initialSuggestions = ['food', 'explore', 'pace'] as const;
 
-export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, end, onTrip }: Props) {
+export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, end, onTrip, live = false, liveStatus = 'running' }: Props) {
   const qc = useQueryClient();
   const detail = useConversation(conversationId);
   const versions = useTripVersions(trip.id);
@@ -262,8 +265,20 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
       {detail.isPending && <p className="text-xs text-slate-400">正在加载对话…</p>}
       {detail.isError && <p className="text-xs text-red-500" role="alert">对话加载失败 <Button variant="ghost" onClick={() => void detail.refetch()}>重试</Button></p>}
       {!detail.isPending && !detail.isError && <div className="chat-welcome pb-2 pt-1">
-        <h2 className="m-0 flex items-start gap-2 text-sm font-semibold leading-snug text-slate-800"><span className="mt-0.5 text-slate-800" aria-hidden="true"><Compass className="w-4 h-4" /></span>行程已生成，可以继续完善沿途安排。</h2>
-        <p className="mb-0 mt-1.5 text-xs leading-relaxed text-slate-500">我为你整理了 {trip.days.length} 天的行程安排，已包含主要景点与交通安排，你可以根据需要进一步调整。</p>
+        <h2 className="m-0 flex items-start gap-2 text-sm font-semibold leading-snug text-slate-800"><span className="mt-0.5 text-slate-800" aria-hidden="true"><Compass className="w-4 h-4" /></span>{live
+          ? liveStatus === 'cancelled' ? '规划已停止。'
+            : liveStatus === 'error' ? '规划未完成。'
+              : liveStatus === 'done' ? '行程已生成。'
+                : '正在为你规划行程。'
+          : '行程已生成，可以继续完善沿途安排。'}</h2>
+        <p className="mb-0 mt-1.5 text-xs leading-relaxed text-slate-500">
+          {live
+            ? liveStatus === 'cancelled' ? '可以返回首页调整条件后重新开始。'
+              : liveStatus === 'error' ? '可以返回首页调整条件后重试。'
+                : liveStatus === 'done' ? '正在打开行程…'
+                  : '规划过程会实时更新；完成后可以继续调整。'
+            : `我为你整理了 ${trip.days.length} 天的行程安排，已包含主要景点与交通安排，你可以根据需要进一步调整。`}
+        </p>
         {messages.length === 0 && !pending && renderSuggestions(dayId)}</div>}
       {messages.map((message) => {
         const content = message.content.trim();
@@ -335,7 +350,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
     </>}
     </div>
     {error && !(pending?.state === 'stopped' && error === '已停止') && <p className="m-0 text-xs text-[var(--color-danger)]" role="alert">{error}</p>}
-    {readOnly && <p className="m-0 text-xs text-ink-muted">返回最新版本或恢复此版本后继续对话</p>}
+    {readOnly && !live && <p className="m-0 text-xs text-ink-muted">返回最新版本或恢复此版本后继续对话</p>}
 
     {activeQuestion && <div className="chat-question-dock shrink-0 overflow-y-auto" style={{ maxHeight: '45vh' }}>
       <QuestionCard key={activeQuestion.id} question={activeQuestion} state="pending"
@@ -346,12 +361,16 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
         submitting={answering} disabled={readOnly} error={questionError} onSubmit={(answers) => void answerRecovered(answers)} />
     </div>}
 
-    <ChatInput disabled={readOnly || detail.isPending || detail.isError || (busy && !running) ||
+    {live ? (
+      <p className="m-0 text-center text-xs text-slate-400">
+        {liveStatus === 'cancelled' ? '规划已停止' : liveStatus === 'error' ? '规划未完成' : liveStatus === 'done' ? '正在打开行程…' : '规划中，完成后可以继续对话'}
+      </p>
+    ) : <ChatInput disabled={readOnly || detail.isPending || detail.isError || (busy && !running) ||
       Boolean(pending?.questionState === 'pending') ||
       Boolean(recovered && (recoveredState === 'pending' || recoveredState === 'answered'))} sending={running} stopping={stopping} restoreDraft={restoreDraft} onSend={(text) => void send(text)} onStop={() => {
       if (!pending || stopping) return;
       setStopping(true);
       void stopChat(conversationId, pending.input.requestId).catch(() => { controller.current?.abort(); });
-    }} />
+    }} />}
   </div>;
 }

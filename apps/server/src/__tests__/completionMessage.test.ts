@@ -41,6 +41,25 @@ test('完成消息写入来源会话，重复回调只有一条', async () => {
   assert.equal(message.attachment?.task, undefined, '任务卡只属于发起任务的委派消息，完成消息不重复挂');
 });
 
+test('主 Agent 完成回合的回答覆盖固定完成文案', async () => {
+  const userId = `completion-answer-${Date.now()}`;
+  userIds.push(userId);
+  const conversation = await createConversation(userId, '回答会话');
+  await appendGenerationCompletion({
+    userId,
+    jobId: `job-${Date.now()}`,
+    conversationId: conversation.id,
+    status: 'done',
+    tripId: 'trip-answer',
+    tripTitle: '成都一日',
+    days: 1,
+    answer: '行程好了。最重要提醒：茶馆周末人多。',
+  });
+  const detail = await getConversationDetail(userId, conversation.id);
+  assert.equal(detail!.messages[0]!.content, '行程好了。最重要提醒：茶馆周末人多。');
+  assert.equal(detail!.messages[0]!.relatedTripId, 'trip-answer');
+});
+
 test('失败也补一条明确未完成的消息，且不指向行程', async () => {
   const userId = `completion-error-${Date.now()}`;
   userIds.push(userId);

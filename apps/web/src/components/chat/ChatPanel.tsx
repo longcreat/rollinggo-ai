@@ -54,11 +54,6 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
   const generated = allMessages.findIndex((message) => message.relatedTripId);
   // relatedTripId 也会标在真实修改回答上；仅跳过无附件的初始关联记录，不能把最新回答截掉。
   const messages = generated < 0 || allMessages[generated]?.attachment ? allMessages : allMessages.slice(generated + 1);
-  // 成功的完成消息不再在对话里重复展示：任务节点已表达终态，行程页就是结果。
-  const visibleMessages = messages.filter((message) => !(
-    message.role === 'assistant' && message.relatedTripId
-    && message.attachment?.tripId === message.relatedTripId && !message.attachment?.task
-  ));
   const running = pending?.state === 'running';
   // 问题卡在输入框上方的 dock 里显示（对齐 opencode session question dock），不在消息流中。
   const activeQuestion = pending?.question && pending.questionState === 'pending' ? pending.question : null;
@@ -66,7 +61,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
   useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => {
     if (following.current) scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
-  }, [visibleMessages.length, pending, recovered]);
+  }, [messages.length, pending, recovered]);
   // 刷新/断线后恢复待回答问题：Agent 回合仍在服务端等待，答案通过独立接口回注。
   useEffect(() => {
     if (readOnly || pending) return;
@@ -271,10 +266,10 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
     }}>
       {detail.isPending && <p className="text-xs text-slate-400">正在加载对话…</p>}
       {detail.isError && <p className="text-xs text-red-500" role="alert">对话加载失败 <Button variant="ghost" onClick={() => void detail.refetch()}>重试</Button></p>}
-      {!detail.isPending && !detail.isError && visibleMessages.length === 0 && !pending && (
+      {!detail.isPending && !detail.isError && messages.length === 0 && !pending && (
         <div className="pb-2 pt-1">{renderSuggestions(dayId)}</div>
       )}
-      {visibleMessages.map((message) => {
+      {messages.map((message) => {
         const content = message.content.trim();
         // 版本操作是系统动作，不应渲染成带“复制”的普通回答气泡。
         const restoreNotice = message.role === 'assistant' && !message.attachment
@@ -336,7 +331,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
         {message.attachment?.task && <TaskCard jobId={message.attachment.task.jobId} conversationId={conversationId} />}
         {message.attachment?.candidates.map((candidate) => <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />)}
         {message.role === 'assistant' && message.attachment?.clarification && <div className="chat-answer-options mt-3 flex flex-wrap gap-1.5" role="group" aria-label={message.attachment.clarification.question}>
-          {message.attachment.clarification.options.map((option) => <button type="button" key={option} className="rounded-full border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-left text-xs font-medium text-slate-800 transition-colors cursor-pointer shadow-2xs" disabled={busy || readOnly || running || message.id !== visibleMessages.at(-1)?.id} onClick={() => void send(option, undefined, undefined, message.attachment?.dayId ?? null)}>{option}</button>)}
+          {message.attachment.clarification.options.map((option) => <button type="button" key={option} className="rounded-full border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-left text-xs font-medium text-slate-800 transition-colors cursor-pointer shadow-2xs" disabled={busy || readOnly || running || message.id !== messages.at(-1)?.id} onClick={() => void send(option, undefined, undefined, message.attachment?.dayId ?? null)}>{option}</button>)}
         </div>}
       </div>;
       })}

@@ -43,7 +43,8 @@ import { finalizeGenerationTask } from './taskStore';
 import { appendGenerationCompletion } from './completionMessage';
 import type { LlmConfig } from '../services/settingsService';
 import { searchBudgetRemaining } from '../services/quotaService';
-import { createTrip } from '../services/tripService';
+import { createTrip, getTrip } from '../services/tripService';
+import { runCompletionTurn } from './completionTurn';
 import { recordGenerationNotification, getGenerationResult } from '../services/notificationService';
 import { publishNotification, type NotificationEvent } from '../services/notificationStream';
 import { poiBudgetRemaining, resolvePoiSourceForUser } from '../integrations/geoProvider';
@@ -267,6 +268,19 @@ export async function runGeneration(
     // 若进程在提交后、durable 记录终态前崩溃，重跑时这里直接复用已提交结果，绝不生成第二个版本。
     const committed = await getGenerationResult(run.userId, run.jobId);
     if (committed?.status === 'done' && committed.tripId) {
+      const trip = await getTrip(run.userId, committed.tripId).catch(() => null);
+      if (trip) {
+        await runCompletionTurn({
+          userId: run.userId,
+          jobId: run.jobId,
+          conversationId: run.provenance.conversationId,
+          tripId: trip.id,
+          tripTitle: trip.title,
+          days: trip.days.length,
+          cfg,
+          signal,
+        });
+      }
       await finalizeTask('done', committed.tripId);
       emitLive(run, { type: 'job_done', tripId: committed.tripId, usedXhs: false, dataSources: [], reviewNotes: [], at: Date.now(), durationMs: Date.now() - run.createdAt });
       terminalStatus = 'done';
@@ -728,7 +742,7 @@ export async function runGeneration(
         tx,
       );
       assertAlive(signal);
-      await finalizeTask('done', saved.id, { summary: research.summary, reviewNotes, dataSources }, tx);
+      // 任务行在“主 Agent 完成回合”之后再收口，保证任务卡变完成时会话里已有最终回答。
       // publish: false —— 事务未提交时推送会让前端回查到空列表；提交后再发
       doneNotification = await recordGenerationNotification({
         userId: run.userId, jobId: run.jobId, kind: 'success', tripId: saved.id,
@@ -739,16 +753,20 @@ export async function runGeneration(
       return saved;
     });
     // COMMIT 是成功边界：事务内取消会回滚；提交成功后不再把已保存结果宣告取消。
-    // 先补对话完成消息再发终态：直播页跳转/刷新时，会话里已经能看到结果。
-    await appendGenerationCompletion({
+    // 子 Agent 结果交回主 Agent 生成最终回答，再落任务终态；失败时内部退回固定完成消息。
+    await runCompletionTurn({
       userId: run.userId,
       jobId: run.jobId,
       conversationId: run.provenance.conversationId,
-      status: 'done',
       tripId: trip.id,
       tripTitle: trip.title,
       days: trip.days.length,
-    }).catch(() => {});
+      summary: research.summary,
+      reviewNotes,
+      cfg,
+      signal,
+    });
+    await finalizeTask('done', trip.id, { summary: research.summary, reviewNotes, dataSources });
     emitLive(run, { type: 'job_done', tripId: trip.id, usedXhs: false, dataSources, reviewNotes, at: Date.now(), durationMs: Date.now() - run.createdAt });
     publishNotification(run.userId, doneNotification!);
     terminalStatus = 'done';

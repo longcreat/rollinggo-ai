@@ -14,6 +14,8 @@ export interface GenerationCompletionInput {
   destination?: string;
   days?: number;
   message?: string;
+  /** 主 Agent 完成回合的回答；缺省时退回固定文案。 */
+  answer?: string;
 }
 
 export async function appendGenerationCompletion(input: GenerationCompletionInput): Promise<void> {
@@ -22,9 +24,10 @@ export async function appendGenerationCompletion(input: GenerationCompletionInpu
   const label = input.tripTitle || input.destination || '新行程';
   // 任务卡只属于发起任务的委派消息：完成消息只播报结果并指向新行程，
   // 不重复挂 task，也不重复摘要（摘要由任务卡按 jobId 读取）。
-  const content = done
+  const fallback = done
     ? `行程已生成：${label}${input.days ? `（${input.days} 天）` : ''}。`
     : `生成没有完成：${input.message ?? '请稍后重试'}。`;
+  const content = input.answer?.trim() || fallback;
   const attachment: ChatAttachment = {
     tripId: done ? input.tripId! : '',
     summary: [],

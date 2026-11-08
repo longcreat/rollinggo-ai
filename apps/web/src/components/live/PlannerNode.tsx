@@ -36,25 +36,35 @@ export function PlannerNode({ stages, status, from, defaultOpen = false, bare = 
         <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-slate-300 transition-transform ${open ? '' : '-rotate-90'}`} aria-hidden="true" />
       </button>
       {open && (
-        <div className={bare ? 'mt-1 ml-6 border-l border-slate-200 pl-3' : 'mt-1.5 border-t border-slate-100 pt-1'}>
+        <div className={bare ? 'mt-1 ml-6' : 'mt-2 border-t border-slate-100 pt-1'}>
           {stages.length === 0 && <p className="m-0 px-1 py-1.5 text-[11px] text-slate-400">正在启动…</p>}
-          {stages.map((stage) => (
-            <Link
-              key={stage.key}
-              to={stage.href}
-              state={from ? { from } : undefined}
-              className="flex min-w-0 items-center gap-2 rounded-lg px-1 py-1.5 text-[11px] text-slate-500 no-underline transition-colors hover:bg-slate-50"
-            >
-              <StatusIcon
-                running={stage.status === 'running'}
-                error={stage.status === 'error'}
-                done={stage.status === 'done'}
-              />
-              <span className="min-w-0 flex-1 truncate font-medium text-slate-600">{stage.label}</span>
-              <span className="shrink-0 text-slate-400">{STATUS_LABEL[stage.status]}</span>
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" aria-hidden="true" />
-            </Link>
-          ))}
+          <ol className="relative m-0 list-none p-0">
+            {stages.map((stage, index) => (
+              <li key={stage.key} className="relative">
+                {/* 时间线：最后一个阶段只画到节点中心，避免线尾悬空。 */}
+                <span
+                  aria-hidden="true"
+                  className={`absolute left-[7.5px] top-0 w-px bg-slate-200 ${index === stages.length - 1 ? 'h-1/2' : 'h-full'}`}
+                />
+                <Link
+                  to={stage.href}
+                  state={from ? { from } : undefined}
+                  className="relative flex min-w-0 items-center gap-2 rounded-lg py-1.5 pr-1 text-[11px] text-slate-500 no-underline transition-colors hover:bg-slate-50"
+                >
+                  <span className="relative z-10 flex h-4 w-4 shrink-0 items-center justify-center bg-white">
+                    <StatusIcon
+                      running={stage.status === 'running'}
+                      error={stage.status === 'error'}
+                      done={stage.status === 'done'}
+                    />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate font-medium text-slate-600">{stage.label}</span>
+                  <span className="shrink-0 text-slate-400">{STATUS_LABEL[stage.status]}</span>
+                  <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" aria-hidden="true" />
+                </Link>
+              </li>
+            ))}
+          </ol>
         </div>
       )}
     </div>

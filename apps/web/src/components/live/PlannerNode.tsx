@@ -28,12 +28,13 @@ export function PlannerNode({ stages, status, from, defaultOpen = false, bare = 
         type="button"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className={`flex w-full min-w-0 items-center gap-2 text-left transition-colors ${bare ? 'rounded-md px-0.5 py-1 hover:text-slate-900' : 'rounded-lg px-1 py-0.5 hover:bg-slate-50'}`}
+        className={`group flex w-full min-w-0 items-center gap-2 text-left transition-colors ${bare ? 'rounded-md px-0.5 py-1 hover:text-slate-900' : 'rounded-lg px-1 py-0.5 hover:bg-slate-50'}`}
       >
-        <StatusIcon running={status === 'running'} error={status === 'error'} done={status === 'done'} className="h-4 w-4" />
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition-colors group-hover:border-slate-300 group-hover:text-slate-600">
+          <ChevronDown className={`h-2.5 w-2.5 transition-transform motion-reduce:transition-none ${open ? '' : '-rotate-90'}`} aria-hidden="true" />
+        </span>
         <span className={`min-w-0 flex-1 truncate text-[13px] text-slate-800 ${bare ? 'font-medium' : 'font-semibold'}`}>旅行规划助手</span>
         <span className="shrink-0 text-[11px] text-slate-400">{STATUS_LABEL[status]}</span>
-        <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-slate-300 transition-transform ${open ? '' : '-rotate-90'}`} aria-hidden="true" />
       </button>
       {open && (
         <div className={bare ? 'mt-1 ml-6' : 'mt-2 border-t border-slate-100 pt-1'}>

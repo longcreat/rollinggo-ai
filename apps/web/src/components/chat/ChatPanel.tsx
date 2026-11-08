@@ -15,7 +15,6 @@ import { PendingAnswer, type PendingExchange } from './PendingAnswer';
 import { FoodCard } from './FoodCard';
 import { Button } from '../ui/Button';
 import { EditorIcon } from '../editor/EditorIcon';
-import { Compass } from 'lucide-react';
 
 interface Props {
   conversationId: string; trip: Trip; dayId?: string; readOnly: boolean; busy: boolean;
@@ -55,6 +54,11 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
   const generated = allMessages.findIndex((message) => message.relatedTripId);
   // relatedTripId 也会标在真实修改回答上；仅跳过无附件的初始关联记录，不能把最新回答截掉。
   const messages = generated < 0 || allMessages[generated]?.attachment ? allMessages : allMessages.slice(generated + 1);
+  // 成功的完成消息不再在对话里重复展示：任务节点已表达终态，行程页就是结果。
+  const visibleMessages = messages.filter((message) => !(
+    message.role === 'assistant' && message.relatedTripId
+    && message.attachment?.tripId === message.relatedTripId && !message.attachment?.task
+  ));
   const running = pending?.state === 'running';
   // 问题卡在输入框上方的 dock 里显示（对齐 opencode session question dock），不在消息流中。
   const activeQuestion = pending?.question && pending.questionState === 'pending' ? pending.question : null;
@@ -62,7 +66,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
   useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => {
     if (following.current) scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
-  }, [messages.length, pending, recovered]);
+  }, [visibleMessages.length, pending, recovered]);
   // 刷新/断线后恢复待回答问题：Agent 回合仍在服务端等待，答案通过独立接口回注。
   useEffect(() => {
     if (readOnly || pending) return;
@@ -267,23 +271,10 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
     }}>
       {detail.isPending && <p className="text-xs text-slate-400">正在加载对话…</p>}
       {detail.isError && <p className="text-xs text-red-500" role="alert">对话加载失败 <Button variant="ghost" onClick={() => void detail.refetch()}>重试</Button></p>}
-      {!live && !detail.isPending && !detail.isError && <div className="chat-welcome pb-2 pt-1">
-        <h2 className="m-0 flex items-start gap-2 text-sm font-semibold leading-snug text-slate-800"><span className="mt-0.5 text-slate-800" aria-hidden="true"><Compass className="w-4 h-4" /></span>{live
-          ? liveStatus === 'cancelled' ? '规划已停止。'
-            : liveStatus === 'error' ? '规划未完成。'
-              : liveStatus === 'done' ? '行程已生成。'
-                : '正在为你规划行程。'
-          : '行程已生成，可以继续完善沿途安排。'}</h2>
-        <p className="mb-0 mt-1.5 text-xs leading-relaxed text-slate-500">
-          {live
-            ? liveStatus === 'cancelled' ? '可以返回首页调整条件后重新开始。'
-              : liveStatus === 'error' ? '可以返回首页调整条件后重试。'
-                : liveStatus === 'done' ? '正在打开行程…'
-                  : '规划过程会实时更新；完成后可以继续调整。'
-            : `我为你整理了 ${trip.days.length} 天的行程安排，已包含主要景点与交通安排，你可以根据需要进一步调整。`}
-        </p>
-        {messages.length === 0 && !pending && renderSuggestions(dayId)}</div>}
-      {messages.map((message) => {
+      {!detail.isPending && !detail.isError && visibleMessages.length === 0 && !pending && (
+        <div className="pb-2 pt-1">{renderSuggestions(dayId)}</div>
+      )}
+      {visibleMessages.map((message) => {
         const content = message.content.trim();
         // 版本操作是系统动作，不应渲染成带“复制”的普通回答气泡。
         const restoreNotice = message.role === 'assistant' && !message.attachment
@@ -298,6 +289,12 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
         // 旧消息没有标记时锚到 ask_user 工具段之后，实在找不到才退回回答末尾。
         const questionRecords = message.attachment?.questions ?? [];
         const hasQuestionParts = parts?.some((part) => part.type === 'question') ?? false;
+        // 表单直达的委派消息只有任务引用：不在气泡里重复文案或工具步骤，只渲染任务节点。
+        if (message.role === 'assistant' && !content && message.attachment?.task && !activitySteps.length && !parts?.length) {
+          return <div key={message.id} className="min-w-0">
+            <TaskCard jobId={message.attachment.task.jobId} conversationId={conversationId} />
+          </div>;
+        }
         const questionRow = (item: (typeof questionRecords)[number], key: string) => (
           <div key={key} className="flex flex-col gap-0.5">
             <p className="m-0"><span className="text-white/50">问：</span><span className="text-white/85">{item.question}</span></p>
@@ -339,7 +336,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
         {message.attachment?.task && <TaskCard jobId={message.attachment.task.jobId} conversationId={conversationId} />}
         {message.attachment?.candidates.map((candidate) => <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />)}
         {message.role === 'assistant' && message.attachment?.clarification && <div className="chat-answer-options mt-3 flex flex-wrap gap-1.5" role="group" aria-label={message.attachment.clarification.question}>
-          {message.attachment.clarification.options.map((option) => <button type="button" key={option} className="rounded-full border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-left text-xs font-medium text-slate-800 transition-colors cursor-pointer shadow-2xs" disabled={busy || readOnly || running || message.id !== messages.at(-1)?.id} onClick={() => void send(option, undefined, undefined, message.attachment?.dayId ?? null)}>{option}</button>)}
+          {message.attachment.clarification.options.map((option) => <button type="button" key={option} className="rounded-full border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-left text-xs font-medium text-slate-800 transition-colors cursor-pointer shadow-2xs" disabled={busy || readOnly || running || message.id !== visibleMessages.at(-1)?.id} onClick={() => void send(option, undefined, undefined, message.attachment?.dayId ?? null)}>{option}</button>)}
         </div>}
       </div>;
       })}

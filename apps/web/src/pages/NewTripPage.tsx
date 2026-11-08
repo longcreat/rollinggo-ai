@@ -1,6 +1,6 @@
 // 新建行程（P0 收口）：首页收集完条件后带 autostart=1 直达。本页不再直接开 job，
-// 而是「建会话 → 写 Brief → 把首条消息交给主 Agent（POST /planning）」；Agent 调 generate_trip 委派后台生成。
-// 刷新恢复：会话与 requestId 存在 sessionStorage，重发同一 requestId 由服务端幂等裁决。
+// 而是「建会话 → 写 Brief → 把首条消息交给主 Agent（POST /planning）」；主 Agent 的回复与工具进度在这里流式呈现，
+// 任务启动后再进直播页。刷新恢复：会话与 requestId 存在 sessionStorage，重发同一 requestId 由服务端幂等裁决。
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
@@ -23,11 +23,13 @@ import {
   useCurrentGeneration,
   useMe,
   useSaveBriefSnapshot,
-  useStartPlanning,
   useUsage,
 } from '../api/hooks';
+import { streamPlanning } from '../api/detailChat';
 import { useTravelPreferencesDraft } from '../components/TravelPreferencesProvider';
+import { PendingAnswer, type PendingExchange } from '../components/chat/PendingAnswer';
 import { clearPlanningEntry, readPlanningEntry, resolvePlanningEntry, writePlanningEntry } from '../lib/planningEntry';
+import { reduceStreamParts } from '../lib/chatStreamParts';
 import { daysBetween, isISODate, isoDateAfter } from '../lib/dates';
 
 type Preference = (typeof PREFERENCE_OPTIONS)[number];
@@ -81,7 +83,6 @@ export function NewTripPage() {
   const userId = me.data?.id ?? '';
   const createConversation = useCreateConversation();
   const patchBrief = useSaveBriefSnapshot();
-  const startPlanning = useStartPlanning();
   const current = useCurrentGeneration(userId, Boolean(userId));
   const preferences = useTravelPreferencesDraft();
 
@@ -92,6 +93,8 @@ export function NewTripPage() {
   const autostartRequested = useRef(params.get('autostart') === '1').current;
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [pending, setPending] = useState<PendingExchange<{ text: string }> | null>(null);
+  const controller = useRef<AbortController | null>(null);
   const paramsKey = useMemo(() => {
     const p = new URLSearchParams(params);
     p.delete('autostart');
@@ -122,7 +125,7 @@ export function NewTripPage() {
     : generationExhausted
       ? '今日生成次数已用完，明天再来（已有行程仍可继续编辑）。'
       : null;
-  const busy = starting || createConversation.isPending || patchBrief.isPending || startPlanning.isPending;
+  const busy = starting || createConversation.isPending || patchBrief.isPending;
   const runningJobId = current.data?.status === 'running' ? current.data.jobId : null;
 
   const start = async (action: 'fresh' | 'resume') => {
@@ -160,10 +163,21 @@ export function NewTripPage() {
       sessionStorage.setItem('tw.lastTripDraftParams', replay.toString());
 
       // 标准 harness 流程：首页消息先进入主 Agent 回合，由主 Agent 回复并调用子 Agent。
-      const result = await startPlanning.mutateAsync({
-        id: conversationId,
-        input: { requestId, text: text || `规划${draft.city}${draft.days}天行程`, autostart: true },
-      });
+      const turnText = text || `规划${draft.city}${draft.days}天行程`;
+      setPending({ input: { text: turnText }, parts: [], textOpen: false, state: 'running' });
+      controller.current = new AbortController();
+      const result = await streamPlanning(
+        conversationId,
+        { requestId, text: turnText, autostart: true },
+        controller.current.signal,
+        (event) => {
+          setPending((p) => {
+            if (!p) return p;
+            const parts = reduceStreamParts(p, event);
+            return parts ? { ...p, ...parts } : p;
+          });
+        },
+      );
       if (result.startedGenerationJobId) {
         // 首页选择只在生成真正开始后记忆；存的是本次提交的快照，不误存用户之后的新草稿。
         void preferences.persist({
@@ -178,16 +192,21 @@ export function NewTripPage() {
         navigate(`/agent/${encodeURIComponent(result.startedGenerationJobId)}`, { replace: true });
         return;
       }
+      setPending(null);
       setError(result.replyMessage.content || '生成没有启动，请回首页重试。');
     } catch (err) {
+      if (controller.current?.signal.aborted) return;
+      setPending((p) => p ? { ...p, state: 'error' } : p);
       setError(err instanceof Error ? err.message : '启动失败，请稍后重试');
     } finally {
+      controller.current = null;
       setStarting(false);
     }
   };
 
   // autostart 守卫：每渲染后只做一次很轻的检查；等 covered / 当前任务快照就绪再决定接管还是新提交。
   const autoStarted = useRef(false);
+  useEffect(() => () => controller.current?.abort(), []);
   useEffect(() => {
     if (autoStarted.current) return;
     if (!covered.data || current.isPending) return;
@@ -223,8 +242,8 @@ export function NewTripPage() {
     return <Navigate to="/" replace />;
   }
 
-  // ---------- 启动中 / 启动失败 ----------
-  const failure = error ?? blocked;
+  // ---------- 主 Agent 启动中 / 启动失败 ----------
+  const failure = !pending && (error ?? blocked);
   return (
     <div className={"page w-full [max-width:880px] [margin:0_auto] [padding:20px_16px_48px]"}>
       <div className={"page-head flex items-center justify-between [gap:12px] [margin-bottom:16px] flex-wrap"}>
@@ -239,8 +258,14 @@ export function NewTripPage() {
             </Link>
           </div>
         </>
+      ) : pending ? (
+        <div className="chat-stream flex flex-col gap-4 py-1">
+          <PendingAnswer pending={pending} busy={starting} readOnly={false} onRetry={() => void start('resume')} />
+          {pending.state === 'running' && <p className="m-0 px-1 text-xs text-slate-400">主 Agent 正在确认条件并启动规划…</p>}
+          {error && <p className="m-0 px-1 text-xs text-[var(--color-danger)]" role="alert">{error}</p>}
+        </div>
       ) : (
-        <div className={"page-loading [padding:20vh_16px] text-center [color:var(--color-muted)]"}>正在启动生成…</div>
+        <div className={"page-loading [padding:20vh_16px] text-center [color:var(--color-muted)]"}>正在连接主 Agent…</div>
       )}
     </div>
   );

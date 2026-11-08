@@ -12,9 +12,7 @@ import type {
   PasswordResetBody,
   PlanningBriefPatch,
   PlanningBriefView,
-  PlanningTurnRequest,
   RegisterBody,
-  SendMessageResult,
   SettingsPut,
   Trip,
   TripExport,
@@ -25,7 +23,7 @@ import type {
   TravelPreferences,
   UsageView,
 } from '@tripweaver/shared';
-import { TRIP_LIST_PAGE_SIZE, TravelPreferencesSchema, NotificationPageSchema, GenerationJobViewSchema, SendMessageResultSchema, type HealthCheckView, type HealthDecisionsRequest } from '@tripweaver/shared';
+import { TRIP_LIST_PAGE_SIZE, TravelPreferencesSchema, NotificationPageSchema, GenerationJobViewSchema, type HealthCheckView, type HealthDecisionsRequest } from '@tripweaver/shared';
 import { Value } from '@sinclair/typebox/value';
 import { api, resetAuthState, shouldRetryQuery } from './client';
 
@@ -438,17 +436,6 @@ export function useGenerationAgents(jobId: string | undefined, running: boolean)
     enabled: Boolean(jobId),
     refetchInterval: running ? 3_000 : false,
     staleTime: 10_000,
-  });
-}
-
-/** 行前回合（表单入口）：主 Agent 确认条件后委派后台生成，返回 SendMessageResult。 */
-export function useStartPlanning() {
-  return useMutation({
-    mutationFn: async ({ id, input }: { id: string; input: PlanningTurnRequest }) => {
-      const data = await api.post<unknown>(`/api/conversations/${encodeURIComponent(id)}/planning?stream=0`, input);
-      if (!Value.Check(SendMessageResultSchema, data)) throw new Error('规划结果格式异常，请重试');
-      return data as SendMessageResult;
-    },
   });
 }
 

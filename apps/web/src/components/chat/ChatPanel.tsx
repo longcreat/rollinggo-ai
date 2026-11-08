@@ -1,12 +1,13 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { TaskCard } from './TaskCard';
-import { suggestionText, uid, type AgentQuestionAnswer, type DetailChatRequest, type PendingQuestionView, type SendMessageResult, type Trip, type TripOperationResult } from '@tripweaver/shared';
+import { suggestionText, uid, type AgentQuestionAnswer, type ChatMessage, type DetailChatRequest, type PendingQuestionView, type SendMessageResult, type Trip, type TripOperationResult } from '@tripweaver/shared';
 import { keys, useConversation, useTripVersions } from '../../api/hooks';
 import { answerQuestion, pendingQuestion, recoverChat, rewindVersion, stopChat, streamChat } from '../../api/detailChat';
 import { QuestionCard } from './QuestionCard';
 import { chatErrorMessage } from '../../lib/chatDerive';
-import { stepsFromSummary, upsertAgentStep } from '../../lib/agentActivity';
+import { stepsFromSummary } from '../../lib/agentActivity';
+import { reduceStreamParts } from '../../lib/chatStreamParts';
 import { AgentActivity } from './AgentActivity';
 import { ChatText } from './ChatText';
 import { CopyButton } from './CopyButton';
@@ -55,6 +56,17 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
   const generated = allMessages.findIndex((message) => message.relatedTripId);
   // relatedTripId 也会标在真实修改回答上；仅跳过无附件的初始关联记录，不能把最新回答截掉。
   const messages = generated < 0 || allMessages[generated]?.attachment ? allMessages : allMessages.slice(generated + 1);
+  // 同一子 Agent 任务的开始回复与完成总结共享 taskId：按 id 聚合，不再依赖消息相邻。
+  const taskTurns = new Map<string, { taskId: string; start?: ChatMessage; completion?: ChatMessage }>();
+  for (const message of messages) {
+    if (message.role !== 'assistant') continue;
+    const taskId = message.taskId ?? message.attachment?.task?.jobId;
+    if (!taskId) continue;
+    const group = taskTurns.get(taskId) ?? { taskId };
+    if (message.attachment?.task) group.start = message;
+    else if (!group.completion) group.completion = message;
+    taskTurns.set(taskId, group);
+  }
   const running = pending?.state === 'running';
   // 问题卡在输入框上方的 dock 里显示（对齐 opencode session question dock），不在消息流中。
   const activeQuestion = pending?.question && pending.questionState === 'pending' ? pending.question : null;
@@ -179,37 +191,11 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
       setPending({ input, parts: [], textOpen: false, state: 'running' });
       controller.current = new AbortController();
       const result = await streamChat(conversationId, input, controller.current.signal, (event) => {
-        if (event.type === 'answer_delta') setPending((p) => {
-          if (!p || !event.text) return p;
-          const parts = [...p.parts];
-          const last = parts.at(-1);
-          if (event.replace) {
-            if (p.textOpen && last?.type === 'text') parts[parts.length - 1] = { type: 'text', text: event.text };
-            else parts.push({ type: 'text', text: event.text });
-          } else if (p.textOpen && last?.type === 'text') {
-            parts[parts.length - 1] = { type: 'text', text: last.text + event.text };
-          } else {
-            parts.push({ type: 'text', text: event.text });
-          }
-          return { ...p, parts, textOpen: true };
+        if (event.type === 'answer_delta' || event.type === 'progress') setPending((p) => {
+          if (!p) return p;
+          const parts = reduceStreamParts(p, event);
+          return parts ? { ...p, ...parts } : p;
         });
-        if (event.type === 'progress' && event.step) {
-          const step = event.step;
-          setPending((p) => {
-            if (!p) return p;
-            const parts = [...p.parts];
-            const existing = parts.findIndex((part) => part.type === 'steps' && part.steps.some((item) => item.id === step.id));
-            if (existing >= 0) {
-              const part = parts[existing];
-              if (part && part.type === 'steps') parts[existing] = { type: 'steps', steps: upsertAgentStep(part.steps, step) };
-              return { ...p, parts };
-            }
-            const last = parts.at(-1);
-            if (last?.type === 'steps') parts[parts.length - 1] = { type: 'steps', steps: upsertAgentStep(last.steps, step) };
-            else parts.push({ type: 'steps', steps: [step] });
-            return { ...p, parts, textOpen: step.status === 'running' ? false : p.textOpen };
-          });
-        }
         if (event.type === 'question') setPending((p) => p ? {
           ...p,
           question: event.question,
@@ -270,13 +256,26 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
       {!detail.isPending && !detail.isError && messages.length === 0 && !pending && (
         <div className="pb-2 pt-1">{renderSuggestions(dayId)}</div>
       )}
-      {(() => { const consumed = new Set<string>(); return messages.map((message, index) => {
-        if (consumed.has(message.id)) return null;
+      {(() => { return messages.map((message) => {
         const content = message.content.trim();
         // 版本操作是系统动作，不应渲染成带“复制”的普通回答气泡。
         const restoreNotice = message.role === 'assistant' && !message.attachment
           && (/^已从 v\d+ 恢复为 v\d+$/.test(content) || /^已恢复到 v\d+ 的内容（新版本 v\d+）$/.test(content));
         if (restoreNotice) return null;
+        // 委派 turn：开始回复、子 Agent 时间线、完成总结属于同一次输出；复制按钮只在最后出现一次。
+        const taskId = message.role === 'assistant' ? message.taskId ?? message.attachment?.task?.jobId : undefined;
+        const taskTurn = taskId ? taskTurns.get(taskId) : undefined;
+        const anchor = taskTurn?.start ?? taskTurn?.completion;
+        if (taskTurn && anchor) {
+          if (message.id !== anchor.id) return null;
+          const turnText = [taskTurn.start?.content.trim(), taskTurn.completion?.content.trim()].filter(Boolean).join('\n\n');
+          return <div key={anchor.id} className="flex w-full min-w-0 flex-col gap-1.5">
+            {taskTurn.start?.content.trim() && <MessageBubble message={taskTurn.start} plain showCopy={false} />}
+            <TaskCard jobId={taskTurn.taskId} conversationId={conversationId} />
+            {taskTurn.completion && <MessageBubble message={taskTurn.completion} plain copyText={turnText} />}
+            {taskTurn.start?.attachment?.candidates.map((candidate) => <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />)}
+          </div>;
+        }
         const activitySteps = message.role === 'assistant' && message.attachment
           ? message.attachment.steps ?? stepsFromSummary(message.attachment.summary)
           : [];
@@ -286,19 +285,6 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
         // 旧消息没有标记时锚到 ask_user 工具段之后，实在找不到才退回回答末尾。
         const questionRecords = message.attachment?.questions ?? [];
         const hasQuestionParts = parts?.some((part) => part.type === 'question') ?? false;
-        // 委派 turn：开始回复、子 Agent 时间线、完成总结属于同一次输出；复制按钮只在最后出现一次。
-        if (message.role === 'assistant' && message.attachment?.task) {
-          const next = messages[index + 1];
-          const completion = next && next.role === 'assistant' && next.relatedTripId && !next.attachment?.task ? next : null;
-          if (completion) consumed.add(completion.id);
-          const turnText = [message.content.trim(), completion?.content.trim()].filter(Boolean).join('\n\n');
-          return <div key={message.id} className="flex w-full min-w-0 flex-col gap-1.5">
-            {content && <MessageBubble message={message} plain showCopy={false} />}
-            <TaskCard jobId={message.attachment.task.jobId} conversationId={conversationId} />
-            {completion && <MessageBubble message={completion} plain copyText={turnText} />}
-            {message.attachment.candidates.map((candidate) => <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />)}
-          </div>;
-        }
         const questionRow = (item: (typeof questionRecords)[number], key: string) => (
           <div key={key} className="flex flex-col gap-0.5">
             <p className="m-0"><span className="text-white/50">问：</span><span className="text-white/85">{item.question}</span></p>

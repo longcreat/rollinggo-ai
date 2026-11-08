@@ -343,6 +343,16 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
         </div>}
       </div>;
       })}
+      {live && liveStatus === 'running' && (
+        <div data-agent-thinking className="flex items-center gap-2 px-1 py-1 text-xs text-slate-500">
+          <span className="flex items-center gap-0.5" aria-hidden="true">
+            <span className="h-1 w-1 animate-pulse rounded-full bg-slate-400" />
+            <span className="h-1 w-1 animate-pulse rounded-full bg-slate-400 [animation-delay:150ms]" />
+            <span className="h-1 w-1 animate-pulse rounded-full bg-slate-400 [animation-delay:300ms]" />
+          </span>
+          正在思考
+        </div>
+      )}
       {pending && <PendingAnswer pending={pending} busy={busy} readOnly={readOnly}
         onRetry={() => void send(pending.input.text, pending.input.suggestion, pending.input)}
         onRestore={() => setRestoreDraft({ text: pending.input.text, key: Date.now() })} />}

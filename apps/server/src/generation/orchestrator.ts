@@ -159,6 +159,7 @@ export async function runGeneration(
 
   // 先建立零调用统计，让初始化失败也能发布终态、记账和清理计时器。
   // POI 记账共用一份统计（amapCalls / dataSources），但调研、片区检索、补餐的额度各自独立计数。
+  console.log(`[generation-task] 🚀 任务启动: jobId=${run.jobId}, 目的地=${form.destination}, 天数=${form.days}天, 交通=${form.transportMode ?? 'transit'}, 模型=${cfg.model}`);
   const poiStats: TaskPoiStats = { calls: 0, gotResults: false };
   let poi = createTaskPoiSource(getNullPoiSource(), { stats: poiStats });
   let search = createTaskSearchSource(getNullSearchSource());
@@ -180,13 +181,18 @@ export async function runGeneration(
   // 它只做一件事：把 Agent 内部回调 → SSE 事件。前端时间线看到的「思考中」「调用了某工具」
   // 「工具返回了什么」全部来自这里，所以每个 emit 的字段要和前端 GenerationRunPanel 对得上。
   const sinkFor = (phase: GenerationPhase): PhaseEventSink => ({
-    onThought: (text) => emitLive(run, { type: 'thought', phase, text }),
+    onThought: (text) => {
+      console.log(`[generation-task] 💭 [${phase}] 思考: ${text.slice(0, 80).replace(/\n/g, ' ')}...`);
+      emitLive(run, { type: 'thought', phase, text });
+    },
     onToolStart: (toolCallId, tool, label, args) => {
       const at = timing.startTask(toolCallId, tool);
+      console.log(`[generation-task] 🛠️ [${phase}] 工具开始: ${label} (${tool}) 参数: ${JSON.stringify(args ?? {}).slice(0, 100)}`);
       emitLive(run, { type: 'tool_start', phase, toolCallId, tool, label, args: JSON.stringify(args ?? {}).slice(0, 200), at });
     },
     onToolEnd: (toolCallId, tool, label, summary, isError) => {
       const ended = timing.endTask(toolCallId);
+      console.log(`[generation-task] 🏁 [${phase}] 工具完成: ${label} (${tool}) -> ${summary} (${ended.durationMs ?? 0}ms)${isError ? ' ❌' : ' ✅'}`);
       emitLive(run, { type: 'tool_end', phase, toolCallId, tool, label, summary, isError, ...ended });
     },
     onUsage: (tokensIn, tokensOut) =>
@@ -200,7 +206,8 @@ export async function runGeneration(
       }),
     // LLM 请求上下文由 recorder 落库（llm_request_logs）供排查，不再经 SSE 推完整 prompt 到浏览器；
     // 只推轻量结果，评测链路依赖它记录 turn / stopReason / httpStatus。
-    onLlmResponse: (info) =>
+    onLlmResponse: (info) => {
+      console.log(`[generation-task] 🤖 [${phase}] LLM 响应: turn=${info.turn}, stop=${info.stopReason ?? 'unknown'}, in=${info.usage?.input ?? 0}, out=${info.usage?.output ?? 0}${info.errorMessage ? ` [错误: ${info.errorMessage}]` : ''}`);
       emitLive(run, {
         type: 'llm_response',
         phase,
@@ -209,15 +216,18 @@ export async function runGeneration(
         tokensIn: info.usage?.input,
         tokensOut: info.usage?.output,
         errorMessage: info.errorMessage,
-      }),
+      });
+    },
   });
 
   const startPhase = (phase: GenerationPhase, round: number, note?: string) => {
     const at = timing.startPhase(phase, round);
+    console.log(`[generation-task] 📌 ====== 阶段开始: ${phase} (第 ${round} 轮) ${note ? `[${note}]` : ''} ======`);
     emitLive(run, { type: 'phase_start', phase, round, note, at });
   };
   const endPhase = (phase: GenerationPhase, round: number, summary?: string) => {
     const ended = timing.endPhase(phase, round);
+    console.log(`[generation-task] 🎯 ====== 阶段结束: ${phase} (第 ${round} 轮) 耗时: ${ended.durationMs ?? 0}ms ${summary ? `[${summary}]` : ''} ======`);
     emitLive(run, { type: 'phase_end', phase, round, summary, ...ended });
   };
   const runSystemTask = async <T>(
@@ -330,7 +340,17 @@ export async function runGeneration(
     const phaseRunner = (phaseKey: string): PhaseAgentRunner => {
       const host = options.agent;
       const modelRef = agentModelRef(cfg.model);
-      return (opts) => runDurablePhaseAgent({ host, phaseKey, modelRef, opts });
+      return (opts) => runDurablePhaseAgent({
+        host,
+        phaseKey,
+        modelRef,
+        opts,
+        onConversationCreated: (conversationId) => {
+          if (options.onAgentConversation) {
+            void options.onAgentConversation(phaseKey as GenerationAgentKey, conversationId).catch(() => {});
+          }
+        },
+      });
     };
     const researchRunner = phaseRunner('research');
     const planRunner = phaseRunner('plan');
@@ -542,7 +562,17 @@ export async function runGeneration(
       recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'review', round: 1 }),
     };
     // 所有 LLM 阶段都在 durable 会话上执行。
-    const writerPromise = runDurablePhaseAgent({ host: options.agent, phaseKey: 'writer', modelRef: agentModelRef(cfg.model), opts: writerOpts }).catch((err: unknown) => {
+    const writerPromise = runDurablePhaseAgent({
+      host: options.agent,
+      phaseKey: 'writer',
+      modelRef: agentModelRef(cfg.model),
+      opts: writerOpts,
+      onConversationCreated: (conversationId) => {
+        if (options.onAgentConversation) {
+          void options.onAgentConversation('writer', conversationId).catch(() => {});
+        }
+      },
+    }).catch((err: unknown) => {
       // 并行段若因取消/排程异常先抛出，这个 Promise 仍会 settle：必须立刻挂 catch，
       // 否则它的 rejection 无人接收（Node 视为 unhandledRejection）。
       console.warn(`[writer] 文案阶段异常：${err instanceof Error ? err.message : String(err)}`);
@@ -773,6 +803,7 @@ export async function runGeneration(
     });
     await finalizeTask('done', trip.id, { summary: research.summary, reviewNotes, dataSources });
     emitLive(run, { type: 'job_done', tripId: trip.id, usedXhs: false, dataSources, reviewNotes, at: Date.now(), durationMs: Date.now() - run.createdAt });
+    console.log(`[generation-task] 🎉 任务完成: jobId=${run.jobId}, tripId=${trip.id}, 总耗时=${Date.now() - run.createdAt}ms`);
     publishNotification(run.userId, doneNotification!);
     terminalStatus = 'done';
     return { status: 'done', tripId: trip.id, summary: research.summary, reviewNotes, dataSources, warnings: runWarnings };
@@ -781,10 +812,12 @@ export async function runGeneration(
     if (signal.aborted) {
       emitLive(run, { type: 'job_cancelled', reason: run.cancelReason });
       terminalStatus = 'cancelled';
+      console.log(`[generation-task] ⏹️ 任务已取消: jobId=${run.jobId}, reason=${run.cancelReason}`);
     } else {
       failureMessage = err instanceof GenerationFailure || err instanceof ScheduleDateConflictError ? err.message : '生成失败，请稍后重试';
       emitLive(run, { type: 'job_error', message: failureMessage });
       terminalStatus = 'error';
+      console.error(`[generation-task] ❌ 任务异常: jobId=${run.jobId}, message=${failureMessage}`, err);
       logger?.error({
         jobId: run.jobId,
         errorType: err instanceof Error ? err.name : 'unknown',

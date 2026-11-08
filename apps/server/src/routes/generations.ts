@@ -273,20 +273,37 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
     const userId = request.user!.id;
     const task = await getGenerationTask(userId, jobId);
     if (!task) return reply.code(404).send({ error: '任务不存在或已过期' });
-    const mapped = (Object.keys(AGENT_STAGES) as AgentStage[])
-      .filter((stage) => AGENT_STAGES[stage].some((key) => task.agentConversations?.[key]));
-    if (!mapped.length) return { agents: [] };
+    const stages: AgentStage[] = ['research', 'plan', 'review'];
+    const currentStage: AgentStage = task.status !== 'running'
+      ? 'review'
+      : task.agentConversations?.['writer'] || task.agentConversations?.['advice']
+        ? 'review'
+        : task.agentConversations?.['plan']
+          ? 'plan'
+          : 'research';
     try {
       await ensureAgentStorageDir();
       const runtime = await getAgentRuntime(agentStoragePath(userId));
       const agents = [];
-      for (const stage of mapped) {
-        const steps = await readAgentSteps(runtime, task, stage);
+      for (const stage of stages) {
+        const hasConv = AGENT_STAGES[stage].some((key) => task.agentConversations?.[key]);
+        const steps = hasConv ? await readAgentSteps(runtime, task, stage) : [];
         const done = steps.filter((step) => step.status === 'done').length;
+        const stageIndex = stages.indexOf(stage);
+        const currentIndex = stages.indexOf(currentStage);
+        const stageStatus = task.status === 'done'
+          ? 'done'
+          : task.status === 'cancelled' || task.status === 'error'
+            ? (stageIndex <= currentIndex ? 'error' : 'pending')
+            : stageIndex < currentIndex
+              ? 'done'
+              : stageIndex === currentIndex
+                ? 'running'
+                : 'pending';
         agents.push({
           stage,
           label: AGENT_STAGE_LABEL[stage],
-          status: task.status === 'done' ? 'done' : task.status === 'running' ? (steps.length > 0 && done === steps.length ? 'done' : 'running') : 'error',
+          status: stageStatus,
           total: steps.length,
           completed: done,
           durationMs: steps.reduce((sum, step) => sum + (step.durationMs ?? 0), 0),

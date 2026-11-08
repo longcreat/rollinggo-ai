@@ -32,6 +32,7 @@ export interface DurablePhaseOptions {
   phaseKey: string;
   modelRef: { provider: string; modelId: string };
   opts: RunAgentOptions;
+  onConversationCreated?: (conversationId: string) => void;
 }
 
 /** AgentTool（pi-agent-core）→ ToolRegistration（pi-durable）。返回形状与 terminate 语义一一对应。 */
@@ -78,6 +79,7 @@ export async function runDurablePhaseAgent(input: DurablePhaseOptions): Promise<
       modelTools: tools,
     },
   }, host.context);
+  input.onConversationCreated?.(String(conversation.id));
 
   const live = await host.harness.watchDoc(LiveDoc, conversation.id, host.context);
   if (!live) throw new Error('LiveDoc 不可用');

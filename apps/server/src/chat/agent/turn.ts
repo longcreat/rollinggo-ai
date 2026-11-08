@@ -179,8 +179,8 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     taskStatus,
     askUser: (questions) => hitl.ask(questions),
     // 问答记录写入后立刻在有序片段里打点：历史渲染时问答卡片回到它真实发生的位置。
-    onQuestionRecorded: (index) => {
-      parts.push({ type: 'question', index });
+    onQuestionRecorded: (index, count) => {
+      parts.push({ type: 'question', index, ...(count > 1 ? { count } : {}) });
       openText = -1;
       openSteps = -1;
     },

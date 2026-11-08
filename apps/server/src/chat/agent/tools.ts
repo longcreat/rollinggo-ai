@@ -48,8 +48,8 @@ export interface TripToolDeps {
   scopeDayId?: string;
   /** HITL：暂停 Agent，等待用户通过独立接口回答；返回 null 表示超时/取消 */
   askUser?: (questions: AgentQuestion[]) => Promise<AgentQuestionAnswer[] | null>;
-  /** 问答记录写入 state 后回调下标，回合据此在事件流里标记问答发生的位置 */
-  onQuestionRecorded?: (index: number) => void;
+  /** 问答记录写入 state 后回调：index 为第一条记录，count 为同一次 ask_user 的问题数。 */
+  onQuestionRecorded?: (index: number, count: number) => void;
 }
 
 const text = (value: string) => [{ type: 'text' as const, text: value }];
@@ -424,6 +424,7 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
         state.questionExpired = true;
         return { output: text('用户未在时限内回答，本轮结束；不要重复询问同一个问题'), isError: true, control: { terminate: true } };
       }
+      const firstIndex = state.questions.length;
       for (const question of questions) {
         const answer = answers.find((item) => item.id === question.id);
         state.questions.push({
@@ -432,8 +433,9 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
           selected: answer?.selected ?? [],
           ...(answer?.custom ? { custom: answer.custom } : {}),
         });
-        deps.onQuestionRecorded?.(state.questions.length - 1);
       }
+      // 同一次 ask_user 的多个问题是一组：前端合并成一个问答气泡，而不是每个问题各占一个。
+      deps.onQuestionRecorded?.(firstIndex, questions.length);
       return { output: text(JSON.stringify({ answers })) };
     },
   });

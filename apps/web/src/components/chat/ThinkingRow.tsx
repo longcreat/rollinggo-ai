@@ -1,4 +1,4 @@
-// 真实思考节点：跟着时间线出现，只显示状态与耗时，不展示原始 CoT 或多余描述。
+// 真实思考节点：与工具步骤同一行样式（图标 + 标题 + 耗时），不展示原文或额外描述。
 import { useEffect, useState } from 'react';
 import { Brain, LoaderCircle } from 'lucide-react';
 
@@ -19,17 +19,23 @@ export function ThinkingRow({ thinking, className = '' }: { thinking: ThinkingVi
 
   const durationMs = thinking.durationMs
     ?? (thinking.startedAt !== undefined ? (thinking.endedAt ?? now) - thinking.startedAt : undefined);
-  const seconds = durationMs !== undefined ? Math.floor(durationMs / 1000) : undefined;
-  const label = active
-    ? seconds && seconds > 0 ? `思考中 · ${seconds}s` : '思考中'
-    : seconds !== undefined ? `思考 ${Math.max(1, Math.round((durationMs ?? 0) / 1000))}s` : '思考完成';
+  const seconds = durationMs !== undefined ? Math.max(0, Math.floor(durationMs / 1000)) : undefined;
+  // 结束后至少显示 1s；进行中先显示「思考中」，满 1s 再带计时。
+  const subtitle = active
+    ? seconds && seconds > 0 ? `${seconds}s` : null
+    : `${Math.max(1, Math.round((durationMs ?? 0) / 1000))}s`;
 
   return (
-    <div className={`mb-1.5 flex items-center gap-1.5 px-1 text-xs text-slate-400 ${className}`} aria-live="polite">
-      {active
-        ? <LoaderCircle className="h-3.5 w-3.5 shrink-0 animate-spin motion-reduce:animate-none" aria-hidden="true" />
-        : <Brain className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />}
-      <span>{label}</span>
+    <div data-agent-activity="" className={`mb-1.5 flex min-w-0 items-center gap-2 text-xs leading-4 text-slate-500 ${className}`}>
+      <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+        {active
+          ? <LoaderCircle className="h-3.5 w-3.5 motion-safe:animate-spin text-slate-500" aria-hidden="true" />
+          : <Brain className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />}
+      </span>
+      <span className="min-w-0 flex-1 truncate">
+        <span className={active ? 'font-medium text-slate-700' : 'text-slate-600'}>{active ? '思考中' : '思考'}</span>
+        {subtitle && <span className="ml-1.5 text-slate-400">· {subtitle}</span>}
+      </span>
     </div>
   );
 }

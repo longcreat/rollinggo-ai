@@ -312,6 +312,23 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
         const legacyAnchor = !hasQuestionParts && parts?.length && questionRecords.length
           ? parts.findIndex((part) => part.type === 'steps' && part.steps.some((step) => step.name === 'ask_user'))
           : -1;
+        // 同一次 ask_user 的多个问题（相邻 question parts）合并成一个问答气泡；旧消息没有 count 也按相邻关系合并。
+        const questionGroups = new Map<number, typeof questionRecords>();
+        if (parts?.length) {
+          for (let partIndex = 0; partIndex < parts.length; partIndex += 1) {
+            if (parts[partIndex]?.type !== 'question') continue;
+            const records: typeof questionRecords = [];
+            let end = partIndex;
+            while (end < parts.length && parts[end]?.type === 'question') {
+              const questionPart = parts[end];
+              if (questionPart?.type !== 'question') break;
+              records.push(...questionRecords.slice(questionPart.index, questionPart.index + (questionPart.count ?? 1)));
+              end += 1;
+            }
+            questionGroups.set(partIndex, records);
+            partIndex = end - 1;
+          }
+        }
         return <div key={message.id} className="min-w-0">
         {message.role === 'assistant' && <HistoryThinking message={message} />}
         {parts?.length ? parts.map((part, index) => {
@@ -319,8 +336,8 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
             return <ThinkingRow key={`thinking-${message.id}-${index}`} thinking={part} />;
           }
           if (part.type === 'question') {
-            const record = questionRecords[part.index];
-            return record ? questionsCard([record], `q-${message.id}-${index}`) : null;
+            const records = questionGroups.get(index);
+            return records?.length ? questionsCard(records, `q-${message.id}-${index}`) : null;
           }
           if (part.type === 'text') {
             return index === lastTextIndex

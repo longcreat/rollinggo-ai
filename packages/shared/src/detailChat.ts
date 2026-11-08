@@ -88,7 +88,12 @@ export const AgentPartSchema = Type.Union([
   Type.Object({ type: Type.Literal('text'), text: Type.String({ maxLength: 4000 }) }),
   Type.Object({ type: Type.Literal('steps'), steps: Type.Array(AgentStepSchema, { maxItems: 24 }) }),
   /** 指向 `ChatAttachment.questions[index]`：问答记录出现在被问到的位置，而不是统一挪到回答末尾。 */
-  Type.Object({ type: Type.Literal('question'), index: Type.Integer({ minimum: 0 }) }),
+  Type.Object({
+    type: Type.Literal('question'),
+    index: Type.Integer({ minimum: 0 }),
+    /** 同一次 ask_user 的连续问题数；缺省 1，旧消息按单条回退。 */
+    count: Type.Optional(Type.Integer({ minimum: 1, maximum: 3 })),
+  }),
 ]);
 export type AgentPart = Static<typeof AgentPartSchema>;
 

@@ -150,4 +150,25 @@ describe('主 Agent 全功能工具', () => {
     assert.equal(result.isError, true);
     assert.match(result.output![0]!.text, /不支持的任务类型/);
   });
+
+  it('ask_user 同一次调用的多个问题合并成一组记录', async () => {
+    const recorded: Array<[number, number]> = [];
+    const state = createAgentTurnState();
+    const tools = createTripTools({
+      trip, sources: sources(), signal: AbortSignal.timeout(5_000),
+      draft: createTripDraft(trip), state,
+      askUser: async (questions) => questions.map((question) => ({ id: question.id, selected: question.options[0] ? [question.options[0].label] : [] })),
+      onQuestionRecorded: (index, count) => recorded.push([index, count]),
+    });
+    const result = await run(tools.find((item) => item.name === 'ask_user')!, {
+      questions: [
+        { question: '几点出发？', options: [{ label: '15:00' }] },
+        { question: '预算多少？', options: [{ label: '500 元' }] },
+      ],
+    });
+    assert.equal(result.isError, undefined);
+    assert.deepEqual(recorded, [[0, 2]], '两个问题只算一组，前端才能合并成一个气泡');
+    assert.equal(state.questions.length, 2);
+    assert.deepEqual(state.questions.map((question) => question.selected), [['15:00'], ['500 元']]);
+  });
 });

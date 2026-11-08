@@ -216,6 +216,7 @@ BYOK（用户自带 LLM Key，AES-256-GCM 加密存储，baseUrl 保存+使用�
 | `POST /api/trips/:id/rewind` | 撤销到历史版本（删除其后版本） |
 | `POST /api/trips/:id/health-check` · `GET .../latest` · `POST .../findings/:fid/verify`（10/min）· `POST .../decisions` | 体检四端点 |
 | `GET /api/generations/:jobId/projection` | 统一投影快照/补帧（客户端携 `fromSeq` 重订阅） |
+| `GET /api/generations/:jobId/agents/:stage` | 子 Agent 页面：读取该阶段 durable 子会话的工具流程（review 聚合 writer+advice） |
 | `GET /api/generations/:jobId/projection/events` | 生成投影 SSE（row/state delta，不再有独立事件环形缓冲） |
 
 ---

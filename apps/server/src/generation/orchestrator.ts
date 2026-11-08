@@ -63,7 +63,7 @@ import { repairLongHaulMixedDays, verifiedFixNotes, type AppliedFixMove } from '
 import { optimizeCrossDayGrouping, orderUntimedDayRoutes } from './routeCoherence';
 import { buildModel } from './model';
 import { emitLive, type LiveRun } from './liveRun';
-import type { GenerationTaskRef } from './provenance';
+import type { GenerationAgentKey, GenerationTaskRef } from './provenance';
 import type { PhaseAgentRunner, PhaseEventSink } from './agents/phase';
 import { runDurablePhaseAgent, type DurablePhaseHost } from './agents/durablePhase';
 import { agentModelRef } from '../chat/agent/models';
@@ -113,6 +113,8 @@ export interface GenerationRunOptions {
   resume?: ResearchCheckpoint;
   /** 调研完成后保存 checkpoint（durable task 用它落 task state）。 */
   onCheckpoint?: (checkpoint: ResearchCheckpoint) => Promise<void>;
+  /** 子 Agent 创建 durable conversation 后登记 id（供主时间线条目打开子页面）。 */
+  onAgentConversation?: (key: GenerationAgentKey, conversationId: string) => Promise<void>;
   /** durable 宿主：所有 LLM 阶段都在 pi-durable 会话上执行（唯一路径）。 */
   agent: DurablePhaseHost;
 }
@@ -359,6 +361,9 @@ export async function runGeneration(
       });
       usage.tokensIn += researchRun.tokensIn;
       usage.tokensOut += researchRun.tokensOut;
+      if (researchRun.conversationId) {
+        await options.onAgentConversation?.('research', researchRun.conversationId);
+      }
       assertAlive(signal, researchRun.errorMessage);
       endPhase('research', 1, `候选 ${outcome.pool.length} 个｜${outcome.summary.slice(0, 160)}`);
       geo.useResearchPlaces(outcome.pool, outcome.locations);
@@ -491,6 +496,9 @@ export async function runGeneration(
     }));
     usage.tokensIn += planner.result.tokensIn;
     usage.tokensOut += planner.result.tokensOut;
+    if (planner.result.conversationId) {
+      await options.onAgentConversation?.('plan', planner.result.conversationId);
+    }
     assertAlive(signal, planner.result.errorMessage);
     if (!planner.submitted) {
       throw new GenerationFailure(`规划未完成（候选 ${research.pool.length} 个）：${planner.result.errorMessage ?? '模型未调用 submit_plan'}。请重试`);
@@ -527,6 +535,7 @@ export async function runGeneration(
         aborted: signal.aborted,
         turnLimitExceeded: false,
         errorMessage: err instanceof Error ? err.message : String(err),
+        conversationId: undefined,
       };
     });
 
@@ -565,6 +574,9 @@ export async function runGeneration(
     const writerRun = await writerPromise;
     usage.tokensIn += writerRun.tokensIn;
     usage.tokensOut += writerRun.tokensOut;
+    if (writerRun.conversationId) {
+      await options.onAgentConversation?.('writer', writerRun.conversationId);
+    }
     if (writerRun.errorMessage) {
       console.warn(`[writer] 文案阶段失败，按已有内容落库：${writerRun.errorMessage.slice(0, 200)}`);
       reviewNotes = ['文案生成未完成，活动说明沿用候选简介。'].slice(0, 5);
@@ -695,6 +707,9 @@ export async function runGeneration(
       }, adviceRunner);
       usage.tokensIn += adviceRun.result.tokensIn;
       usage.tokensOut += adviceRun.result.tokensOut;
+      if (adviceRun.result.conversationId) {
+        await options.onAgentConversation?.('advice', adviceRun.result.conversationId);
+      }
       assertAlive(signal);
       if (adviceRun.advice) completedDraft.meta.advice = adviceRun.advice;
     } catch (err) {

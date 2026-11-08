@@ -474,6 +474,34 @@ generation, detail-chat write tools, health repair, or a future editor surface.
 regression: tea after museum), `dayPlanner.test.ts` (real-leg retiming, meal windows), and
 `completionMessage.test.ts` (one completion message, no task attachment).
 
+## Scenario: Sub-Agent Timeline and Pages (2026-11-08)
+
+### 1. Scope / Trigger
+
+Generation live UI, durable phase agents, and any sub-agent transcript read surface.
+
+### 2. Contracts
+
+- Each durable phase agent (research / plan / writer / advice) records its
+  `conversation.id` into `generations.agent_conversations` (JSONB) when created. The column is
+  the durable mapping; do not rely on terminal task state (pi-durable drops `checkpoint` when a
+  task is terminal) and do not add a third task table.
+- The main timeline renders phase-level sub-agent rows (`research` / `plan` / `review`) with
+  label, status, duration, and step count only. No result summary on the row; the row links to
+  `/agent/:jobId/agents/:stage`. `review` aggregates `writer` + `advice`.
+- `GET /api/generations/:jobId/agents/:stage` is read-only and lazy. It normalizes durable
+  conversation entries to tool steps (label/status/duration) only: never expose user/system
+  prompts, thinking/reasoning, tool arguments, or raw assistant prose.
+- Completion while inspecting a sub-agent page keeps that page; returning to the main timeline
+  shows a `查看行程` action instead of forcing navigation. Ordinary completion on the main page
+  still hands off to `/trips/:id`.
+
+### 3. Tests Required
+
+`agentTranscript.test.ts` (ordering, error state, no args/prose leakage), `projectionAdapter.test.ts`
+(phase summary/startedAt), `liveAgentStream.test.ts` (phase grouping), and browser coverage of
+main row → child URL → back, plus refresh with the live layer absent.
+
 ## Scenario: Deterministic Plan Phase and Copy-Only Writer (09-21, phase 2)
 
 ### 1. Scope / Trigger

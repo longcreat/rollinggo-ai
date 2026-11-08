@@ -158,6 +158,7 @@ export async function runDurablePhaseAgent(input: DurablePhaseOptions): Promise<
     tokensOut,
     aborted: signal.aborted,
     turnLimitExceeded,
+    conversationId: String(conversation.id),
     ...(errorMessage ? { errorMessage } : {}),
   };
 }

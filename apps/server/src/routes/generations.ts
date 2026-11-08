@@ -14,7 +14,7 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
-import type { TaskId } from '@earendil-works/pi-durable';
+import type { ConversationId, TaskId } from '@earendil-works/pi-durable';
 import { GENERATION_TIMEOUT_MINUTES, GenerateFormSchema, uid } from '@tripweaver/shared';
 import { requireAuth } from '../auth/guard';
 import { resolveLlmConfig } from '../services/settingsService';
@@ -44,6 +44,14 @@ import {
   type GenerationTaskView,
 } from '../generation/taskStore';
 import type { GenerationTaskRef } from '../generation/provenance';
+import { normalizeAgentTranscript } from '../generation/agentTranscript';
+
+const AGENT_STAGES = {
+  research: ['research'],
+  plan: ['plan'],
+  review: ['writer', 'advice'],
+} as const;
+type AgentStage = keyof typeof AGENT_STAGES;
 
 const HEARTBEAT_MS = 25_000;
 /** running 行超过单任务上限仍没有终态：视作中断，让任务卡给出重试出口而不是永远转圈。 */
@@ -207,6 +215,38 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
     if (persisted) return persisted;
     const result = await getGenerationResult(userId, jobId);
     return result ?? reply.code(404).send({ error: '任务不存在或已过期' });
+  });
+
+  /**
+   * 子 Agent 页面：返回该阶段 durable 会话的工具流程。
+   * 只读、懒加载；review 聚合 writer + advice 两个子 Agent。
+   */
+  app.get('/:jobId/agents/:stage', async (request, reply) => {
+    const { jobId, stage } = request.params as { jobId: string; stage: string };
+    const userId = request.user!.id;
+    if (!(stage in AGENT_STAGES)) return reply.code(404).send({ error: '子 Agent 不存在' });
+    const task = await getGenerationTask(userId, jobId);
+    if (!task) return reply.code(404).send({ error: '任务不存在或已过期' });
+    try {
+      await ensureAgentStorageDir();
+      const runtime = await getAgentRuntime(agentStoragePath(userId));
+      const agents = task.agentConversations ?? {};
+      const steps = [];
+      for (const key of AGENT_STAGES[stage as AgentStage]) {
+        const conversationId = agents[key];
+        if (!conversationId) continue;
+        const conversation = await runtime.harness.conversation(
+          conversationId as unknown as ConversationId,
+          BACKGROUND_CONTEXT,
+        );
+        const page = await conversation?.entries({ order: 'ascending' }, 400, undefined, BACKGROUND_CONTEXT);
+        steps.push(...normalizeAgentTranscript(page?.items ?? [], task.status !== 'running'));
+      }
+      return { stage, steps, running: task.status === 'running' };
+    } catch (error) {
+      request.log.error(error, 'generation agent transcript read failed');
+      return reply.code(503).send({ error: '子 Agent 记录暂时不可用' });
+    }
   });
 
   /**

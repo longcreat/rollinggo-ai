@@ -14,3 +14,6 @@ export interface GenerationTaskRef {
   createdAt: number;
   provenance: GenerationProvenance;
 }
+
+/** 生成流水线里的子 Agent 身份：与 UI 阶段名分开（writer/advice 都归 review 阶段）。 */
+export type GenerationAgentKey = 'research' | 'plan' | 'writer' | 'advice';

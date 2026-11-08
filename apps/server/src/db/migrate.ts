@@ -164,6 +164,7 @@ const STATEMENTS = [
     job_id TEXT,
     request_id TEXT,
     durable_task_id TEXT,
+    agent_conversations JSONB,
     destination TEXT,
     days INTEGER,
     finished_at TIMESTAMPTZ,
@@ -353,6 +354,7 @@ export async function runMigrations(pool: Pool): Promise<void> {
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS job_id TEXT`);
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS request_id TEXT`);
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS durable_task_id TEXT`);
+    await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS agent_conversations JSONB`);
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS destination TEXT`);
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS days INTEGER`);
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS finished_at TIMESTAMPTZ`);

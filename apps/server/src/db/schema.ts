@@ -119,6 +119,8 @@ export const generations = pgTable('generations', {
   requestId: text('request_id'),
   /** pi-durable 任务 id：重启后取消/审计用它找回任务（与业务 jobId 不同）。 */
   durableTaskId: text('durable_task_id'),
+  /** 子 Agent key → durable conversation id：任务终态后子页面仍能读取完整流程。 */
+  agentConversations: jsonb('agent_conversations').$type<Partial<Record<'research' | 'plan' | 'writer' | 'advice', string>>>(),
   destination: text('destination'),
   days: integer('days'),
   finishedAt: timestamp('finished_at', { withTimezone: true }),

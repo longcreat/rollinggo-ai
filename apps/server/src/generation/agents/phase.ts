@@ -37,6 +37,8 @@ export interface RunAgentResult {
   aborted: boolean;
   turnLimitExceeded: boolean;
   errorMessage?: string;
+  /** 该子 Agent 的 durable conversation id：主时间线条目点击后据此读取完整流程。 */
+  conversationId?: string;
 }
 
 export type PhaseAgentRunner = (options: RunAgentOptions) => Promise<RunAgentResult>;

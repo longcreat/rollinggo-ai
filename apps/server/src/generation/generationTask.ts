@@ -10,7 +10,7 @@ import { defineTask, type TaskId } from '@earendil-works/pi-durable';
 import type { DataSourceKind, GenerateForm, GenerationWarning } from '@tripweaver/shared';
 import { createLiveRun, emitLive, getLiveRun, type LiveRun } from './liveRun';
 import { runGeneration, type GenerationRunOptions } from './orchestrator';
-import { finalizeGenerationTask } from './taskStore';
+import { finalizeGenerationTask, setGenerationAgentConversation } from './taskStore';
 import { resolveLlmConfig } from '../services/settingsService';
 import type { ResearchCheckpoint } from './checkpoint';
 import type { GenerationProvenance, GenerationTaskRef } from './provenance';
@@ -154,6 +154,10 @@ export const GenerationTask = defineTask<GenerationTaskInput, GenerationTaskStat
           ...(task.state.checkpoint.research ? { resume: task.state.checkpoint.research } : {}),
           onCheckpoint: async (research) => {
             await runtime.commit(() => ({ status: 'running', checkpoint: { phase: 'run', research } }), context);
+          },
+          // 映射落在 generations 行（terminal state 不含 checkpoint），终态后子页面仍可读取。
+          onAgentConversation: async (key, conversationId) => {
+            await setGenerationAgentConversation(task.input.userId, task.input.jobId, key, conversationId);
           },
         }, task.id);
         await runtime.commit(() => taskOutcome(result), context);

@@ -1,11 +1,11 @@
 // 生成任务的持久视图（对齐 openmuse 的 AgentTask）：开始即写 running 行，结束原地更新。
 // 为什么复用 generations 而不是新表：配额、会话反查、用量统计都已依赖这张表；
 // 新表会制造第三个事实源。所有写入按 (user_id, job_id) 幂等，重跑不会产生重复任务。
-import { and, desc, eq, isNotNull } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import type { DataSourceKind, GenerateForm, GenerationJobStatus, GenerationWarning } from '@tripweaver/shared';
 import { db } from '../db/client';
 import { generations } from '../db/schema';
-import type { GenerationTaskRef } from './provenance';
+import type { GenerationAgentKey, GenerationTaskRef } from './provenance';
 
 export interface GenerationTaskUsage {
   tokensIn: number;
@@ -40,6 +40,8 @@ export interface GenerationTaskView {
   conversationId?: string;
   /** durable task id：重启后取消仍能命中具体任务。 */
   durableTaskId?: string;
+  /** 子 Agent key → durable conversation id：任务终态后子页面仍能读取流程。 */
+  agentConversations?: Partial<Record<GenerationAgentKey, string>>;
   createdAt: number;
   finishedAt?: number;
 }
@@ -61,6 +63,7 @@ export function toGenerationTaskView(row: Row): GenerationTaskView | null {
     ...(row.error ? { error: row.error } : {}),
     ...(row.conversationId ? { conversationId: row.conversationId } : {}),
     ...(row.durableTaskId ? { durableTaskId: row.durableTaskId } : {}),
+    ...(row.agentConversations ? { agentConversations: row.agentConversations } : {}),
     createdAt: row.createdAt.getTime(),
     ...(row.finishedAt ? { finishedAt: row.finishedAt.getTime() } : {}),
   };
@@ -172,6 +175,19 @@ export async function setGenerationDurableTaskId(userId: string, jobId: string, 
   await db.update(generations)
     .set({ durableTaskId })
     .where(and(eq(generations.userId, userId), eq(generations.jobId, jobId)));
+}
+
+/** 子 Agent 创建会话后登记；JSONB 合并，终态行保留映射。 */
+export async function setGenerationAgentConversation(
+  userId: string,
+  jobId: string,
+  key: GenerationAgentKey,
+  conversationId: string,
+): Promise<void> {
+  await db.update(generations).set({
+    agentConversations: sql`coalesce(${generations.agentConversations}, '{}'::jsonb)
+      || jsonb_build_object(${key}::text, ${conversationId}::text)`,
+  }).where(and(eq(generations.userId, userId), eq(generations.jobId, jobId)));
 }
 
 export async function getLatestGenerationTask(userId: string): Promise<GenerationTaskView | null> {

@@ -387,8 +387,6 @@ export function TripEditorPage() {
                   jobId={liveJobId}
                   stage={subAgentStage}
                   stream={liveState.stream}
-                  completedTripId={completedTripId}
-                  onTrip={() => completedTripId && navigate(`/trips/${completedTripId}`)}
                   onBack={() => navigate(backFrom ?? `/agent/${liveJobId}`)}
                 />
               ) : (

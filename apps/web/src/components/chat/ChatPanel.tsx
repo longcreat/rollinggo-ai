@@ -284,10 +284,15 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
         // 旧消息没有标记时锚到 ask_user 工具段之后，实在找不到才退回回答末尾。
         const questionRecords = message.attachment?.questions ?? [];
         const hasQuestionParts = parts?.some((part) => part.type === 'question') ?? false;
-        // 历史委派消息可能只有任务引用：不在气泡里重复文案或工具步骤，只渲染任务节点。
-        if (message.role === 'assistant' && !content && message.attachment?.task && !activitySteps.length && !parts?.length) {
-          return <div key={message.id} className="min-w-0">
-            <TaskCard jobId={message.attachment.task.jobId} conversationId={conversationId} />
+        // 主 Agent 的委派回合：文字、工具步骤和子 Agent 节点是同一个 turn，收进一个容器；
+        // 不再把“已完成 N 步”、回答气泡、任务卡渲染成三个并列块。
+        if (message.role === 'assistant' && message.attachment?.task) {
+          return <div key={message.id} className="chat-msg chat-msg-assistant w-full min-w-0">
+            <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-3">
+              {content && <div className="mb-2.5 text-sm leading-relaxed text-slate-800"><ChatText text={message.content} markdown /></div>}
+              <TaskCard jobId={message.attachment.task.jobId} conversationId={conversationId} />
+              {message.attachment.candidates.map((candidate) => <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />)}
+            </div>
           </div>;
         }
         const questionRow = (item: (typeof questionRecords)[number], key: string) => (

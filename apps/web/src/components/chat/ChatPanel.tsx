@@ -313,102 +313,171 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
       {!detail.isPending && !detail.isError && messages.length === 0 && !pending && (
         <div className="pb-2 pt-1">{renderSuggestions(dayId)}</div>
       )}
-      {(() => { return messages.map((message) => {
-        const content = message.content.trim();
-        // 版本操作是系统动作，不应渲染成带“复制”的普通回答气泡。
-        const restoreNotice = message.role === 'assistant' && !message.attachment
-          && (/^已从 v\d+ 恢复为 v\d+$/.test(content) || /^已恢复到 v\d+ 的内容（新版本 v\d+）$/.test(content));
-        if (restoreNotice) return null;
-        // 委派 turn：开始回复、子 Agent 时间线、完成总结属于同一次输出；复制按钮只在最后出现一次。
-        const taskId = message.role === 'assistant' ? message.taskId ?? message.attachment?.task?.jobId : undefined;
-        const taskTurn = taskId ? taskTurns.get(taskId) : undefined;
-        const anchor = taskTurn?.start ?? taskTurn?.completion;
-        if (taskTurn && anchor) {
-          if (message.id !== anchor.id) return null;
-          const turnText = [taskTurn.start?.content.trim(), taskTurn.completion?.content.trim()].filter(Boolean).join('\n\n');
-          return <div key={anchor.id} className="flex w-full min-w-0 flex-col gap-1.5">
-            <HistoryThinking message={taskTurn.start} />
-            {taskTurn.start?.content.trim() && <MessageBubble message={taskTurn.start} plain showCopy={false} />}
-            <TaskCard jobId={taskTurn.taskId} conversationId={conversationId} />
-            {taskTurn.completion && <MessageBubble message={taskTurn.completion} plain copyText={turnText} />}
-            {trip && taskTurn.start?.attachment?.candidates.map((candidate) => <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />)}
-          </div>;
-        }
-        const activitySteps = message.role === 'assistant' && message.attachment
-          ? message.attachment.steps ?? stepsFromSummary(message.attachment.summary)
-          : [];
-        const parts = message.role === 'assistant' ? message.attachment?.parts : undefined;
-        const lastTextIndex = parts?.map((part, index) => part.type === 'text' ? index : -1).filter((index) => index >= 0).at(-1);
-        // HITL 问答按真实位置渲染：新回合在 parts 里写 question 标记；
-        // 旧消息没有标记时锚到 ask_user 工具段之后，实在找不到才退回回答末尾。
-        const questionRecords = message.attachment?.questions ?? [];
-        const hasQuestionParts = parts?.some((part) => part.type === 'question') ?? false;
-        const questionRow = (item: (typeof questionRecords)[number], key: string) => (
-          <div key={key} className="flex flex-col gap-0.5">
-            <p className="m-0"><span className="text-white/50">问：</span><span className="text-white/85">{item.question}</span></p>
-            <p className="m-0"><span className="text-white/50">答：</span><span className="font-medium">{item.selected.join('、') || item.custom || '未回答'}</span></p>
-          </div>
-        );
-        // 用户回答本身就是一条用户消息：复用用户气泡样式，不另造卡片。
-        const questionsCard = (records: typeof questionRecords, key: string) => records.length ? (
-          <div key={key} className="chat-msg chat-msg-user mb-1.5 ml-auto flex max-w-[85%] min-w-0 flex-col items-end gap-1.5">
-            <div className="chat-bubble break-words rounded-2xl bg-slate-900 px-3.5 py-2.5 text-sm leading-relaxed text-white shadow-2xs">
-              <div className="flex flex-col gap-1.5">{records.map((item, i) => questionRow(item, `${key}-${i}`))}</div>
+      {(() => {
+        const renderAssistantBody = (
+          message: ChatMessage,
+          options?: { showCopy?: boolean; copyText?: string },
+        ) => {
+          const activitySteps = message.attachment
+            ? message.attachment.steps ?? stepsFromSummary(message.attachment.summary)
+            : [];
+          const parts = message.attachment?.parts;
+          const lastTextIndex = parts?.map((part, index) => part.type === 'text' ? index : -1).filter((index) => index >= 0).at(-1);
+
+          const questionRecords = message.attachment?.questions ?? [];
+          const hasQuestionParts = parts?.some((part) => part.type === 'question') ?? false;
+          const questionRow = (item: (typeof questionRecords)[number], key: string) => (
+            <div key={key} className="flex flex-col gap-0.5">
+              <p className="m-0"><span className="text-white/50">问：</span><span className="text-white/85">{item.question}</span></p>
+              <p className="m-0"><span className="text-white/50">答：</span><span className="font-medium">{item.selected.join('、') || item.custom || '未回答'}</span></p>
             </div>
-          </div>
-        ) : null;
-        const legacyAnchor = !hasQuestionParts && parts?.length && questionRecords.length
-          ? parts.findIndex((part) => part.type === 'steps' && part.steps.some((step) => step.name === 'ask_user'))
-          : -1;
-        // 同一次 ask_user 的多个问题（相邻 question parts）合并成一个问答气泡；旧消息没有 count 也按相邻关系合并。
-        const questionGroups = new Map<number, typeof questionRecords>();
-        if (parts?.length) {
-          for (let partIndex = 0; partIndex < parts.length; partIndex += 1) {
-            if (parts[partIndex]?.type !== 'question') continue;
-            const records: typeof questionRecords = [];
-            let end = partIndex;
-            while (end < parts.length && parts[end]?.type === 'question') {
-              const questionPart = parts[end];
-              if (questionPart?.type !== 'question') break;
-              records.push(...questionRecords.slice(questionPart.index, questionPart.index + (questionPart.count ?? 1)));
-              end += 1;
+          );
+          const questionsCard = (records: typeof questionRecords, key: string) => records.length ? (
+            <div key={key} className="chat-msg chat-msg-user mb-1.5 ml-auto flex max-w-[85%] min-w-0 flex-col items-end gap-1.5">
+              <div className="chat-bubble break-words rounded-2xl bg-slate-900 px-3.5 py-2.5 text-sm leading-relaxed text-white shadow-2xs">
+                <div className="flex flex-col gap-1.5">{records.map((item, i) => questionRow(item, `${key}-${i}`))}</div>
+              </div>
+            </div>
+          ) : null;
+          const legacyAnchor = !hasQuestionParts && parts?.length && questionRecords.length
+            ? parts.findIndex((part) => part.type === 'steps' && part.steps.some((step) => step.name === 'ask_user'))
+            : -1;
+
+          const questionGroups = new Map<number, typeof questionRecords>();
+          if (parts?.length) {
+            for (let partIndex = 0; partIndex < parts.length; partIndex += 1) {
+              if (parts[partIndex]?.type !== 'question') continue;
+              const records: typeof questionRecords = [];
+              let end = partIndex;
+              while (end < parts.length && parts[end]?.type === 'question') {
+                const questionPart = parts[end];
+                if (questionPart?.type !== 'question') break;
+                records.push(...questionRecords.slice(questionPart.index, questionPart.index + (questionPart.count ?? 1)));
+                end += 1;
+              }
+              questionGroups.set(partIndex, records);
+              partIndex = end - 1;
             }
-            questionGroups.set(partIndex, records);
-            partIndex = end - 1;
           }
-        }
-        return <div key={message.id} className="min-w-0">
-        {message.role === 'assistant' && <HistoryThinking message={message} />}
-        {parts?.length ? parts.map((part, index) => {
-          if (part.type === 'thinking') {
-            return <ThinkingRow key={`thinking-${message.id}-${index}`} thinking={part} />;
+
+          const showCopy = options?.showCopy ?? true;
+          const copyText = options?.copyText ?? message.content;
+
+          return (
+            <div className="flex w-full min-w-0 flex-col gap-1.5">
+              <HistoryThinking message={message} />
+              {parts?.length ? parts.map((part, index) => {
+                if (part.type === 'thinking') {
+                  return <ThinkingRow key={`thinking-${message.id}-${index}`} thinking={part} />;
+                }
+                if (part.type === 'question') {
+                  const records = questionGroups.get(index);
+                  return records?.length ? questionsCard(records, `q-${message.id}-${index}`) : null;
+                }
+                if (part.type === 'text') {
+                  return index === lastTextIndex
+                    ? <div key={`text-${index}`} className="mb-1.5">
+                        <MessageBubble
+                          plain
+                          showCopy={false}
+                          message={{ ...message, content: part.text }}
+                          copyText={copyText}
+                          onUndo={(previousTripId) => undoEdit(previousTripId, message.relatedTripId)}
+                          undoing={undoing}
+                          canUndo={Boolean(!readOnly && trip && message.relatedTripId === trip.id)}
+                          editExists={!versionIds || !message.relatedTripId || versionIds.has(message.relatedTripId)}
+                        />
+                      </div>
+                    : <div key={`text-${index}`} className="chat-bubble mb-1.5 break-words rounded-2xl bg-slate-50/90 px-3.5 py-2.5 text-sm leading-relaxed text-slate-800"><ChatText text={part.text} markdown /></div>;
+                }
+                return <Fragment key={`steps-${index}`}>
+                  <AgentActivity steps={part.steps} state="completed" />
+                  {index === legacyAnchor && questionsCard(questionRecords, `q-${message.id}`)}
+                </Fragment>;
+              }) : <>
+                  {activitySteps.length > 0 && <AgentActivity steps={activitySteps} state="completed" />}
+                  {message.content.trim() && (
+                    <MessageBubble
+                      plain
+                      showCopy={false}
+                      message={message}
+                      copyText={copyText}
+                      onUndo={(previousTripId) => undoEdit(previousTripId, message.relatedTripId)}
+                      undoing={undoing}
+                      canUndo={Boolean(!readOnly && trip && message.relatedTripId === trip.id)}
+                      editExists={!versionIds || !message.relatedTripId || versionIds.has(message.relatedTripId)}
+                    />
+                  )}
+                </>}
+              {!hasQuestionParts && legacyAnchor < 0 && questionsCard(questionRecords, `q-${message.id}-tail`)}
+              {message.attachment?.notice && <p className="mb-0 mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">{message.attachment.notice}</p>}
+              {trip && message.attachment?.candidates.map((candidate) => (
+                <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />
+              ))}
+              {message.attachment?.clarification && (
+                <div className="chat-answer-options mt-3 flex flex-wrap gap-1.5" role="group" aria-label={message.attachment.clarification.question}>
+                  {message.attachment.clarification.options.map((option) => (
+                    <button
+                      type="button"
+                      key={option}
+                      className="rounded-full border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-left text-xs font-medium text-slate-800 transition-colors cursor-pointer shadow-2xs"
+                      disabled={busy || readOnly || running || message.id !== messages.at(-1)?.id}
+                      onClick={() => void send(option, undefined, undefined, message.attachment?.dayId ?? null)}
+                    >
+                      {option}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {showCopy && (parts?.some((part) => part.type === 'text') || message.content.trim()) && (
+                <CopyButton text={copyText} />
+              )}
+            </div>
+          );
+        };
+
+        return messages.map((message) => {
+          const content = message.content.trim();
+          // 版本操作是系统动作，不应渲染成带“复制”的普通回答气泡。
+          const restoreNotice = message.role === 'assistant' && !message.attachment
+            && (/^已从 v\d+ 恢复为 v\d+$/.test(content) || /^已恢复到 v\d+ 的内容（新版本 v\d+）$/.test(content));
+          if (restoreNotice) return null;
+
+          // 委派 turn：开始回复、子 Agent 时间线、完成总结属于同一次输出；过程与工具按 parts 完整呈现。
+          const taskId = message.role === 'assistant' ? message.taskId ?? message.attachment?.task?.jobId : undefined;
+          const taskTurn = taskId ? taskTurns.get(taskId) : undefined;
+          const anchor = taskTurn?.start ?? taskTurn?.completion;
+          if (taskTurn && anchor) {
+            if (message.id !== anchor.id) return null;
+            const turnText = [taskTurn.start?.content.trim(), taskTurn.completion?.content.trim()].filter(Boolean).join('\n\n');
+            return <div key={anchor.id} className="flex w-full min-w-0 flex-col gap-1.5">
+              {taskTurn.start && renderAssistantBody(taskTurn.start, {
+                showCopy: !taskTurn.completion,
+                copyText: turnText,
+              })}
+              <TaskCard jobId={taskTurn.taskId} conversationId={conversationId} />
+              {taskTurn.completion && renderAssistantBody(taskTurn.completion, {
+                showCopy: true,
+                copyText: turnText,
+              })}
+            </div>;
           }
-          if (part.type === 'question') {
-            const records = questionGroups.get(index);
-            return records?.length ? questionsCard(records, `q-${message.id}-${index}`) : null;
+
+          if (message.role === 'user') {
+            return (
+              <div key={message.id} className="min-w-0">
+                <MessageBubble plain message={message} />
+              </div>
+            );
           }
-          if (part.type === 'text') {
-            return index === lastTextIndex
-              ? <div key={`text-${index}`} className="mb-1.5"><MessageBubble plain showCopy={false} message={{ ...message, content: part.text }} copyText={message.content} onUndo={(previousTripId) => undoEdit(previousTripId, message.relatedTripId)} undoing={undoing} canUndo={Boolean(!readOnly && trip && message.relatedTripId === trip.id)} editExists={!versionIds || !message.relatedTripId || versionIds.has(message.relatedTripId)} /></div>
-              : <div key={`text-${index}`} className="chat-bubble mb-1.5 break-words rounded-2xl bg-slate-50/90 px-3.5 py-2.5 text-sm leading-relaxed text-slate-800"><ChatText text={part.text} markdown /></div>;
-          }
-          return <Fragment key={`steps-${index}`}>
-            <AgentActivity steps={part.steps} state="completed" />
-            {index === legacyAnchor && questionsCard(questionRecords, `q-${message.id}`)}
-          </Fragment>;
-        }) : <>
-            {activitySteps.length > 0 && <AgentActivity steps={activitySteps} state="completed" />}
-            <MessageBubble plain message={message} onUndo={(previousTripId) => undoEdit(previousTripId, message.relatedTripId)} undoing={undoing} canUndo={Boolean(!readOnly && trip && message.relatedTripId === trip.id)} editExists={!versionIds || !message.relatedTripId || versionIds.has(message.relatedTripId)} />
-          </>}
-        {!hasQuestionParts && legacyAnchor < 0 && questionsCard(questionRecords, `q-${message.id}-tail`)}
-        {message.attachment?.notice && <p className="mb-0 mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">{message.attachment.notice}</p>}
-        {trip && message.attachment?.candidates.map((candidate) => <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />)}
-        {message.role === 'assistant' && message.attachment?.clarification && <div className="chat-answer-options mt-3 flex flex-wrap gap-1.5" role="group" aria-label={message.attachment.clarification.question}>
-          {message.attachment.clarification.options.map((option) => <button type="button" key={option} className="rounded-full border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-left text-xs font-medium text-slate-800 transition-colors cursor-pointer shadow-2xs" disabled={busy || readOnly || running || message.id !== messages.at(-1)?.id} onClick={() => void send(option, undefined, undefined, message.attachment?.dayId ?? null)}>{option}</button>)}
-        </div>}
-        {message.role === 'assistant' && parts?.some((part) => part.type === 'text') && <CopyButton text={message.content} />}
-      </div>;
-      }); })()}
+
+          return (
+            <div key={message.id} className="min-w-0">
+              {renderAssistantBody(message)}
+            </div>
+          );
+        });
+      })()}
       {pending && <PendingAnswer pending={pending} busy={busy} readOnly={readOnly}
         onRetry={() => void send(pending.input.text, pending.input.suggestion, pending.input)}
         onRestore={() => setRestoreDraft({ text: pending.input.text, key: Date.now() })} />}

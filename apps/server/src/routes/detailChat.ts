@@ -77,6 +77,27 @@ export const detailChatRoutes: FastifyPluginAsyncTypebox = async (app) => {
     addFood(request.user!.id, request.params.id, request.body));
 
   /**
+   * 一轮对话的非流式直接返回通道（供直播态发送、快捷测试或无需 SSE 解析的场景）。
+   */
+  app.post('/:id/messages', { schema: { params: Id, body: DetailChatRequestSchema } }, async (request, reply) => {
+    const userId = request.user!.id;
+    const conversationId = request.params.id;
+    const input = request.body;
+    const prepared = await prepareDetailChat(userId, conversationId, input);
+    if (prepared.saved) return prepared.saved;
+    const cfg = await resolveLlmConfig(userId);
+    if (!cfg) return reply.code(400).send({ error: '当前没有可用的 AI 配置', code: 'no_llm', hasSiteKey: hasSiteLlm() });
+    const turn = startDetailTurn(userId, conversationId, input.requestId);
+    const timer = setTimeout(() => turn.controller.abort(), 2 * 60 * 1000);
+    try {
+      return await runDetailChat(userId, conversationId, input, cfg, turn.controller.signal, () => {});
+    } finally {
+      clearTimeout(timer);
+      turn.release();
+    }
+  });
+
+  /**
    * 一轮详情对话的流式主通道。
    *
    * 协议：`data: {type, requestId, sequence}` 逐条下发（无 `id:` 行，不做 Last-Event-ID 重放；

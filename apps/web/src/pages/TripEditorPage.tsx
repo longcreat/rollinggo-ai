@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation, useMatch, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Value } from '@sinclair/typebox/value';
-import { keys, useGenerationTask, useHealthCheck, useMe, useLogout, useTrip, useTripConversation, useTripVersions } from '../api/hooks';
+import { keys, useConversation, useGenerationTask, useHealthCheck, useMe, useLogout, useTrip, useTripConversation, useTripVersions } from '../api/hooks';
 import { HealthCheckSheet } from '../components/editor/HealthCheckSheet';
 import { api } from '../api/client';
 import { useEditorSave } from '../hooks/useEditorSave';
@@ -22,7 +22,7 @@ import { useTripWeather } from '../api/weather';
 import { TripOverview } from '../components/editor/TripOverview';
 import { NotificationCenter } from '../components/NotificationCenter';
 import { BotIcon, SendIcon, PlusIcon } from '../components/home/HomeIcons';
-import { Compass, PanelLeftClose } from 'lucide-react';
+import { CalendarDays, Compass, PanelLeftClose } from 'lucide-react';
 import { useLiveTrip } from '../hooks/useLiveTrip';
 import { LiveAgentStream } from '../components/live/LiveAgentStream';
 import { SubAgentPage } from '../components/live/SubAgentPage';
@@ -30,33 +30,45 @@ import { SubAgentPage } from '../components/live/SubAgentPage';
 type MobileTab = 'chat' | 'list' | 'map';
 
 export function TripEditorPage() {
-  const { id = '' } = useParams();
+  const { id = '', conversationId: routeConversationId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const state = location.state as { from?: string } | null;
+  const state = location.state as { from?: string; initialText?: string } | null;
+  const initialText = state?.initialText;
   const backFrom = state?.from?.startsWith('/') && !state.from.startsWith('//') ? state.from : null;
   const qc = useQueryClient();
   const me = useMe();
   const userId = me.data?.id;
-  // 直播模式：/agent/:jobId 与 /trips/:id 共用同一个工作区，只切换数据源。
-  // splat 让主时间线 ↔ 子 Agent 页面保持同一个页面实例，SSE 不重连。
-  const liveJobId = useMatch('/agent/:jobId/*')?.params.jobId;
+
+  // 任务 ID 来源：URL 的 /agent/:jobId，或通过 onTaskStarted 动态感知的 jobId
+  const liveMatch = useMatch('/agent/:jobId/*')?.params.jobId;
+  const [dynamicJobId, setDynamicJobId] = useState<string | null>(null);
+  const liveJobId = liveMatch ?? dynamicJobId;
   const subAgentStage = useMatch('/agent/:jobId/agents/:stage')?.params.stage ?? null;
   const live = Boolean(liveJobId);
-  const liveState = useLiveTrip(liveJobId);
+  const liveState = useLiveTrip(liveJobId ?? undefined);
   // 投影在任务过期/重启后可能缺席；持久任务行仍能告诉我们终态与 tripId，交接不依赖内存。
-  const liveTask = useGenerationTask(liveJobId);
+  const liveTask = useGenerationTask(liveJobId ?? undefined);
   const completedTripId = liveState.completedTripId
     ?? (liveTask.data?.status === 'done' ? liveTask.data.tripId : null);
-  const tripQuery = useTrip(id, !live);
-  const weatherQuery = useTripWeather(live ? '' : id, tripQuery.data);
-  const versions = useTripVersions(live ? '' : id);
+
+  // 会话 ID 来源：URL 的 /c/:conversationId，或从 liveTask 取得，或从 useTripConversation 取得
+  const tripConvoQuery = useTripConversation(id && !live ? id : null);
+  const conversationId = routeConversationId
+    ?? liveTask.data?.conversationId
+    ?? tripConvoQuery.data?.conversationId
+    ?? null;
+  const conversationDetail = useConversation(conversationId);
+
+  // 如果是通过会话进来的，且会话已有 latestTrip，但当前没有 id，尝试解析 effectiveTripId
+  const effectiveTripId = id || (!live ? conversationDetail.data?.latestTrip?.id ?? '' : '');
+  const tripQuery = useTrip(effectiveTripId, Boolean(effectiveTripId && !live));
+  const weatherQuery = useTripWeather(live || !effectiveTripId ? '' : effectiveTripId, tripQuery.data);
+  const versions = useTripVersions(live || !effectiveTripId ? '' : effectiveTripId);
   const latest = versions.data?.versions.reduce((a, b) => b.version > a.version ? b : a);
-  const historyVersion = versions.data?.versions.find((v) => v.id === id);
-  const readOnly = live || !latest || latest.id !== id;
-  const conversationQuery = useTripConversation(live ? '' : id);
-  const conversationId = live ? null : conversationQuery.data?.conversationId ?? null;
-  const save = useEditorSave(live ? '' : id, readOnly, (saved) => navigate(`/trips/${saved.id}`, { replace: true }));
+  const historyVersion = versions.data?.versions.find((v) => v.id === effectiveTripId);
+  const readOnly = live || (Boolean(latest) && latest?.id !== effectiveTripId);
+  const save = useEditorSave(live ? '' : effectiveTripId, readOnly, (saved) => navigate(`/trips/${saved.id}`, { replace: true }));
   const { register } = useAppNavigation();
   const flushRef = useRef(save.flush); flushRef.current = save.flush;
   useEffect(() => register(async () => {
@@ -68,7 +80,7 @@ export function TripEditorPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [healthOpen, setHealthOpen] = useState(false);
   const [restoreId, setRestoreId] = useState<string>();
-  const healthCheck = useHealthCheck(live ? '' : id);
+  const healthCheck = useHealthCheck(live || !effectiveTripId ? '' : effectiveTripId);
   const healthHard = healthCheck.data?.findings.filter((f) => f.severity === 'hard').length ?? 0;
   const [busy, setBusy] = useState(false);
   const operation = useRef(false);
@@ -82,6 +94,7 @@ export function TripEditorPage() {
     let acquired = false;
     try {
       const saved = await begin(); acquired = true; setConversationError('');
+      if (!saved) return;
       const result = await api.post<{ conversationId: string }>(`/api/trips/${saved.id}/conversation`);
       qc.setQueryData(['trips', saved.id, 'conversation'], result);
     } catch (err) { setConversationError(err instanceof Error ? err.message : '对话关联失败'); }
@@ -150,16 +163,22 @@ export function TripEditorPage() {
       if (!Value.Check(TripSchema, saved)) console.warn('[generation] 落库行程未通过 schema 校验，仍进入详情页');
       qc.setQueryData(keys.trip(completedTripId), saved);
       load(saved as Trip);
+      setDynamicJobId(null);
+      if (routeConversationId) {
+        void qc.invalidateQueries({ queryKey: keys.conversation(routeConversationId) });
+      }
       if (!subAgentStage && !completedWhileInspecting.current) {
         useEditorStore.getState().setDayFilter(null);
-        navigate(`/trips/${completedTripId}`, { replace: true });
+        if (!routeConversationId) {
+          navigate(`/trips/${completedTripId}`, { replace: true });
+        }
       }
     }).catch(() => {});
     return () => { alive = false; };
-  }, [live, completedTripId, qc, load, navigate, subAgentStage]);
+  }, [live, completedTripId, qc, load, navigate, subAgentStage, routeConversationId]);
 
   useEffect(() => { useEditorStore.getState().setReadOnly(readOnly || busy); }, [readOnly, busy]);
-  const begin = async () => {
+  const begin = async (): Promise<Trip> => {
     if (operation.current) throw new Error('请等待当前操作结束');
     if (Object.values(useEditorStore.getState().routeReplans).some((job) => job.status === 'pending')) throw new Error('路线仍在更新，请稍后重试');
     operation.current = true; setBusy(true); useEditorStore.getState().setReadOnly(true);
@@ -200,15 +219,21 @@ export function TripEditorPage() {
   // 概览并入行程：候选按名称匹配到活动（内嵌卡片），未命中的进「备选」抽屉；旧行程无 overview → 两者皆空
   const overviewMatch = useMemo(() => matchOverview(trip?.days ?? [], trip?.overview), [trip]);
 
-  if (!live) {
+  if (routeConversationId && conversationDetail.isPending) {
+    return <div className="page-loading p-12 text-center text-slate-400">正在连接主 Agent…</div>;
+  }
+  if (routeConversationId && conversationDetail.isError) {
+    return <div className="page-loading p-12 text-center text-red-500">会话加载失败：{conversationDetail.error.message}</div>;
+  }
+
+  if (effectiveTripId && !live) {
     if (tripQuery.isPending) return <div className="page-loading p-12 text-center text-slate-400">加载中…</div>;
     if (tripQuery.isError) return <div className="page-loading p-12 text-center text-red-500">行程加载失败：{tripQuery.error.message}</div>;
     if (!trip) return <div className="page-loading p-12 text-center text-slate-400">准备编辑器…</div>;
-  } else if (!trip) {
-    return <div className="editor-page flex h-dvh items-center justify-center bg-[#f4f7fb] text-sm text-slate-400">正在启动生成…</div>;
   }
-  const weatherSnapshot = weatherQuery.data ?? (weatherQuery.isError ? undefined : trip.weather);
-  const weather = weatherSnapshot?.destination === trip.destination ? weatherSnapshot : undefined;
+
+  const weatherSnapshot = weatherQuery.data ?? (weatherQuery.isError ? undefined : trip?.weather);
+  const weather = weatherSnapshot && trip && weatherSnapshot.destination === trip.destination ? weatherSnapshot : undefined;
 
   const mobileTabs: [MobileTab, string][] = [
     ['chat', 'RollingGo AI'],
@@ -225,14 +250,16 @@ export function TripEditorPage() {
       : liveTerminal === 'job_done'
         ? { label: '已生成', dot: 'bg-emerald-500' }
         : { label: '正在生成', dot: 'bg-emerald-500 motion-safe:animate-pulse' };
-  const displayTitle = liveTerminal ? trip.title.replace(/\s*·\s*生成中$/, '') : trip.title;
+  const displayTitle = trip
+    ? (liveTerminal ? trip.title.replace(/\s*·\s*生成中$/, '') : trip.title)
+    : (conversationDetail.data?.conversation.title || '定制旅行助手');
 
-  const endDate = dateForDayIndex(trip.startDate, Math.max(1, trip.days.length));
-  const dateLabel = trip.startDate && endDate
+  const endDate = trip ? dateForDayIndex(trip.startDate, Math.max(1, trip.days.length)) : '';
+  const dateLabel = trip?.startDate && endDate
     ? `${trip.startDate.slice(5).replace('-', '月')}日—${endDate.slice(5).replace('-', '月')}日`
     : '';
 
-  const itineraryPanel = (
+  const itineraryPanel = trip ? (
     <div className="itinerary-panel">
       {dayFilter !== null && visibleDays.length === 0 && <p className="text-slate-400 text-sm day-empty text-center py-4">没有可显示的天数</p>}
       {dayFilter !== null && visibleDays.map((day) => (
@@ -252,7 +279,7 @@ export function TripEditorPage() {
           readOnly={readOnly} busy={busy} pois={overviewMatch.poiByActivityId} />
       )}
     </div>
-  );
+  ) : null;
 
   return (
     <div className="editor-page flex flex-col h-dvh max-h-dvh min-h-0 bg-[#f4f7fb] p-3 gap-2.5 overflow-hidden text-slate-800">
@@ -267,13 +294,21 @@ export function TripEditorPage() {
             <h1 className="text-base font-bold text-slate-900 truncate m-0 flex items-center gap-1.5" title={displayTitle}>
               <span>{displayTitle}</span>
             </h1>
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/90 text-xs text-slate-600 whitespace-nowrap">
-              <EditorIcon name="calendar" />
-              <span>{dateLabel || '添加日历'}</span>
-              <span>·</span>
-              <span>{trip.days.length}天</span>
-              <span>{trip.partySize}人</span>
-            </span>
+            {trip ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/90 text-xs text-slate-600 whitespace-nowrap">
+                <EditorIcon name="calendar" />
+                <span>{dateLabel || '添加日历'}</span>
+                <span>·</span>
+                <span>{trip.days.length}天</span>
+                <span>·</span>
+                <span>{trip.partySize}人</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100/90 text-xs text-slate-600 whitespace-nowrap">
+                <EditorIcon name="calendar" />
+                <span>AI 主 Agent 陪伴规划中</span>
+              </span>
+            )}
             {save.state === 'error' && (
               <span className="text-red-500 text-xs flex items-center gap-1" role="alert">
                 {save.error}
@@ -290,7 +325,7 @@ export function TripEditorPage() {
               {liveStatus.label}
             </span>
           )}
-          {!live && <>
+          {!live && trip && <>
           <Button
             variant="secondary"
             onClick={() => setHealthOpen(true)}
@@ -317,23 +352,25 @@ export function TripEditorPage() {
             <span>历史版本</span>
           </Button>
           <ExportMenu trip={trip} />
-          {userId && <NotificationCenter key={userId} userId={userId} />}
           </>}
-          <HealthCheckSheet
-            open={healthOpen}
-            onClose={() => setHealthOpen(false)}
-            tripId={id}
-            tripUpdatedAt={trip.updatedAt}
-            check={healthCheck.data}
-          />
+          {userId && <NotificationCenter key={userId} userId={userId} />}
+          {trip && (
+            <HealthCheckSheet
+              open={healthOpen}
+              onClose={() => setHealthOpen(false)}
+              tripId={id || trip.id}
+              tripUpdatedAt={trip.updatedAt}
+              check={healthCheck.data}
+            />
+          )}
         </div>
       </header>
 
-      {!live && latest && latest.id !== id && (
+      {trip && !live && latest && latest.id !== effectiveTripId && (
         <div className="flex items-center gap-2 rounded-xl bg-amber-50 border border-amber-200 px-4 py-2 text-xs text-amber-800 shrink-0" role="status">
           <span>正在查看历史版本 v{historyVersion?.version}</span>
           <Button disabled={busy} onClick={() => { void (async () => { await begin(); try { await onTrip(latest.id); } finally { end(); } })().catch(() => setHistoryOpen(true)); }}>返回最新版本</Button>
-          <Button disabled={busy} onClick={() => { setRestoreId(id); setHistoryOpen(true); }}>恢复此版本</Button>
+          <Button disabled={busy} onClick={() => { setRestoreId(effectiveTripId); setHistoryOpen(true); }}>恢复此版本</Button>
         </div>
       )}
 
@@ -381,44 +418,177 @@ export function TripEditorPage() {
 
           {/* 对话内容与输入流 */}
           <div className="flex-1 min-h-0 flex flex-col">
-            {live ? (
-              liveJobId && subAgentStage ? (
-                <SubAgentPage
-                  jobId={liveJobId}
-                  stage={subAgentStage}
-                  stream={liveState.stream}
-                  onBack={() => navigate(backFrom ?? `/agent/${liveJobId}`)}
-                />
-              ) : liveState.trip && liveTask.data?.conversationId ? (
-                // 直播期直接复用主 Agent 对话：任务节点实时更新，不再另起一套“进度页”。
-                <ChatPanel
-                  conversationId={liveTask.data.conversationId}
-                  trip={liveState.trip}
-                  dayId={liveState.trip.days.find((day) => day.dayIndex === dayFilter)?.id}
-                  readOnly
-                  busy={false}
-                  begin={begin}
-                  end={end}
-                  onTrip={async () => {}}
-                  live
-                  liveStatus={liveTask.data?.status ?? 'running'}
-                  liveSend={liveTask.data?.conversationId ? async (text) => {
-                    const cid = liveTask.data!.conversationId!;
-                    const result = await api.post<{ startedGenerationJobId?: string; replyMessage?: { content?: string } }>(
-                      `/api/conversations/${encodeURIComponent(cid)}/planning?stream=0`,
-                      { requestId: uid(), text, autostart: true },
-                    );
-                    if (result.startedGenerationJobId) {
-                      navigate(`/agent/${encodeURIComponent(result.startedGenerationJobId)}`, { replace: true });
-                      return;
-                    }
-                    void qc.invalidateQueries({ queryKey: keys.conversation(cid) });
-                    throw new Error(result.replyMessage?.content || '没有开始新的规划，请换个说法');
-                  } : undefined}
-                />
-              ) : liveTask.isPending ? (
-                <div className="flex flex-1 items-center justify-center text-xs text-slate-400">正在连接主 Agent…</div>
-              ) : (
+            {liveJobId && subAgentStage ? (
+              <SubAgentPage
+                jobId={liveJobId}
+                stage={subAgentStage}
+                stream={liveState.stream}
+                onBack={() => navigate(backFrom ?? `/agent/${liveJobId}`)}
+              />
+            ) : conversationId ? (
+              <ChatPanel
+                conversationId={conversationId}
+                trip={trip}
+                dayId={trip?.days.find((d) => d.dayIndex === dayFilter)?.id}
+                readOnly={readOnly}
+                busy={busy}
+                begin={begin}
+                end={end}
+                onTrip={onTrip}
+                initialText={initialText}
+                onTaskStarted={(jobId) => setDynamicJobId(jobId)}
+                live={live}
+                liveStatus={liveTask.data?.status ?? 'running'}
+                liveSend={live && liveTask.data?.conversationId ? async (text) => {
+                  const cid = liveTask.data!.conversationId!;
+                  const result = await api.post<{ startedGenerationJobId?: string; replyMessage?: { content?: string } }>(
+                    `/api/conversations/${encodeURIComponent(cid)}/messages`,
+                    { requestId: uid(), text, autostart: true },
+                  );
+                  if (result.startedGenerationJobId) {
+                    setDynamicJobId(result.startedGenerationJobId);
+                    return;
+                  }
+                  void qc.invalidateQueries({ queryKey: keys.conversation(cid) });
+                  throw new Error(result.replyMessage?.content || '没有开始新的规划，请换个说法');
+                } : undefined}
+              />
+            ) : live ? (
+              <LiveAgentStream
+                jobId={liveJobId ?? ''}
+                stream={liveState.stream}
+                destination={liveState.trip?.destination ?? ''}
+                days={liveState.trip?.days.length}
+                cancelling={liveState.cancelling}
+                error={liveState.cancellationError ?? liveState.error}
+                lost={liveState.lost}
+                onCancel={liveState.cancel}
+                onTrip={completedTripId ? () => navigate(`/trips/${completedTripId}`) : undefined}
+                onHome={() => navigate('/')}
+                onRetry={() => {
+                  setDynamicJobId(null);
+                }}
+              />
+            ) : (
+              <div className="p-6 text-sm flex flex-col items-center justify-center flex-1 text-center text-slate-500 gap-3">
+                <BotIcon className="w-10 h-10 text-slate-400 stroke-1" />
+                <p className="m-0 leading-relaxed">
+                  开启 AI 对话，随时微调行程、发掘沿途宝藏。
+                </p>
+                <Button
+                  disabled={readOnly || busy}
+                  onClick={() => void createChat()}
+                  className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4 py-2"
+                >
+                  开启 AI 对话
+                </Button>
+                {conversationError && <p className="text-red-500 text-xs m-0" role="alert">{conversationError}</p>}
+              </div>
+            )}
+          </div>
+        </aside>
+
+        {/* 中间栏：行程总览与时间轴 / 生成直播 / 探索画布 */}
+        <section
+          className={`editor-left flex-1 min-w-[320px] flex flex-col rounded-3xl bg-white border border-slate-200/80 shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden min-h-0 relative transition-all duration-200 ${
+            mobileTab === 'list' ? 'flex' : 'max-[768px]:hidden'
+          }`}
+        >
+          {trip ? (
+            <>
+              {/* 天数导航栏（总览、第1天、第2天... + 新增一天 + 助手开关） */}
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-white/95 shrink-0 z-10 gap-2">
+                <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 min-w-0 py-0.5" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  <button
+                    type="button"
+                    onClick={() => setDayFilter(null)}
+                    className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                      dayFilter === null
+                        ? 'bg-slate-900 text-white shadow-xs'
+                        : 'bg-white border border-slate-200/90 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                    }`}
+                  >
+                    总览
+                  </button>
+                  {trip.days.map((day) => (
+                    <button
+                      key={day.id}
+                      type="button"
+                      onClick={() => setDayFilter(day.dayIndex)}
+                      className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
+                        dayFilter === day.dayIndex
+                          ? 'bg-slate-900 text-white shadow-xs'
+                          : 'bg-white border border-slate-200/90 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                      }`}
+                    >
+                      第{day.dayIndex}天
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => addDay()}
+                    disabled={readOnly || busy}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
+                    title="新增一天"
+                  >
+                    <span>＋</span><span>加一天</span>
+                  </button>
+                  {!aiPanelOpen && (
+                    <button
+                      type="button"
+                      onClick={() => setAiPanelOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-950 transition-colors cursor-pointer shadow-2xs"
+                      title="展开 AI 伴游"
+                    >
+                      <Compass className="h-3.5 w-3.5 text-slate-700" />
+                      <span>AI 伴游</span>
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* 行程列表滚动区 */}
+              <div
+                className={`flex-1 overflow-y-auto min-h-0 no-scrollbar px-6 py-4 ${
+                  !aiPanelOpen ? 'pb-20' : 'pb-8'
+                }`}
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                ref={scrollRef}
+              >
+                {itineraryPanel}
+              </div>
+
+              {/* 收起状态下：左下角常驻唤醒条 */}
+              {!aiPanelOpen && (
+                <div
+                  onClick={() => setAiPanelOpen(true)}
+                  className="absolute bottom-3 left-4 z-30 max-w-[calc(100%-32px)] bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-[0_8px_30px_rgba(0,0,0,0.12)] px-4 py-2.5 flex items-center gap-3 cursor-pointer hover:shadow-xl hover:border-slate-400 hover:scale-[1.01] transition-all group animate-in fade-in duration-200"
+                  role="button"
+                  tabIndex={0}
+                  aria-label="打开 RollingGo AI 助手"
+                >
+                  <Compass className="w-4 h-4 text-slate-800 shrink-0 group-hover:scale-110 transition-transform" />
+                  <span className="text-slate-500 text-sm select-none truncate group-hover:text-slate-800">
+                    让 RollingGo 帮你微调行程…
+                  </span>
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white group-hover:bg-slate-800 transition-colors shadow-xs shrink-0">
+                    <SendIcon className="w-3.5 h-3.5" />
+                  </span>
+                </div>
+              )}
+            </>
+          ) : live ? (
+            <div className="flex-1 min-h-0 flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-white/95 shrink-0 z-10">
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 motion-safe:animate-pulse" />
+                  <span className="text-xs font-medium text-slate-700">正在生成行程草案…</span>
+                </div>
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto">
                 <LiveAgentStream
                   jobId={liveJobId ?? ''}
                   stream={liveState.stream}
@@ -428,137 +598,21 @@ export function TripEditorPage() {
                   error={liveState.cancellationError ?? liveState.error}
                   lost={liveState.lost}
                   onCancel={liveState.cancel}
-                  onTrip={completedTripId ? () => navigate(`/trips/${completedTripId}`) : undefined}
+                  onTrip={completedTripId ? () => setDynamicJobId(null) : undefined}
                   onHome={() => navigate('/')}
-                  onRetry={() => {
-                    // 失败重试：复用手上这份表单参数回 /trips/new 自动再发起一次；
-                    // 没有留档（比如从通知里恢复的任务）时退回首页，别把用户卡死在死路。
-                    const saved = sessionStorage.getItem('tw.lastTripDraftParams');
-                    navigate(saved ? `/trips/new?${saved}&autostart=1` : '/');
-                  }}
+                  onRetry={() => setDynamicJobId(null)}
                 />
-              )
-            ) : conversationId ? (
-              <ChatPanel
-                conversationId={conversationId}
-                trip={trip}
-                dayId={trip.days.find((d) => d.dayIndex === dayFilter)?.id}
-                readOnly={readOnly}
-                busy={busy}
-                begin={begin}
-                end={end}
-                onTrip={onTrip}
-              />
-            ) : (
-              <div className="p-6 text-sm flex flex-col items-center justify-center flex-1 text-center text-slate-500 gap-3">
-                <BotIcon className="w-10 h-10 text-slate-400 stroke-1" />
-                <p className="m-0 leading-relaxed">
-                  {conversationQuery.isPending
-                    ? '正在加载对话…'
-                    : conversationQuery.isError
-                    ? '对话关联加载失败'
-                    : '开启 AI 对话，随时微调行程、发掘沿途宝藏。'}
-                </p>
-                <Button
-                  disabled={readOnly || busy || conversationQuery.isPending}
-                  onClick={() => (conversationQuery.isError ? void conversationQuery.refetch() : void createChat())}
-                  className="rounded-xl bg-slate-900 hover:bg-slate-800 text-white px-4 py-2"
-                >
-                  {conversationQuery.isError ? '重试' : '开启 AI 对话'}
-                </Button>
-                {conversationError && <p className="text-red-500 text-xs m-0" role="alert">{conversationError}</p>}
               </div>
-            )}
-          </div>
-        </aside>
-
-        {/* 中间栏：行程总览与时间轴 */}
-        <section
-          className={`editor-left flex-1 min-w-[320px] flex flex-col rounded-3xl bg-white border border-slate-200/80 shadow-[0_4px_24px_rgba(0,0,0,0.04)] overflow-hidden min-h-0 relative transition-all duration-200 ${
-            mobileTab === 'list' ? 'flex' : 'max-[768px]:hidden'
-          }`}
-        >
-          {/* 天数导航栏（总览、第1天、第2天... + 新增一天 + 助手开关） */}
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100 bg-white/95 shrink-0 z-10 gap-2">
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar flex-1 min-w-0 py-0.5" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              <button
-                type="button"
-                onClick={() => setDayFilter(null)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
-                  dayFilter === null
-                    ? 'bg-slate-900 text-white shadow-xs'
-                    : 'bg-white border border-slate-200/90 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                总览
-              </button>
-              {trip.days.map((day) => (
-                <button
-                  key={day.id}
-                  type="button"
-                  onClick={() => setDayFilter(day.dayIndex)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-all cursor-pointer whitespace-nowrap ${
-                    dayFilter === day.dayIndex
-                      ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-white border border-slate-200/90 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                  }`}
-                >
-                  第{day.dayIndex}天
-                </button>
-              ))}
             </div>
-
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                type="button"
-                onClick={() => addDay()}
-                disabled={readOnly || busy}
-                className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-medium transition-colors cursor-pointer disabled:opacity-50"
-                title="新增一天"
-              >
-                <span>＋</span><span>加一天</span>
-              </button>
-              {!aiPanelOpen && (
-                <button
-                  type="button"
-                  onClick={() => setAiPanelOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border border-slate-200 bg-white text-xs font-medium text-slate-700 hover:bg-slate-50 hover:text-slate-950 transition-colors cursor-pointer shadow-2xs"
-                  title="展开 AI 伴游"
-                >
-                  <Compass className="h-3.5 w-3.5 text-slate-700" />
-                  <span>AI 伴游</span>
-                </button>
-              )}
-            </div>
-          </div>
-
-          {/* 行程列表滚动区 */}
-          <div
-            className={`flex-1 overflow-y-auto min-h-0 no-scrollbar px-6 py-4 ${
-              !aiPanelOpen ? 'pb-20' : 'pb-8'
-            }`}
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            ref={scrollRef}
-          >
-            {itineraryPanel}
-          </div>
-
-          {/* 收起状态下：左下角常驻唤醒条 */}
-          {!aiPanelOpen && (
-            <div
-              onClick={() => setAiPanelOpen(true)}
-              className="absolute bottom-3 left-4 z-30 max-w-[calc(100%-32px)] bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-[0_8px_30px_rgba(0,0,0,0.12)] px-4 py-2.5 flex items-center gap-3 cursor-pointer hover:shadow-xl hover:border-slate-400 hover:scale-[1.01] transition-all group animate-in fade-in duration-200"
-              role="button"
-              tabIndex={0}
-              aria-label="打开 RollingGo AI 助手"
-            >
-              <Compass className="w-4 h-4 text-slate-800 shrink-0 group-hover:scale-110 transition-transform" />
-              <span className="text-slate-500 text-sm select-none truncate group-hover:text-slate-800">
-                让 RollingGo 帮你微调行程…
-              </span>
-              <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-900 text-white group-hover:bg-slate-800 transition-colors shadow-xs shrink-0">
-                <SendIcon className="w-3.5 h-3.5" />
-              </span>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-white/60">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100/80 border border-slate-200/60 flex items-center justify-center text-slate-400 mb-3 shadow-2xs">
+                <CalendarDays className="w-6 h-6 text-slate-400" />
+              </div>
+              <h2 className="text-base font-medium text-slate-700 mb-1">暂无行程安排</h2>
+              <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
+                在左侧与 RollingGo AI 对话即可开启规划
+              </p>
             </div>
           )}
         </section>
@@ -575,8 +629,8 @@ export function TripEditorPage() {
         </div>
       </main>
 
-      {!readOnly && !busy && <AutoRoutePlanner />}
-      {historyOpen && <HistoryPanel currentId={id} chain={versions.data} loading={versions.isPending} failed={versions.isError} busy={busy} initialRestore={restoreId} refresh={() => void versions.refetch()} close={() => setHistoryOpen(false)} begin={begin} end={end} onTrip={onTrip} />}
+      {trip && !readOnly && !busy && <AutoRoutePlanner />}
+      {trip && historyOpen && <HistoryPanel currentId={id || trip.id} chain={versions.data} loading={versions.isPending} failed={versions.isError} busy={busy} initialRestore={restoreId} refresh={() => void versions.refetch()} close={() => setHistoryOpen(false)} begin={begin} end={end} onTrip={onTrip} />}
     </div>
   );
 }

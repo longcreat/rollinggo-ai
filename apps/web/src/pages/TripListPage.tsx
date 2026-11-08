@@ -8,11 +8,7 @@ import { TripCover } from '../components/TripCover';
 const dateFormatter = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long', day: 'numeric' });
 
 function coverTone(destination: string): number {
-  if (destination.includes('北京')) return 0;
-  if (destination.includes('杭州')) return 4;
-  if (destination.includes('成都')) return 3;
-  if (destination.includes('上海') || destination.includes('大理')) return 2;
-  return Array.from(destination).reduce((sum, character) => sum + (character.codePointAt(0) ?? 0), 0) % 4;
+  return Math.abs(Array.from(destination).reduce((sum, character) => sum + (character.codePointAt(0) ?? 0), 0)) % 5;
 }
 
 export function TripListPage() {

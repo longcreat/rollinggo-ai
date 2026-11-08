@@ -178,6 +178,8 @@ export const PlanningBriefPatchSchema = Type.Object({
 
 export const ConversationCreateSchema = Type.Object({
   title: Type.Optional(Type.String({ maxLength: 60 })),
+  destination: Type.Optional(Type.String({ maxLength: 40 })),
+  brief: Type.Optional(PlanningBriefPatchSchema),
 });
 
 // ---------- 纯函数：就绪判定与追问构造 ----------

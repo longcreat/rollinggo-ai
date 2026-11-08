@@ -3,7 +3,7 @@ import { useLoginDialog } from '../components/LoginDialogProvider';
 import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCoveredCities, useUsage, useMe, useCurrentGeneration } from '../api/hooks';
+import { useCoveredCities, useUsage, useMe, useCurrentGeneration, useCreateConversation } from '../api/hooks';
 import { ChinaMap, type MapCityDot } from '../components/home/ChinaMap';
 import type { HomeTripDraft } from '../components/home/HomeCapsule';
 import { CITY_GEO, projectToSvg } from '../lib/chinaMap';
@@ -44,25 +44,29 @@ export function HomePage() {
     [cities],
   );
 
-  const start = (draft: HomeTripDraft, targetCity?: string, text?: string) => {
+  const createConversation = useCreateConversation();
+
+  const start = async (draft?: HomeTripDraft, targetCity?: string, text?: string) => {
     if (!me.isSuccess) return;
-    const dest = targetCity?.trim() || selected?.trim() || '成都';
-    const params = new URLSearchParams({ city: dest, start: draft.startDate, end: draft.endDate });
-    // 用户原话随首条消息进入主 Agent 会话；表单字段只是结构化条件。
-    if (text?.trim()) params.set('text', text.trim().slice(0, 1000));
-    if (draft.pace) params.set('pace', draft.pace);
-    if (draft.partySize !== 2) params.set('partySize', String(draft.partySize));
-    if (draft.preferences.length > 0) params.set('preferences', draft.preferences.join(','));
-    if (draft.transportMode) params.set('transport', draft.transportMode);
-    if (draft.extraNotes) params.set('extraNotes', draft.extraNotes);
-    // 首页收集完参数：带着 autostart 过去，新建页直接开始流式规划
-    params.set('autostart', '1');
-    const destination = `/trips/new?${params.toString()}`;
+    const dest = targetCity?.trim() || selected?.trim() || '';
+    const userPrompt = text?.trim() || (dest ? `规划${dest}行程` : '');
+    if (!userPrompt) return;
+
     if (!me.data) {
-      openLogin(destination);
+      openLogin('/');
       return;
     }
-    navigate(destination);
+
+    try {
+      const title = dest ? `${dest}之旅` : '定制旅行计划';
+      const convo = await createConversation.mutateAsync({
+        title,
+        ...(dest ? { destination: dest } : {}),
+      });
+      navigate(`/c/${convo.id}`, { state: { initialText: userPrompt } });
+    } catch (err) {
+      console.error('Failed to create conversation for chat:', err);
+    }
   };
 
   const notice = me.isError

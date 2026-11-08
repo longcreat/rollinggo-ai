@@ -27,7 +27,11 @@ export const conversationRoutes: FastifyPluginAsyncTypebox = async (app) => {
   await app.register(planningRoutes);
 
   app.post('/', { schema: { body: ConversationCreateSchema } }, async (request, reply) => {
-    const conversation = await createConversation(request.user!.id, request.body.title);
+    const conversation = await createConversation(request.user!.id, {
+      title: request.body.title,
+      destination: request.body.destination,
+      brief: request.body.brief,
+    });
     return reply.code(201).send(conversation);
   });
 

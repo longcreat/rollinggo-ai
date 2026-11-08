@@ -171,4 +171,45 @@ describe('主 Agent 全功能工具', () => {
     assert.equal(state.questions.length, 2);
     assert.deepEqual(state.questions.map((question) => question.selected), [['15:00'], ['500 元']]);
   });
+
+  it('无行程态（行前）：读工具与写工具安全回退，委派与搜索正常可用', async () => {
+    const state = createAgentTurnState();
+    let delegated = false;
+    const tools = createTripTools({
+      trip: null,
+      draft: null,
+      destination: '成都',
+      sources: sources(),
+      signal: AbortSignal.timeout(5_000),
+      state,
+      delegateTask: async () => {
+        delegated = true;
+        return { taskId: 'job-init' };
+      },
+    });
+
+    const tool = (name: string) => tools.find((item) => item.name === name)!;
+
+    // get_trip
+    const tripRes = await run(tool('get_trip'), {});
+    assert.match(tripRes.output![0]!.text, /尚未生成行程/);
+
+    // get_day
+    const dayRes = await run(tool('get_day'), { dayIndex: '1' });
+    assert.match(dayRes.output![0]!.text, /尚未生成行程/);
+
+    // search_places: 使用 destination 兜底成功
+    const placesRes = await run(tool('search_places'), { keyword: '川菜' });
+    assert.match(placesRes.output![0]!.text, /陈麻婆豆腐/);
+
+    // add_activity: 写工具安全返回 ok=false
+    const writeRes = await run(tool('add_activity'), { name: '锦里', dayIndex: '1' });
+    assert.match(writeRes.output![0]!.text, /尚未生成行程/);
+
+    // delegate_task: 成功委派
+    const delRes = await run(tool('delegate_task'), { kind: 'trip_generation' });
+    assert.equal(delRes.isError, undefined);
+    assert.equal(delegated, true);
+    assert.equal(state.delegatedTask?.id, 'job-init');
+  });
 });

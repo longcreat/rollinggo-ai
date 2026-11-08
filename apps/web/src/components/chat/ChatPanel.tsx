@@ -20,7 +20,7 @@ import { Button } from '../ui/Button';
 import { EditorIcon } from '../editor/EditorIcon';
 
 interface Props {
-  conversationId: string; trip: Trip; dayId?: string; readOnly: boolean; busy: boolean;
+  conversationId: string; trip?: Trip | null; dayId?: string; readOnly: boolean; busy: boolean;
   begin: () => Promise<Trip>; end: () => void;
   onTrip: (id: string, result?: TripOperationResult) => Promise<void>;
   /** 生成直播期：复用同一个主 Agent 对话，只读并实时更新任务节点。 */
@@ -28,6 +28,10 @@ interface Props {
   liveStatus?: 'running' | 'done' | 'error' | 'cancelled';
   /** 直播停止/失败后继续向主 Agent 提要求；成功后由页面切到新任务。 */
   liveSend?: (text: string) => Promise<void>;
+  /** 从首页初次带文本进入时自动发送首条消息 */
+  initialText?: string;
+  /** 任务委派启动回调（通知外层工作台） */
+  onTaskStarted?: (jobId: string) => void;
 }
 const labels = { food: '推荐美食', explore: '看看沿途玩法', pace: '检查行程节奏', more_food: '再推荐几家', light_food: '换成清淡口味', dinner: '看看晚餐' };
 const initialSuggestions = ['food', 'explore', 'pace'] as const;
@@ -39,10 +43,10 @@ function HistoryThinking({ message }: { message?: ChatMessage }) {
   return <ThinkingRow thinking={{ durationMs: meta.durationMs }} />;
 }
 
-export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, end, onTrip, live = false, liveStatus = 'running', liveSend }: Props) {
+export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, end, onTrip, live = false, liveStatus = 'running', liveSend, initialText, onTaskStarted }: Props) {
   const qc = useQueryClient();
   const detail = useConversation(conversationId);
-  const versions = useTripVersions(trip.id);
+  const versions = useTripVersions(trip?.id ?? '');
   const versionIds = versions.data ? new Set(versions.data.versions.map((version) => version.id)) : null;
   const [pending, setPending] = useState<PendingExchange | null>(null);
   const [error, setError] = useState('');
@@ -79,7 +83,21 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
   // 问题卡在输入框上方的 dock 里显示（对齐 opencode session question dock），不在消息流中。
   const activeQuestion = pending?.question && pending.questionState === 'pending' ? pending.question : null;
   const recoveredPending = !pending && recovered && recoveredState === 'pending' ? recovered : null;
-  useEffect(() => () => controller.current?.abort(), []);
+  const unmountAbortTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    // 抵御 React.StrictMode 或快速 remount：如果是虚拟卸载立即重载，取消 abort 计时器
+    if (unmountAbortTimer.current) {
+      clearTimeout(unmountAbortTimer.current);
+      unmountAbortTimer.current = null;
+    }
+    return () => {
+      const ctrl = controller.current;
+      unmountAbortTimer.current = setTimeout(() => {
+        ctrl?.abort();
+        unmountAbortTimer.current = null;
+      }, 200);
+    };
+  }, []);
   useEffect(() => {
     if (following.current) scroll.current?.scrollTo({ top: scroll.current.scrollHeight });
   }, [messages.length, pending, recovered]);
@@ -126,7 +144,13 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
   const accept = async (result: SendMessageResult) => {
     await qc.invalidateQueries({ queryKey: keys.conversation(conversationId) });
     void qc.invalidateQueries({ queryKey: keys.me });
-    if (result.editResult && result.editResult.tripId !== trip.id) await onTrip(result.editResult.tripId);
+    if (result.startedGenerationJobId) {
+      onTaskStarted?.(result.startedGenerationJobId);
+    }
+    const newTripId = result.editResult?.tripId ?? result.replyMessage.relatedTripId;
+    if (newTripId && (!trip || newTripId !== trip.id)) {
+      await onTrip(newTripId);
+    }
     setPending(null);
     setRecovered(null);
     setQuestionError('');
@@ -186,6 +210,14 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
       setAnswering(false);
     }
   };
+  const initialSent = useRef(false);
+  useEffect(() => {
+    if (initialText && !initialSent.current && allMessages.length === 0 && !pending) {
+      initialSent.current = true;
+      void send(initialText);
+    }
+  }, [initialText, allMessages.length, pending]);
+
   const send = async (text: string, suggestion?: DetailChatRequest['suggestion'], retry?: DetailChatRequest, scopeDayId: string | null = dayId ?? null) => {
     if (submitting.current || busy || readOnly) return;
     submitting.current = true; setError(''); setStopping(false);
@@ -193,9 +225,18 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
     let input: DetailChatRequest | undefined;
     let acquired = false;
     try {
-      const saved = await begin();
-      acquired = true;
-      input = retry ?? { requestId: uid(), text, tripId: saved.id, updatedAt: saved.updatedAt, ...(scopeDayId ? { dayId: scopeDayId } : {}), ...(suggestion ? { suggestion } : {}) };
+      let saved: Trip | null = null;
+      if (trip) {
+        saved = await begin();
+        acquired = true;
+      }
+      input = retry ?? {
+        requestId: uid(),
+        text,
+        ...(saved ? { tripId: saved.id, updatedAt: saved.updatedAt } : {}),
+        ...(scopeDayId ? { dayId: scopeDayId } : {}),
+        ...(suggestion ? { suggestion } : {}),
+      };
       setPending({ input, parts: [], textOpen: false, state: 'running' });
       controller.current = new AbortController();
       const result = await streamChat(conversationId, input, controller.current.signal, (event) => {
@@ -218,6 +259,12 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
       });
       await accept(result);
     } catch (err) {
+      const isAbort = (err instanceof DOMException && err.name === 'AbortError')
+        || (err instanceof Error && (err.name === 'AbortError' || err.message.toLowerCase().includes('abort')));
+      if (isAbort) {
+        setPending((p) => p ? { ...p, state: stopping ? 'stopped' : 'error' } : p);
+        return;
+      }
       const recovered = input ? await recoverChat(conversationId, input.requestId).catch(() => null) : null;
       if (recovered) {
         try { await accept(recovered); return; }
@@ -232,6 +279,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
     } finally { controller.current = null; submitting.current = false; setStopping(false); if (acquired) end(); }
   };
   const renderSuggestions = (scopeDayId: string | undefined) => {
+    if (!trip) return null;
     const scopeDay = trip.days.find((d) => d.id === scopeDayId);
     return <div className="chat-suggestions mt-2 flex flex-col gap-1.5" aria-label="起始建议">
       {initialSuggestions.map((kind) => (
@@ -283,7 +331,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
             {taskTurn.start?.content.trim() && <MessageBubble message={taskTurn.start} plain showCopy={false} />}
             <TaskCard jobId={taskTurn.taskId} conversationId={conversationId} />
             {taskTurn.completion && <MessageBubble message={taskTurn.completion} plain copyText={turnText} />}
-            {taskTurn.start?.attachment?.candidates.map((candidate) => <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />)}
+            {trip && taskTurn.start?.attachment?.candidates.map((candidate) => <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />)}
           </div>;
         }
         const activitySteps = message.role === 'assistant' && message.attachment
@@ -341,7 +389,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
           }
           if (part.type === 'text') {
             return index === lastTextIndex
-              ? <div key={`text-${index}`} className="mb-1.5"><MessageBubble plain showCopy={false} message={{ ...message, content: part.text }} copyText={message.content} onUndo={(previousTripId) => undoEdit(previousTripId, message.relatedTripId)} undoing={undoing} canUndo={!readOnly && message.relatedTripId === trip.id} editExists={!versionIds || !message.relatedTripId || versionIds.has(message.relatedTripId)} /></div>
+              ? <div key={`text-${index}`} className="mb-1.5"><MessageBubble plain showCopy={false} message={{ ...message, content: part.text }} copyText={message.content} onUndo={(previousTripId) => undoEdit(previousTripId, message.relatedTripId)} undoing={undoing} canUndo={Boolean(!readOnly && trip && message.relatedTripId === trip.id)} editExists={!versionIds || !message.relatedTripId || versionIds.has(message.relatedTripId)} /></div>
               : <div key={`text-${index}`} className="chat-bubble mb-1.5 break-words rounded-2xl bg-slate-50/90 px-3.5 py-2.5 text-sm leading-relaxed text-slate-800"><ChatText text={part.text} markdown /></div>;
           }
           return <Fragment key={`steps-${index}`}>
@@ -350,11 +398,11 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
           </Fragment>;
         }) : <>
             {activitySteps.length > 0 && <AgentActivity steps={activitySteps} state="completed" />}
-            <MessageBubble plain message={message} onUndo={(previousTripId) => undoEdit(previousTripId, message.relatedTripId)} undoing={undoing} canUndo={!readOnly && message.relatedTripId === trip.id} editExists={!versionIds || !message.relatedTripId || versionIds.has(message.relatedTripId)} />
+            <MessageBubble plain message={message} onUndo={(previousTripId) => undoEdit(previousTripId, message.relatedTripId)} undoing={undoing} canUndo={Boolean(!readOnly && trip && message.relatedTripId === trip.id)} editExists={!versionIds || !message.relatedTripId || versionIds.has(message.relatedTripId)} />
           </>}
         {!hasQuestionParts && legacyAnchor < 0 && questionsCard(questionRecords, `q-${message.id}-tail`)}
         {message.attachment?.notice && <p className="mb-0 mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">{message.attachment.notice}</p>}
-        {message.attachment?.candidates.map((candidate) => <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />)}
+        {trip && message.attachment?.candidates.map((candidate) => <FoodCard key={candidate.id} candidate={candidate} trip={trip} conversationId={conversationId} disabled={busy || readOnly} readOnly={readOnly} begin={begin} end={end} onTrip={onTrip} />)}
         {message.role === 'assistant' && message.attachment?.clarification && <div className="chat-answer-options mt-3 flex flex-wrap gap-1.5" role="group" aria-label={message.attachment.clarification.question}>
           {message.attachment.clarification.options.map((option) => <button type="button" key={option} className="rounded-full border border-slate-200 bg-white hover:bg-slate-50 px-3 py-1.5 text-left text-xs font-medium text-slate-800 transition-colors cursor-pointer shadow-2xs" disabled={busy || readOnly || running || message.id !== messages.at(-1)?.id} onClick={() => void send(option, undefined, undefined, message.attachment?.dayId ?? null)}>{option}</button>)}
         </div>}

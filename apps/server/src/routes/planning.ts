@@ -1,10 +1,10 @@
-// 行前对话（表单入口）：还没有行程，主 Agent 确认条件后委派生成。
-// 与详情对话共用 turn 锁、幂等键与错误文案；区别只是准入（会话无行程）与工具面（只有委派）。
+// 行前对话（兼容端点）：已统一到底层主 Agent（runDetailChat）。
+// 保留此路由以防旧客户端或自动化测试依赖 /:id/planning，内部全量走主 Agent ReAct。
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { PlanningTurnRequestSchema, type ChatStreamEvent } from '@tripweaver/shared';
 import { hasSiteLlm } from '../env';
-import { preparePlanningChat, runPlanningChat } from '../services/planningChatService';
+import { prepareDetailChat, runDetailChat } from '../services/detailChatService';
 import { startDetailTurn } from '../services/detailOperationService';
 import { resolveLlmConfig } from '../services/settingsService';
 import { streamErrorPayload } from '../chat/streamError';
@@ -21,10 +21,10 @@ export const planningRoutes: FastifyPluginAsyncTypebox = async (app) => {
     const conversationId = request.params.id;
     const input = request.body;
 
-    const prepared = await preparePlanningChat(userId, conversationId, input);
-    if ('saved' in prepared) return prepared.saved;
+    const prepared = await prepareDetailChat(userId, conversationId, input);
+    if ('saved' in prepared && prepared.saved) return prepared.saved;
     const cfg = await resolveLlmConfig(userId);
-    if (!cfg) return reply.code(400).send({ error: '当前没有可用的 AI 配置', code: 'no_llm', hasSiteLlm: hasSiteLlm() });
+    if (!cfg) return reply.code(400).send({ error: '当前没有可用的 AI 配置', code: 'no_llm', hasSiteKey: hasSiteLlm() });
 
     // 表单入口只要最终结果：`?stream=0` 走普通 JSON，避免前端解析 SSE；对话场景可继续用流。
     const streaming = (request.query as { stream?: string }).stream !== '0';
@@ -32,7 +32,7 @@ export const planningRoutes: FastifyPluginAsyncTypebox = async (app) => {
       const turn = startDetailTurn(userId, conversationId, input.requestId);
       const timer = setTimeout(() => turn.controller.abort(), TURN_TIMEOUT_MS);
       try {
-        return await runPlanningChat(userId, conversationId, input, cfg, turn.controller.signal, () => {});
+        return await runDetailChat(userId, conversationId, input, cfg, turn.controller.signal, () => {});
       } finally {
         clearTimeout(timer);
         turn.release();
@@ -68,7 +68,7 @@ export const planningRoutes: FastifyPluginAsyncTypebox = async (app) => {
 
     try {
       send({ type: 'accepted' });
-      const result = await runPlanningChat(userId, conversationId, input, cfg, turn.controller.signal, (event) => send(event));
+      const result = await runDetailChat(userId, conversationId, input, cfg, turn.controller.signal, (event) => send(event));
       if (result.replyMessage.attachment) send({ type: 'recommendations', attachment: result.replyMessage.attachment });
       send({ type: 'done', result });
     } catch (error) {

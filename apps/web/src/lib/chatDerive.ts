@@ -17,19 +17,24 @@ export const TRANSPORT_LABELS: Record<TransportMode, string> = {
 
 /** 发送/编辑失败 → 可操作提示（沿用既有 4xx 分流风格：给下一步，而不是死胡同） */
 export function chatErrorMessage(error: unknown): string {
-  if (!(error instanceof ApiError)) return '网络异常，请稍后重试';
-  if (error.status === 401) return '登录已过期，请刷新页面重新登录。';
-  if (error.status === 404) return '会话不存在或已被删除，请刷新页面。';
-  if (error.status === 429) {
-    const resetAt = typeof error.data?.resetAt === 'number' ? new Date(error.data.resetAt) : null;
-    const at = resetAt ? `，${String(resetAt.getHours()).padStart(2, '0')}:${String(resetAt.getMinutes()).padStart(2, '0')} 后重置` : '';
-    return `今日对话次数已用完${at}。条件齐了可以直接点「开始生成」，生成次数是另一套额度。`;
+  if (error instanceof ApiError) {
+    if (error.status === 401) return '登录已过期，请刷新页面重新登录。';
+    if (error.status === 404) return '会话不存在或已被删除，请刷新页面。';
+    if (error.status === 429) {
+      const resetAt = typeof error.data?.resetAt === 'number' ? new Date(error.data.resetAt) : null;
+      const at = resetAt ? `，${String(resetAt.getHours()).padStart(2, '0')}:${String(resetAt.getMinutes()).padStart(2, '0')} 后重置` : '';
+      return `今日对话次数已用完${at}。条件齐了可以直接点「开始生成」，生成次数是另一套额度。`;
+    }
+    if (error.status === 400 && error.code === 'no_llm') {
+      return error.data?.hasSiteKey
+        ? '站点 AI 配置异常，请联系站长。'
+        : '本站未配置 AI 服务：普通用户请联系站长开通；也可以在「设置 → 高级选项」填入自己的 API Key 立即使用。';
+    }
+    if (error.status >= 500) return '这条消息暂时没有理解成功，可以直接重发一次。';
+    return error.message;
   }
-  if (error.status === 400 && error.code === 'no_llm') {
-    return error.data?.hasSiteKey
-      ? '站点 AI 配置异常，请联系站长。'
-      : '本站未配置 AI 服务：普通用户请联系站长开通；也可以在「设置 → 高级选项」填入自己的 API Key 立即使用。';
-  }
-  if (error.status >= 500) return '这条消息暂时没有理解成功，可以直接重发一次。';
-  return error.message;
+  if (error instanceof DOMException && error.name === 'AbortError') return '已取消回答';
+  if (error instanceof Error && (error.name === 'AbortError' || error.message.toLowerCase().includes('abort'))) return '已取消回答';
+  if (error instanceof Error && error.message) return error.message;
+  return '网络异常，请稍后重试';
 }

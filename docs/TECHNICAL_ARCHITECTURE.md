@@ -9,7 +9,7 @@
 > - v0.2~v0.6：历史演进（前后端分离 → 三 Agent 流水线 → 小红书语料 RAG → GCJ-02 坐标 → pgvector 检索），细节见 git 历史与本文件旧版。
 > - **v0.7（本版）**：**产品范式切换为 Agent harness 中心**——
 >   ① 生成主链路改为「调研 Agent → 规划 Agent（选点/分天/排序/时刻）→ 确定性校准层」；旧的确定性排程引擎（`scheduling/schedule.ts`）退出生成主链，仅剩「对话加天」路径待迁移；
->   ② 详情对话升级为**单一读写主 Agent**（pi-durable harness：每人一份 SQLite durable 会话、19 工具、只读子代理、ask_user 人机协作、回合内存草稿 + 提交钩子、改动清单 + rewind 撤销），旧的 understanding→editOps 确定性编辑链已下线；
+>   ② 对话升级为**极简单主 Agent 架构**（pi-durable harness：行前收集与行中详情完全统一，每人一份 SQLite durable 会话、19 工具、自主派发规划子 Agent `delegate_task` 与只读探索子 Agent `spawn_subagents`、ask_user 人机协作、回合内存草稿 + 提交钩子、改动清单 + rewind 撤销），消除双主 Agent / 双端点架构异味；旧的 understanding→editOps 确定性编辑链与独立行前 Agent 已下线；
 >   ③ 新增**行前体检**（Pass1 确定性审计 → 决策卡 → 实时核验 → Pass2 确定性重排）；
 >   ④ 天地图整体下线，数据源收敛为**高德单源**；图片体系收敛为**高德 POI 单源**（四层图库 + 审图队列删除）；
 >   ⑤ 高德配额默认**只计量不拦截**（`AMAP_QUOTA_ENFORCE=false`，测试环境口径）；Agent 无灰度开关，无条件启用。
@@ -54,11 +54,12 @@
 │   · destinations · /api/chat/parse-prompt                    │
 ├───────────────────────────────────────────────────────────┤
 │  Agent 层（统一循环底座 pi-agent-core / pi-ai / pi-durable）  │
-│   【生成】orchestrator：①调研 Agent → ②规划 Agent            │
-│     （list_areas→search_area_places→plan_day→validate→submit）│
-│     → ③文案 Agent；之后确定性校准层（见 §5.1）                 │
-│   【详情对话】读写主 Agent harness（19 工具 + spawn_subagents │
-│     只读子代理 + ask_user HITL + 回合草稿提交钩子）            │
+│   【极简单主 Agent】统一读写主 Agent（行前与行中全生命周期）：    │
+│     统一会话流（POST /messages/stream）、durable 会话绑定、    │
+│     19 项工具集、ask_user 人机交互、回合草稿提交钩子；        │
+│     需要全局规划时自主派发后台规划子 Agent（delegate_task）；  │
+│     需要多主题调研时并行派发只读探索子 Agent（spawn_subagents）│
+│   【生成】规划子 Agent 工作流：①调研 → ②规划分天 → ③文案校准  │
 │   【体检】Pass1 确定性审计 → 决策卡 → 实时核验 → Pass2 重排     │
 ├───────────────────────────────────────────────────────────┤
 │  数据层：PostgreSQL 16 + pgvector（业务表 + 知识库 + 体检会话） │

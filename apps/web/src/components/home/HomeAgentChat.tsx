@@ -11,7 +11,7 @@ import {
 } from './HomeIcons';
 
 interface HomeAgentChatProps {
-  onStart: (draft: HomeTripDraft, targetCity?: string, text?: string) => void;
+  onStart: (draft?: HomeTripDraft, targetCity?: string, text?: string) => void;
   currentCity: string | null;
   onCityChanged: (city: string) => void;
 }
@@ -44,37 +44,11 @@ export function HomeAgentChat({
     }
   }, [currentCity]);
 
-  // 极速提交并一步直达规划页
-  const handleDirectSubmit = async (textToSubmit?: string) => {
+  // 极速提交并一步直达主 Agent 工作台
+  const handleDirectSubmit = (textToSubmit?: string) => {
     const text = (textToSubmit ?? prompt).trim();
-    if (!text || parsePrompt.isPending) return;
-
-    try {
-      const res: ParsedPromptResult = await parsePrompt.mutateAsync({
-        prompt: text,
-        current: currentCity ? { destination: currentCity } : undefined,
-      });
-
-      onCityChanged(res.destination);
-
-      // 直接触发直达生成，跳转 /trips/new?autostart=1
-      onStart(
-        {
-          startDate: res.startDate,
-          endDate: res.endDate,
-          days: res.days,
-          pace: res.pace as TripPace,
-          partySize: res.partySize,
-          preferences: res.preferences as any,
-          transportMode: 'transit',
-          extraNotes: res.extraNotes,
-        },
-        res.destination,
-        text,
-      );
-    } catch (err) {
-      console.error('Failed to parse prompt for direct launch:', err);
-    }
+    if (!text) return;
+    onStart(undefined, currentCity ?? undefined, text);
   };
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {

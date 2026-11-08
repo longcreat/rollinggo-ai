@@ -13,8 +13,8 @@ import { assertLatestTrip } from '../../services/tripService';
 import { getTripWeather } from '../../services/tripWeatherService';
 import type { LlmConfig } from '../../services/settingsService';
 import type { AgentPart, AgentStep, ChatAttachment, ChatStreamEvent, DetailChatRequest, SendMessageResult, Trip } from '@tripweaver/shared';
-import { Value } from '@sinclair/typebox/value';
 import { SendMessageResultSchema } from '@tripweaver/shared';
+import { Value } from '@sinclair/typebox/value';
 import { allowsWebSearch, collectReferences } from '../detailKnowledge';
 import { applyDialogueDecision, briefStatus, syncBriefTripDates } from '../brief';
 import { resolveDetailSources } from '../detailSources';
@@ -42,6 +42,8 @@ import { markQuestionAnswered, markQuestionExpired, recordQuestion } from './que
 import { claimsUnappliedEdit, withEditCorrection } from './editClaim';
 import { readBinding, saveBinding } from './binding';
 import { TOOL_LABEL } from './labels';
+import { buildPlanningPrompt } from './planningPrompt';
+import { withTimeContext } from './timeContext';
 
 /** 详情对话流式事件（requestId/sequence 由路由统一补）。 */
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
@@ -101,7 +103,8 @@ const SYSTEM_INSTRUCTIONS = `你是 RollingGo 的旅行规划助手，运行在 
 
 <generation>
 - 用户修改下一次完整生成的条件（日期/天数/人数/节奏/偏好/约束）时用 update_brief。
-- 用户明确要求按当前条件生成或重新生成整份行程时用 delegate_task（kind=trip_generation）。它是后台委派：有当前行程时会生成它的新版本（不是覆盖，也不是另起一份），调用后立即告诉用户「已在后台开始，可在任务页查看进度」，不要等结果、不要声称行程已生成好。
+- 用户明确要求按当前条件生成或重新生成整份行程时用 delegate_task（kind=trip_generation）。它是后台委派：有当前行程时会生成它的新版本（不是覆盖，也不是另起一份），无行程时启动全新规划。调用后立即告诉用户「已在后台开始，可在任务页查看进度」，不要等结果、不要声称行程已生成好。
+- 遇到 [系统提示] 请求开启行程规划时，务必调用 delegate_task 发起规划。
 - 用户问「任务到哪了/好了吗」时用 task_status 读取真实状态，不要编造进度。
 - 普通咨询或小修改不要调用 update_brief / delegate_task / task_status。
 - 需要同时调研多个主题（多天安排、多个片区、多组候选）时，用 spawn_subagents 并行派发；单点查询直接调 search_places / web_search / search_food，不要为一件小事开子代理。找具体地点用 kind=places，查政策口碑用 kind=notes。
@@ -119,7 +122,7 @@ export interface RunAgentAnswerOptions {
   userId: string;
   conversationId: string;
   detail: NonNullable<Awaited<ReturnType<typeof getConversationDetail>>>;
-  trip: Trip;
+  trip?: Trip | null;
   input: DetailChatRequest;
   cfg: LlmConfig;
   fingerprint: string;
@@ -133,15 +136,22 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
   await ensureAgentStorageDir();
   const sources = await resolveDetailSources(userId, signal, allowsWebSearch(input.text));
 
-  // 详情页始终是读写主 Agent：本回合所有改动先落内存草稿，回答生成后统一提交（一轮只产生一个版本）。
+  // 主 Agent：无行程时为规划咨询/触发生成态，有行程时为读写主 Agent。
+  // 本回合所有改动先落内存草稿，回答生成后统一提交（一轮只产生一个版本）。
   // 时刻由 itinerary/schedule 派生，节奏取最近一次对话 Brief。
   const pace = detail.conversation.brief.data.pace ?? 'moderate';
-  const draft = createTripDraft(trip, { pace });
+  // 目的地：优先从已有行程或会话 Brief 读取；未确定时为 undefined，绝不无脑硬编码特定城市
+  const destination = trip?.destination ?? detail.conversation.brief.data.destination ?? undefined;
+
+  const transportMode = trip?.transportMode ?? detail.conversation.brief.data.transportMode ?? 'transit';
+  const draft = trip ? createTripDraft(trip, { pace }) : null;
   // 地理会话惰性创建：只有真要定位新地点时才初始化（读凭据 + 扣地理额度）
   let geo: ReturnType<typeof createGeoSession> | null = null;
-  const resolvePlace = async (name: string) => {
+  const resolvePlace = async (name: string, targetCity?: string) => {
     try {
-      geo ??= createGeoSession(userId, trip.destination, trip.transportMode ?? 'transit');
+      const city = targetCity?.trim() || destination;
+      if (!city) return null;
+      geo ??= createGeoSession(userId, city, transportMode);
       await geo.init();
       const point = await geo.resolvePlace(name);
       return point ? { lat: point.lat, lng: point.lng } : null;
@@ -192,8 +202,8 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
       userId,
       conversationId,
       brief: briefWithPatch(),
-      // 行程内重新生成 = 当前行程的下一版，保持版本链与同一个会话。
-      targetTripId: trip.id,
+      // 行程内重新生成 = 当前行程的下一版，保持版本链与同一个会话；行前首次生成为 undefined
+      targetTripId: trip?.id,
       parentTurnId: input.requestId,
       onRunning: 'error',
       createTask: (taskInput) =>
@@ -205,7 +215,9 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
   const taskStatus = () => readGenerationStatus(userId, state.delegatedTask?.id);
 
   const tools = createTripTools({
-    trip, sources, signal, getWeather: getTripWeather, points, draft, resolvePlace, state,
+    trip, destination, sources, signal,
+    getWeather: trip ? getTripWeather : undefined,
+    points, draft, resolvePlace, state,
     delegateTask,
     taskStatus,
     askUser: (questions) => hitl.ask(questions),
@@ -219,12 +231,18 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
   });
   const durableId = await readBinding(userId, conversationId);
 
-  const scope = input.dayId ? trip.days.find((day) => day.id === input.dayId) : undefined;
-  const scopeLine = scope
-    ? `当前范围：第 ${scope.dayIndex} 天「${scope.title}」。`
-    : '当前范围：整趟行程。';
-  const suggestionLine = input.suggestion ? `\n用户点击了快捷建议：${input.suggestion}。` : '';
-  const prompt = `${scopeLine}${suggestionLine}\n\n用户：${input.text}`;
+  let prompt: string;
+  if (trip) {
+    const scope = input.dayId ? trip.days.find((day) => day.id === input.dayId) : undefined;
+    const scopeLine = scope
+      ? `当前范围：第 ${scope.dayIndex} 天「${scope.title}」。`
+      : '当前范围：整趟行程。';
+    const suggestionLine = input.suggestion ? `\n用户点击了快捷建议：${input.suggestion}。` : '';
+    prompt = `${scopeLine}${suggestionLine}\n\n用户：${input.text}`;
+  } else {
+    const suggestionLine = input.suggestion ? `\n用户点击了快捷建议：${input.suggestion}。` : '';
+    prompt = `${buildPlanningPrompt({ brief: detail.conversation.brief.data, text: input.text, autostart: Boolean(input.autostart) })}${suggestionLine}`;
+  }
 
   const steps: AgentStep[] = [];
   // 正文段与工具段按真实事件顺序排列；正文出现即关闭上一段工具，工具出现即关闭上一段正文。
@@ -267,7 +285,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     storagePath: agentStoragePath(userId),
     models: await buildAgentModels(cfg),
     tools,
-    instructions: SYSTEM_INSTRUCTIONS,
+    instructions: withTimeContext(SYSTEM_INSTRUCTIONS),
     model: agentModelRef(cfg.model),
     ...(thinkingLevel ? { thinkingLevel } : {}),
     prompt,
@@ -276,7 +294,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     signal,
     // 子代理在创建时就只装配只读白名单（toolPolicy 是唯一事实源），不带写工具/交互工具/派生能力。
     subagent: {
-      instructions: SUBAGENT_INSTRUCTIONS,
+      instructions: withTimeContext(SUBAGENT_INSTRUCTIONS),
       childTools: SUBAGENT_READ_ONLY_TOOL_NAMES,
       maxTurns: 6,
       maxTasks: 3,
@@ -356,19 +374,19 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
   signal.throwIfAborted();
   sources.assertHealthy();
   // 新增活动要进 overview 候选池，否则详情弹窗没有封面、简介与预约信息
-  const next = draft.changed() ? syncOverviewWithActivities(draft.snapshot(), points) : null;
+  const next = draft?.changed() ? syncOverviewWithActivities(draft.snapshot(), points) : null;
   // 本回合没查过高德图（模型直接凭知识加地点）时，补一次官方图：最多 3 个、失败静默
   const needPhoto = (next?.overview ?? []).filter((poi) => !poi.coverUrl && !poi.photos?.length && poi.category === 'attraction').slice(0, 3);
   if (needPhoto.length) {
     const lookup = createAmapPoiPhotoLookup(env.amapKey, needPhoto.length);
     for (const poi of needPhoto) {
-      const urls = await lookup.photosFor({ name: poi.name, city: trip.destination }).catch(() => []);
+      const urls = destination ? await lookup.photosFor({ name: poi.name, city: destination }).catch(() => []) : [];
       if (!urls.length) continue;
       poi.coverUrl = urls[0];
       poi.photos = urls.map((url) => ({ url }));
     }
   }
-  const outcomes = draft.outcomes().filter((outcome) => outcome.applied).slice(0, 10);
+  const outcomes = draft ? draft.outcomes().filter((outcome) => outcome.applied).slice(0, 10) : [];
   const editedSummary = outcomes.map((outcome) => outcome.summary).join('；').slice(0, 400);
   const spoken = result.text.trim();
   if (spoken && !parts.some((part) => part.type === 'text')) {
@@ -379,7 +397,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     throw Object.assign(new Error('回答中断，请重试'), { statusCode: 502 });
   }
   // 结构变化后重算受影响当天的通勤段与折线；地图上的标记与动线随之更新。
-  if (next) {
+  if (next && trip) {
     await repairChangedRoutes(userId, trip, next, signal);
     signal.throwIfAborted();
     // 真实通勤段就位后，由时间轴统一写最终时刻；顺序与停留时长是模型唯一的输入。
@@ -394,20 +412,28 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
   if (claimsUnappliedEdit(answer, Boolean(next))) {
     answer = withEditCorrection(answer);
   }
+  answer = answer.slice(0, 4000);
   const references = collectReferences([
     ...sources.web.map(({ title, url }) => ({ title, url })),
     ...state.foodCandidates.flatMap((candidate) => candidate.sources),
   ]);
   const attachment: ChatAttachment = {
-    tripId: trip.id,
+    ...(trip ? { tripId: trip.id } : {}),
     ...(input.dayId ? { dayId: input.dayId } : {}),
-    summary: steps.map((step) => step.label).slice(0, 20),
-    ...(steps.length ? { steps: steps.slice(0, 24) } : {}),
-    ...(parts.length ? { parts: parts.slice(0, 40) } : {}),
+    summary: steps.map((step) => step.label.slice(0, 300)).slice(0, 50),
+    ...(steps.length ? { steps: steps.slice(0, 50) } : {}),
+    ...(parts.length ? { parts: parts.slice(0, 100) } : {}),
     elapsedMs: Math.max(0, Date.now() - turnStartedAt),
-    candidates: state.foodCandidates,
-    references,
-    ...(state.questions.length ? { questions: state.questions } : {}),
+    candidates: state.foodCandidates.slice(0, 10),
+    references: references.slice(0, 20),
+    ...(state.questions.length ? {
+      questions: state.questions.slice(0, 20).map((q) => ({
+        question: q.question.slice(0, 500),
+        options: q.options.slice(0, 12).map((opt) => opt.slice(0, 200)),
+        selected: q.selected.slice(0, 12).map((sel) => sel.slice(0, 200)),
+        ...(q.custom ? { custom: q.custom.slice(0, 500) } : {}),
+      })),
+    } : {}),
     ...(state.foodNotes.length && !state.foodCandidates.length ? { notice: state.foodNotes.join(' ').slice(0, 500) } : {}),
     ...(state.thinking ? {
       thinking: {
@@ -427,21 +453,22 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
 
   const committed: unknown = await commitOperation(userId, input.requestId, fingerprint, async (tx) => {
     signal.throwIfAborted();
-    const latest = await assertLatestTrip(userId, trip.id, input.updatedAt, tx);
-    // 对话额度不限量（测试环境）：原 chatHasQuota 429 复查已移除，恢复点见 chatQuotaService.chatHasQuota 注释。
-    // 行程与消息同事务提交：要么都落，要么都不落（避免「页面说改了、库里没改」）。
-    let savedTrip = trip;
+    let savedTrip = trip ?? null;
     let version: number | undefined;
-    if (next) {
-      savedTrip = await createTrip(userId, next, trip.id, tx);
-      version = latest.version + 1;
-      await tx.update(trips).set({ changeSummary: (editedSummary || '对话调整行程').slice(0, 200) })
-        .where(and(eq(trips.id, savedTrip.id), eq(trips.userId, userId)));
-      answer = `${answer}\n\n已保存为 v${version}，${editedSummary}。`.slice(0, 4000);
+    let latest: { id: string; version: number } | undefined;
+    if (trip) {
+      latest = await assertLatestTrip(userId, trip.id, input.updatedAt, tx);
+      if (next) {
+        savedTrip = await createTrip(userId, next, trip.id, tx);
+        version = latest.version + 1;
+        await tx.update(trips).set({ changeSummary: (editedSummary || '对话调整行程').slice(0, 200) })
+          .where(and(eq(trips.id, savedTrip.id), eq(trips.userId, userId)));
+        answer = `${answer}\n\n已保存为 v${version}，${editedSummary}。`.slice(0, 4000);
+      }
     }
     const savedAttachment: ChatAttachment = {
       ...attachment,
-      ...(version ? { edit: { version, previousTripId: latest.id, outcomes } } : {}),
+      ...(version && latest ? { edit: { version, previousTripId: latest.id, outcomes } } : {}),
     };
     const messages = await appendMessages({
       userId,
@@ -454,7 +481,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
           turnId: input.requestId,
           ...(state.delegatedTask ? { taskId: state.delegatedTask.id } : {}),
           attachment: savedAttachment,
-          ...(version ? { relatedTripId: savedTrip.id } : {}),
+          ...(version && savedTrip ? { relatedTripId: savedTrip.id } : {}),
         },
       ],
     }, tx);
@@ -473,11 +500,19 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
       brief,
       intent,
       ...(state.delegatedTask ? { startedGenerationJobId: state.delegatedTask.id } : {}),
-      ...(version ? { editResult: { tripId: savedTrip.id, version, previousTripId: latest.id, outcomes } } : {}),
+      ...(version && latest && savedTrip ? { editResult: { tripId: savedTrip.id, version, previousTripId: latest.id, outcomes } } : {}),
     };
-    if (!Value.Check(SendMessageResultSchema, payload)) throw new Error('对话结果无效');
+    if (!Value.Check(SendMessageResultSchema, payload)) {
+      const errors = Array.from(Value.Errors(SendMessageResultSchema, payload));
+      console.error('[turn] SendMessageResultSchema validation failed! Errors:', JSON.stringify(errors, null, 2));
+      throw new Error(`对话结果无效: ${errors.map((e) => `${e.path}: ${e.message}`).join(', ')}`);
+    }
     return payload;
   });
-  if (!Value.Check(SendMessageResultSchema, committed)) throw new Error('对话结果无效');
-  return committed;
+  if (!Value.Check(SendMessageResultSchema, committed)) {
+    const errors = Array.from(Value.Errors(SendMessageResultSchema, committed));
+    console.error('[turn] SendMessageResultSchema committed validation failed! Errors:', JSON.stringify(errors, null, 2));
+    throw new Error(`对话结果无效: ${errors.map((e) => `${e.path}: ${e.message}`).join(', ')}`);
+  }
+  return committed as SendMessageResult;
 }

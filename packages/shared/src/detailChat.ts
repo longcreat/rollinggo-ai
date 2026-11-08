@@ -98,23 +98,23 @@ export const AgentPartSchema = Type.Union([
 export type AgentPart = Static<typeof AgentPartSchema>;
 
 export const ChatAttachmentSchema = Type.Object({
-  tripId: Type.String(), dayId: Type.Optional(Type.String()),
+  tripId: Type.Optional(Type.String()), dayId: Type.Optional(Type.String()),
   notice: Type.Optional(Type.String({ maxLength: 500 })),
-  summary: Type.Array(Type.String({ maxLength: 300 }), { maxItems: 20 }),
+  summary: Type.Array(Type.String({ maxLength: 300 }), { maxItems: 50 }),
   /** 结构化处理过程；旧消息没有时前端用 summary 回退 */
-  steps: Type.Optional(Type.Array(AgentStepSchema, { maxItems: 24 })),
+  steps: Type.Optional(Type.Array(AgentStepSchema, { maxItems: 50 })),
   /** 正文与工具块的真实顺序；旧消息没有时前端回退到「过程在上、正文在下」 */
-  parts: Type.Optional(Type.Array(AgentPartSchema, { maxItems: 40 })),
+  parts: Type.Optional(Type.Array(AgentPartSchema, { maxItems: 100 })),
   elapsedMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 3_600_000 })),
-  references: Type.Optional(Type.Array(SourceNoteSchema, { maxItems: 8 })),
-  candidates: Type.Array(FoodCandidateSchema, { maxItems: 3 }),
+  references: Type.Optional(Type.Array(SourceNoteSchema, { maxItems: 20 })),
+  candidates: Type.Array(FoodCandidateSchema, { maxItems: 10 }),
   /** 本轮 HITL 问答记录，刷新后仍可回看（Agent 工具内提问，不是文末选项）。 */
   questions: Type.Optional(Type.Array(Type.Object({
-    question: Type.String({ maxLength: 300 }),
-    options: Type.Array(Type.String({ maxLength: 100 }), { maxItems: 6 }),
-    selected: Type.Array(Type.String({ maxLength: 100 }), { maxItems: 6 }),
-    custom: Type.Optional(Type.String({ maxLength: 300 })),
-  }), { maxItems: 3 })),
+    question: Type.String({ maxLength: 500 }),
+    options: Type.Array(Type.String({ maxLength: 200 }), { maxItems: 12 }),
+    selected: Type.Array(Type.String({ maxLength: 200 }), { maxItems: 12 }),
+    custom: Type.Optional(Type.String({ maxLength: 500 })),
+  }), { maxItems: 20 })),
   clarification: Type.Optional(Type.Object({
     question: Type.String({ minLength: 1, maxLength: 300 }),
     options: Type.Array(Type.String({ minLength: 1, maxLength: 100 }), { minItems: 2, maxItems: 3 }),
@@ -140,10 +140,12 @@ export type ChatAttachment = Static<typeof ChatAttachmentSchema>;
 export const DetailChatRequestSchema = Type.Object({
   requestId: Type.String({ minLength: 8, maxLength: 100 }),
   text: Type.String({ minLength: 1, maxLength: 1000 }),
-  tripId: Type.String({ minLength: 1, maxLength: 100 }),
-  updatedAt: Type.Number(),
+  tripId: Type.Optional(Type.String({ minLength: 1, maxLength: 100 })),
+  updatedAt: Type.Optional(Type.Number()),
   dayId: Type.Optional(Type.String({ maxLength: 100 })),
   suggestion: Type.Optional(StringEnum(CHAT_SUGGESTION_KINDS)),
+  /** 表单「开始规划」：首条消息直达时标记，模型漏调 delegate_task 时由服务端确定性兜底 */
+  autostart: Type.Optional(Type.Boolean()),
 });
 export type DetailChatRequest = Static<typeof DetailChatRequestSchema>;
 

@@ -27,7 +27,7 @@ function AppLayoutContent({ userId }: { userId: string }) {
   const openLogin = useLoginDialog();
   const navigate = useNavigate();
   const location = useLocation();
-  const isTripEditor = /^\/(trips|agent)\/[^/]+$/.test(location.pathname) && location.pathname !== '/trips/new';
+  const isTripEditor = /^\/(trips|agent|c)\//.test(location.pathname) && location.pathname !== '/trips/new';
 
   const preferences = useTravelPreferencesDraft();
   const navigation = useAppNavigation();

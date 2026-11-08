@@ -22,12 +22,14 @@ import { createAgentTurnState, mergeBriefPatch, type AgentTurnState } from './tu
 import { DEFAULT_DELEGATED_TASK_KIND, isDelegatedTaskKind, type DelegatedTaskKind } from '../../tasks/delegatedTask';
 
 export interface TripToolDeps {
-  trip: Trip;
+  trip?: Trip | null;
   sources: DetailSources;
   signal: AbortSignal;
   getWeather?: (trip: Trip) => Promise<unknown>;
-  /** 本回合的行程草稿：主 Agent 始终是读写模式，读工具也统一读草稿。 */
-  draft: TripDraft;
+  /** 本回合的行程草稿：主 Agent 始终是读写模式，读工具也统一读草稿。无行程时为 undefined/null */
+  draft?: TripDraft | null;
+  /** 目的地兜底（行前无行程时） */
+  destination?: string;
   /** 新活动定位（高德）；未注入时新增活动按「位置待核实」处理 */
   resolvePlace?: (name: string) => Promise<{ lat: number; lng: number } | null>;
   /**
@@ -190,19 +192,14 @@ function delegationTools(
   return { updateBrief, delegateTask, taskStatus };
 }
 
-/** 行前回合（还没有行程）：只给条件更新与任务委派，不带读/写行程与交互工具。 */
-export function createPlanningTools(
-  deps: Pick<TripToolDeps, 'state' | 'delegateTask' | 'taskStatus'>,
-): ToolRegistration[] {
-  const state = deps.state ?? createAgentTurnState();
-  const { updateBrief, delegateTask, taskStatus } = delegationTools(state, deps);
-  return [updateBrief, delegateTask, taskStatus];
-}
-
 export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
   const { sources, signal } = deps;
-  // 读工具一律读「当前草稿」：本回合的写入立即对后续读取可见。
-  const view = (): Trip => deps.draft.current();
+  // 读工具一律读「当前草稿」：本回合的写入立即对后续读取可见。无行程时为 null。
+  const view = (): Trip | null => deps.draft?.current() ?? deps.trip ?? null;
+  const getCity = (): string | null => {
+    const city = view()?.destination ?? deps.destination ?? deps.state?.briefPatch?.destination;
+    return typeof city === 'string' && city.trim() ? city.trim() : null;
+  };
   // 本回合核验过的坐标（search_places 结果 + 子代理结构化提交）：写工具改名/新增时优先用，
   // 避免把已经查准的地点再交给模糊解析（实测「人民公园东门」会被解到 30km 外的同名点）。
   const points = deps.points ?? createPlacePointCache();
@@ -212,7 +209,18 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     name: 'get_trip',
     description: '读取当前行程的完整结构：每天的标题与活动（含活动 id、时间、类目、简介）。回答行程安排类问题前先调用。',
     parameters: obj({}),
-    execute: async () => ({ output: text(JSON.stringify(tripSnapshot(view()))) }),
+    execute: async () => {
+      const trip = view();
+      if (!trip) {
+        return {
+          output: text(JSON.stringify({
+            hasTrip: false,
+            message: '当前会话尚未生成行程；需要规划整份行程时请调用 delegate_task。',
+          })),
+        };
+      }
+      return { output: text(JSON.stringify(tripSnapshot(trip))) };
+    },
   });
 
   const getDay = defineTool({
@@ -221,6 +229,14 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     parameters: obj({ dayIndex: str({ description: '第几天，从 1 开始' }) }),
     execute: async (args) => {
       const trip = view();
+      if (!trip) {
+        return {
+          output: text(JSON.stringify({
+            hasTrip: false,
+            message: '当前会话尚未生成行程。',
+          })),
+        };
+      }
       const dayIndex = Number.parseInt(args.dayIndex, 10);
       const day = trip.days.find((item) => item.dayIndex === dayIndex);
       if (!day) return { output: text(`没有第 ${args.dayIndex} 天；当前行程共 ${trip.days.length} 天`) };
@@ -230,16 +246,21 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
 
   const searchPlaces = defineTool({
     name: 'search_places',
-    description: '按关键词查真实地点（景点/餐饮/住宿），返回名称、地址、坐标与营业时间。只能查当前城市。',
+    description: '按关键词核实真实地点（景点/餐饮/住宿），返回名称、地址、坐标与营业时间。可指定目标城市，缺省使用当前会话或行程城市。',
     parameters: obj({
-      keyword: str({ description: '地点关键词，如「人民公园」「川菜」' }),
+      keyword: str({ description: '地点关键词，如「断桥残雪」「西湖」「故宫博物院」' }),
       category: opt(str({ description: 'attraction / food / hotel，缺省 attraction' })),
+      city: opt(str({ description: '地点所在城市（如杭州、北京、成都），缺省使用当前会话或行程城市' })),
     }),
     execute: async (args) => {
       signal.throwIfAborted();
+      const targetCity = args.city?.trim() || getCity();
+      if (!targetCity) {
+        return { output: text('请在参数中指定地点所在城市（city），或先向用户确认目的地城市。') };
+      }
       const category = normalizeCategory(args.category);
-      const hits = await sources.poi.searchPois(category, args.keyword, view().destination, signal);
-      if (!hits.length) return { output: text(`未查到「${args.keyword}」相关地点`) };
+      const hits = await sources.poi.searchPois(category, args.keyword, targetCity, signal);
+      if (!hits.length) return { output: text(`在${targetCity}未查到「${args.keyword}」相关地点`) };
       for (const hit of hits) {
         if (hit.location) points.remember(hit.name, hit.location);
         if (hit.photoUrls.length) points.rememberPhotos(hit.name, hit.photoUrls);
@@ -251,13 +272,15 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
   // 片区检索与全网搜索：核心实现与规划子代理共用（agent/tools/dataTools），这里只做 SDK 包装与依赖适配。
   const chatAreaAccess: AreaAccess = {
     signal,
-    async resolve({ area, areaId }) {
+    async resolve({ area, areaId, city }) {
       if (areaId) return { ok: false, error: '错误：对话里请用片区名称（area）' };
       const name = area?.trim();
       if (!name) return { ok: false, error: '错误：需要片区名称（area）' };
-      const centers = await sources.poi.searchPois('attraction', name, view().destination, signal);
+      const targetCity = city?.trim() || getCity();
+      if (!targetCity) return { ok: false, error: '错误：请在参数中指定片区所在城市（city），或先向用户确认目的地城市' };
+      const centers = await sources.poi.searchPois('attraction', name, targetCity, signal);
       const center = centers.find((hit) => hit.location)?.location;
-      if (!center) return { ok: false, error: `未找到「${name}」的中心点，先用 search_places 查一次` };
+      if (!center) return { ok: false, error: `在${targetCity}未找到「${name}」的中心点，先用 search_places 查一次` };
       return { ok: true, area: { name, center, radiusM: 2500 } };
     },
     async search({ center, radiusM, keywords }) {
@@ -322,8 +345,12 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     description: '查询行程日期范围内的天气；不在预报窗口内时返回 not_needed，不要编造天气。',
     parameters: obj({}),
     execute: async () => {
+      const trip = view();
+      if (!trip) {
+        return { output: text(JSON.stringify({ status: 'not_needed', reason: '尚未生成行程或未确定起止日期' })) };
+      }
       if (!deps.getWeather) return { output: text('天气服务不可用') };
-      return { output: text(JSON.stringify(await deps.getWeather(view()))) };
+      return { output: text(JSON.stringify(await deps.getWeather(trip))) };
     },
   });
 
@@ -338,6 +365,9 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     execute: async (args) => {
       signal.throwIfAborted();
       const trip = view();
+      if (!trip) {
+        return { output: text('当前会话尚未生成行程，无法按天或当前活动推荐附近餐厅。可使用 search_places 搜索餐饮。') };
+      }
       const dayIndex = args.dayIndex ? Number.parseInt(args.dayIndex, 10) : undefined;
       if (dayIndex !== undefined && !trip.days.some((day) => day.dayIndex === dayIndex)) {
         return { output: text(`没有第 ${args.dayIndex} 天；当前行程共 ${trip.days.length} 天`) };
@@ -428,10 +458,10 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
       for (const question of questions) {
         const answer = answers.find((item) => item.id === question.id);
         state.questions.push({
-          question: question.question,
-          options: question.options.map((option) => option.label),
-          selected: answer?.selected ?? [],
-          ...(answer?.custom ? { custom: answer.custom } : {}),
+          question: question.question.slice(0, 500),
+          options: question.options.map((option) => option.label.slice(0, 200)).slice(0, 12),
+          selected: (answer?.selected ?? []).map((s) => s.slice(0, 200)).slice(0, 12),
+          ...(answer?.custom ? { custom: answer.custom.slice(0, 500) } : {}),
         });
       }
       // 同一次 ask_user 的多个问题是一组：前端合并成一个问答气泡，而不是每个问题各占一个。

@@ -14,6 +14,7 @@ import {
   type ConversationStatus,
   type ConversationTripRef,
   type PlanningBriefData,
+  type PlanningBriefPatch,
   type PlanningBriefView,
   type Trip,
 } from '@tripweaver/shared';
@@ -179,16 +180,35 @@ export async function getConversationDetail(userId: string, id: string): Promise
   return { conversation, messages: rows.map(toChatMessage), ...(latestTrip ? { latestTrip } : {}) };
 }
 
-/** 新建会话同时建好空的 Brief：保证「会话存在 ⇒ Brief 行存在」，读取路径无需合成假数据 */
-export async function createConversation(userId: string, title?: string, writer?: TripWriter): Promise<Conversation> {
+export interface CreateConversationOptions {
+  title?: string;
+  destination?: string;
+  brief?: PlanningBriefPatch;
+}
+
+/** 新建会话同时建好空的/带初始目的地的 Brief：保证「会话存在 ⇒ Brief 行存在」，读取路径无需合成假数据 */
+export async function createConversation(
+  userId: string,
+  optionsOrTitle?: CreateConversationOptions | string,
+  writer?: TripWriter,
+): Promise<Conversation> {
+  const options = typeof optionsOrTitle === 'string'
+    ? { title: optionsOrTitle }
+    : (optionsOrTitle ?? {});
   const now = new Date();
   const id = uid();
-  const data: PlanningBriefData = { constraints: [] };
+  const destination = options.destination?.trim() || undefined;
+  const initialTitle = options.title?.trim()
+    || (destination ? `${destination}之旅` : DEFAULT_CONVERSATION_TITLE);
+  const data: PlanningBriefData = {
+    constraints: [],
+    ...(destination ? { destination } : {}),
+  };
   const run = async (tx: TripWriter) => {
     await tx.insert(conversations).values({
       id,
       userId,
-      title: title?.trim().slice(0, TITLE_MAX) || DEFAULT_CONVERSATION_TITLE,
+      title: initialTitle.slice(0, TITLE_MAX),
       status: 'active',
       createdAt: now,
       updatedAt: now,
@@ -196,7 +216,14 @@ export async function createConversation(userId: string, title?: string, writer?
     await tx.insert(planningBriefs).values({ conversationId: id, userId, status: 'collecting', data, updatedAt: now });
   };
   if (writer) await run(writer); else await db.transaction(run);
-  return { id, title: title?.trim().slice(0, TITLE_MAX) || DEFAULT_CONVERSATION_TITLE, status: 'active', createdAt: now.getTime(), updatedAt: now.getTime(), brief: { data, status: 'collecting', missingFields: requiredBriefFields(data), updatedAt: now.getTime() } };
+  return {
+    id,
+    title: initialTitle.slice(0, TITLE_MAX),
+    status: 'active',
+    createdAt: now.getTime(),
+    updatedAt: now.getTime(),
+    brief: { data, status: 'collecting', missingFields: requiredBriefFields(data), updatedAt: now.getTime() },
+  };
 }
 
 export interface AppendMessageInput {

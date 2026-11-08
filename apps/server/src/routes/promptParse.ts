@@ -65,7 +65,7 @@ export const promptParseRoutes: FastifyPluginAsyncTypebox = async (app) => {
       if (!hasSiteLlm()) {
         const dates = computeDates(defaultDays);
         return reply.send({
-          destination: defaultDestination || '成都',
+          destination: defaultDestination || '',
           days: defaultDays,
           startDate: current?.startDate || dates.startDate,
           endDate: current?.endDate || dates.endDate,
@@ -134,7 +134,7 @@ export const promptParseRoutes: FastifyPluginAsyncTypebox = async (app) => {
         const partySize = Math.min(Math.max(rawPartySize, 1), 20);
 
         const rawDestination = typeof parsed.destination === 'string' ? parsed.destination.trim().replace(/(市|地区|盟|特别行政区)$/, '') : '';
-        const destination = rawDestination || defaultDestination || '成都';
+        const destination = rawDestination || defaultDestination || '';
 
         const rawPrefs = Array.isArray(parsed.preferences) ? parsed.preferences : [];
         const preferences = rawPrefs
@@ -162,7 +162,7 @@ export const promptParseRoutes: FastifyPluginAsyncTypebox = async (app) => {
         // 模型请求偶发失败时优雅兜底，不阻断用户交互
         const dates = computeDates(defaultDays);
         return reply.send({
-          destination: defaultDestination || '成都',
+          destination: defaultDestination || '',
           days: defaultDays,
           startDate: dates.startDate,
           endDate: dates.endDate,

@@ -10,7 +10,6 @@ import { HomePage } from './pages/HomePage';
 // 其余页面按路由分包：编辑器会把 Leaflet 与地图组件、生成页会把时间线一起拖走。
 // 不改前实测首屏单 chunk 949.69 kB / gzip 301.08 kB，Leaflet 在首屏内。
 const TripListPage = lazy(() => import('./pages/TripListPage').then((m) => ({ default: m.TripListPage })));
-const NewTripPage = lazy(() => import('./pages/NewTripPage').then((m) => ({ default: m.NewTripPage })));
 const TripEditorPage = lazy(() => import('./pages/TripEditorPage').then((m) => ({ default: m.TripEditorPage })));
 
 const PAGE_LOADING = <div className={"page-loading [padding:20vh_16px] text-center [color:var(--color-muted)]"}>加载中…</div>;
@@ -52,7 +51,9 @@ export const router = createBrowserRouter([
         element: <RequireAuth />,
         children: [
           { path: '/trips', element: withSuspense(<TripListPage />) },
-          { path: '/trips/new', element: withSuspense(<NewTripPage />) },
+          { path: '/trips/new', element: <Navigate to="/" replace /> },
+          // 会话主入口：全生命周期主 Agent 工作台
+          { path: '/c/:conversationId', element: withSuspense(<TripEditorPage />) },
           // splat 保持同一个 TripEditorPage 实例：主时间线 ↔ 子 Agent 页面只换左栏，SSE 不重连。
           { path: '/agent/:jobId/*', element: withSuspense(<TripEditorPage />) },
           { path: '/trips/:id', element: withSuspense(<TripEditorPage />) },

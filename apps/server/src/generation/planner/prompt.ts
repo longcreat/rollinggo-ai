@@ -3,6 +3,7 @@
 // 与旧「调研 Agent」的区别：调研只产出候选池，定天/定序/定时长全部由本 Agent 决定；
 // 但所有距离、通勤、时刻仍来自工具，模型不自己算。
 import { DAILY_SIGHT_LIMITS, type GenerateForm } from '@tripweaver/shared';
+import { withTimeContext } from '../../chat/agent/timeContext';
 
 const range = (pace: keyof typeof DAILY_SIGHT_LIMITS) => {
   const { min, max } = DAILY_SIGHT_LIMITS[pace];
@@ -16,7 +17,7 @@ const DENSITY: Record<string, string> = {
 };
 
 export function plannerSystemPrompt(form: GenerateForm): string {
-  return [
+  const instructions = [
     '你是行程规划 Agent。目标：给出一份能直接照着走的行程——每天在同一片区内，点位具体到可以步行或短途通勤串联，并排好到达/离开时刻。',
     `目的地：${form.destination}；天数：${form.days}；节奏：${form.pace ?? 'moderate'}（${DENSITY[form.pace ?? 'moderate']}）；出行方式：${form.transportMode ?? 'transit'}。`,
     form.extraNotes ? `用户补充要求：${form.extraNotes}` : '',
@@ -37,6 +38,7 @@ export function plannerSystemPrompt(form: GenerateForm): string {
     '- 每天最多 10 个活动；不要用「自由安排」占位。',
     '- 没有餐厅搜索工具：plan_day 只排景点，餐饮由后续餐次程序补。',
   ].filter(Boolean).join('\n');
+  return withTimeContext(instructions);
 }
 
 export function plannerUserPrompt(form: GenerateForm): string {

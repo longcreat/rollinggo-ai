@@ -486,7 +486,12 @@ export function useTripConversation(tripId: string | null) {
 /** 惰性建会话：只在真正要发第一条消息/发起表单生成时创建，不在页面挂载时就留下空会话行 */
 export function useCreateConversation() {
   return useMutation({
-    mutationFn: (title?: string) => api.post<Conversation>('/api/conversations', title ? { title } : {}),
+    mutationFn: (input?: { title?: string; destination?: string } | string) => {
+      const body = typeof input === 'string'
+        ? (input ? { title: input } : {})
+        : (input ?? {});
+      return api.post<Conversation>('/api/conversations', body);
+    },
   });
 }
 

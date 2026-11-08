@@ -79,7 +79,7 @@ try {
   page.on('request', (req) => {
     if (req.method() !== 'POST') return;
     const path = new URL(req.url()).pathname;
-    if (path.endsWith('/planning')) planningPosts.push(req.postDataJSON());
+    if (path.endsWith('/planning') || path.endsWith('/messages/stream')) planningPosts.push(req.postDataJSON());
     if (path === '/api/generations') generationPosts.push(req.postDataJSON());
   });
   await page.goto(`${base}/register`);

@@ -32,7 +32,7 @@ export type AreaResolution = { ok: true; area: ResolvedArea } | { ok: false; err
 export interface AreaAccess {
   readonly signal: AbortSignal;
   /** 按片区名或片区 id 解析中心与半径（解析失败返回可读错误）。 */
-  resolve(input: { area?: string; areaId?: string }): Promise<AreaResolution>;
+  resolve(input: { area?: string; areaId?: string; city?: string }): Promise<AreaResolution>;
   /** 面状检索；配额/闸门由 access 内部处理，超限返回错误。 */
   search(input: { center: GeoPoint; radiusM: number; keywords?: string }): Promise<{ ok: true; pois: SourcedPoi[] } | { ok: false; error: string }>;
   /** 结果接收：对话写点位缓存/overview，规划写候选池。 */
@@ -66,6 +66,7 @@ export function searchAreaPlacesCore(access: AreaAccess): ToolCore {
       properties: {
         area: { type: 'string', description: '片区名称，如「西湖」「宽窄巷子」' },
         areaId: { type: 'string', description: 'list_areas 返回的片区 id（规划时优先）' },
+        city: { type: 'string', description: '可选，片区所在城市（如杭州、北京、成都），缺省使用当前行程或会话城市' },
         radiusM: { type: 'string', description: '检索半径（米），300–8000' },
         keywords: { type: 'string', description: '补充关键词，如「博物馆」「观景」' },
       },
@@ -75,9 +76,10 @@ export function searchAreaPlacesCore(access: AreaAccess): ToolCore {
       access.signal.throwIfAborted();
       const area = typeof args.area === 'string' ? args.area : undefined;
       const areaId = typeof args.areaId === 'string' ? args.areaId : undefined;
+      const city = typeof args.city === 'string' ? args.city : undefined;
       const keywords = typeof args.keywords === 'string' ? args.keywords : undefined;
       if (!area && !areaId) return { text: '错误：需要 area（片区名）或 areaId', isError: true };
-      const resolved = await access.resolve({ ...(area ? { area } : {}), ...(areaId ? { areaId } : {}) });
+      const resolved = await access.resolve({ ...(area ? { area } : {}), ...(areaId ? { areaId } : {}), ...(city ? { city } : {}) });
       if (!resolved.ok) return { text: resolved.error, isError: true };
       const radiusM = args.radiusM === undefined ? resolved.area.radiusM : clampRadius(args.radiusM);
       const found = await access.search({ center: resolved.area.center, radiusM, ...(keywords ? { keywords } : {}) });

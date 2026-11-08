@@ -47,16 +47,8 @@ export async function streamChat(id: string, input: DetailChatRequest, signal: A
   }
 }
 
-/** 行前回合走同一条主 Agent 流：首条消息的回复与工具进度实时展示，任务启动后再进直播页。 */
-export async function streamPlanning(id: string, input: PlanningTurnRequest, signal: AbortSignal, onEvent: (event: ChatStreamEvent) => void): Promise<SendMessageResult> {
-  const response = await requestStream(`/api/conversations/${id}/planning`, input, { signal, timeoutMs: 300_000 });
-  try {
-    return await readChatStream(response, input.requestId, onEvent);
-  } catch (error) {
-    if (signal.aborted) throw signal.reason;
-    throw error;
-  }
-}
+/** 主 Agent 统一流式会话（行前与行中统一走 /messages/stream）。 */
+export const streamPlanning = streamChat;
 export async function recoverChat(id: string, requestId: string) {
   const data = await api.get<{ result: unknown }>(`/api/conversations/${id}/operations/${requestId}`);
   return Value.Check(SendMessageResultSchema, data.result) ? data.result : null;

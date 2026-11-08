@@ -13,7 +13,7 @@ import { haversineMeters } from '@tripweaver/shared';
 import type { TripDraft, DraftResult } from './tripDraft';
 
 export interface TripWriteToolDeps {
-  draft: TripDraft;
+  draft?: TripDraft | null;
   signal: AbortSignal;
   /** 新地点定位（高德，可能模糊）。未注入时按无坐标处理，前端会标「位置待核实」。 */
   resolvePlace?: (name: string) => Promise<{ lat: number; lng: number } | null>;
@@ -35,6 +35,8 @@ function nearestKm(draft: TripDraft, point: { lat: number; lng: number }, exclud
 }
 
 const text = (value: string) => [{ type: 'text' as const, text: value }];
+
+const NO_TRIP_REPLY = { output: text(JSON.stringify({ ok: false, summary: '当前会话尚未生成行程，无法执行此修改；请先调用 delegate_task 规划整份行程' })) };
 
 /** 工具提示统一强调：时刻由时间轴派生，模型只决定顺序与停留时长。 */
 const TIME_OWNERSHIP = '时刻由系统按当天顺序和真实通勤自动推算，不要传开始/结束时间。';
@@ -62,6 +64,7 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
       allowRevisit: opt(str({ description: '填 "true" 表示用户明确要求再次游览已存在的同一地点' })),
     }),
     execute: async (args) => {
+      if (!draft) return NO_TRIP_REPLY;
       signal.throwIfAborted();
       const name = args.name.trim();
       // 优先用本回合已核验的坐标（search_places / 子代理 places）：既省一次解析，
@@ -97,6 +100,7 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
       cost: opt(num({ description: '人均或门票花费（元）' })),
     }),
     execute: async (args) => {
+      if (!draft) return NO_TRIP_REPLY;
       signal.throwIfAborted();
       // 改名 = 换成另一个地点：必须重新定位，不能沿用旧坐标（否则地图指错地方）。
       // 优先级：本回合 search_places 查到的精确坐标 → 高德模糊解析（需过距离可信度闸门）。
@@ -142,7 +146,7 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
       dayIndex: int({ description: '第几天，从 1 开始' }),
       activityId: str({ description: '活动 id，必须来自当前行程' }),
     }),
-    execute: async (args) => reply(draft.deleteActivity(dayIndex(args.dayIndex), args.activityId.trim())),
+    execute: async (args) => (draft ? reply(draft.deleteActivity(dayIndex(args.dayIndex), args.activityId.trim())) : NO_TRIP_REPLY),
   });
 
   const moveActivity = defineTool({
@@ -154,10 +158,10 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
       toDayIndex: int({ description: '目标第几天' }),
       afterActivityId: opt(str({ description: '插到目标天的这个活动 id 之后；缺省追加到末尾' })),
     }),
-    execute: async (args) => reply(draft.moveActivity(
+    execute: async (args) => (draft ? reply(draft.moveActivity(
       dayIndex(args.fromDayIndex), args.activityId.trim(), dayIndex(args.toDayIndex),
       args.afterActivityId,
-    )),
+    )) : NO_TRIP_REPLY),
   });
 
   const reorderDay = defineTool({
@@ -167,14 +171,14 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
       dayIndex: int({ description: '第几天' }),
       activityIds: arr(str({ description: '活动 id' }), { description: '当天全部活动 id 的新顺序' }),
     }),
-    execute: async (args) => reply(draft.reorderDay(dayIndex(args.dayIndex), args.activityIds)),
+    execute: async (args) => (draft ? reply(draft.reorderDay(dayIndex(args.dayIndex), args.activityIds)) : NO_TRIP_REPLY),
   });
 
   const addDay = defineTool({
     name: 'add_day',
     description: '在行程末尾增加一天（空日程）。需要具体安排时再用 add_activity 填。',
     parameters: obj({ title: opt(str({ description: '当天主题，如「西湖环湖」；缺省「第N天」' })) }),
-    execute: async (args) => reply(draft.addDay(args.title)),
+    execute: async (args) => (draft ? reply(draft.addDay(args.title)) : NO_TRIP_REPLY),
   });
 
   const updateDay = defineTool({
@@ -184,14 +188,14 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
       dayIndex: int({ description: '第几天' }),
       title: str({ description: '新主题（≤30 字）' }),
     }),
-    execute: async (args) => reply(draft.updateDay(dayIndex(args.dayIndex), args.title)),
+    execute: async (args) => (draft ? reply(draft.updateDay(dayIndex(args.dayIndex), args.title)) : NO_TRIP_REPLY),
   });
 
   const deleteDay = defineTool({
     name: 'delete_day',
     description: '删除整天（含当天所有活动），后面的天数会自动前移。用户明确要求减少天数时才用。',
     parameters: obj({ dayIndex: int({ description: '第几天' }) }),
-    execute: async (args) => reply(draft.deleteDay(dayIndex(args.dayIndex))),
+    execute: async (args) => (draft ? reply(draft.deleteDay(dayIndex(args.dayIndex))) : NO_TRIP_REPLY),
   });
 
   const updateTrip = defineTool({
@@ -207,7 +211,7 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
       extraNotes: opt(str({ description: '补充备注（≤200 字），如忌口、同行老人' })),
       transportMode: opt(str({ description: '主要出行方式：walk / cycle / transit / drive' })),
     }),
-    execute: async (args) => reply(draft.updateTrip({
+    execute: async (args) => (draft ? reply(draft.updateTrip({
       ...(args.title !== undefined ? { title: args.title } : {}),
       ...(args.startDate !== undefined ? { startDate: args.startDate } : {}),
       ...(args.partySize !== undefined ? { partySize: args.partySize } : {}),
@@ -216,7 +220,7 @@ export function createTripWriteTools(deps: TripWriteToolDeps): ToolRegistration[
       ...(args.preferences !== undefined ? { preferences: args.preferences } : {}),
       ...(args.extraNotes !== undefined ? { extraNotes: args.extraNotes } : {}),
       ...(args.transportMode !== undefined ? { transportMode: args.transportMode } : {}),
-    })),
+    })) : NO_TRIP_REPLY),
   });
 
   return [addActivity, updateActivity, deleteActivity, moveActivity, reorderDay, addDay, updateDay, deleteDay, updateTrip];

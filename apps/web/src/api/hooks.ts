@@ -452,14 +452,6 @@ export function useStartPlanning() {
   });
 }
 
-/** 表单直达：条件已齐备时跳过行前 LLM 回合，直接创建生成任务。 */
-export function useStartGenerationDirect() {
-  return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: { requestId: string; text?: string } }) =>
-      api.post<{ jobId: string }>(`/api/conversations/${encodeURIComponent(id)}/generate`, input),
-  });
-}
-
 export function useNotifications(userId: string) {
   return useInfiniteQuery({
     queryKey: keys.notifications(userId), initialPageParam: undefined as number | undefined,

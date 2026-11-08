@@ -284,7 +284,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
         // 旧消息没有标记时锚到 ask_user 工具段之后，实在找不到才退回回答末尾。
         const questionRecords = message.attachment?.questions ?? [];
         const hasQuestionParts = parts?.some((part) => part.type === 'question') ?? false;
-        // 表单直达的委派消息只有任务引用：不在气泡里重复文案或工具步骤，只渲染任务节点。
+        // 历史委派消息可能只有任务引用：不在气泡里重复文案或工具步骤，只渲染任务节点。
         if (message.role === 'assistant' && !content && message.attachment?.task && !activitySteps.length && !parts?.length) {
           return <div key={message.id} className="min-w-0">
             <TaskCard jobId={message.attachment.task.jobId} conversationId={conversationId} />

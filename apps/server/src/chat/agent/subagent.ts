@@ -18,8 +18,9 @@
 // 工具面在创建时按 toolPolicy 收敛为只读白名单。
 // 缓存有界：slotChains 只保留在跑的链（结束即删），childConversations 超过上限按插入序淘汰最旧的，
 // 否则单实例长期运行会随会话数无限增长。
-import { AssistantEntry, defineTool, type ConversationId, type Extension, type Harness, type ToolRegistration } from '@earendil-works/pi-durable';
+import { AssistantEntry, defineTool, type ConversationId, type Extension, type Harness, type ToolExecutionApi, type ToolRegistration } from '@earendil-works/pi-durable';
 import { arr, obj, opt, str } from '@earendil-works/pi-schema';
+import type { Context } from '@earendil-works/chord/context';
 import { assertSubagentToolNames } from './toolPolicy';
 
 /** 子代理产出类型：固定两种，避免「让模型自己设计 schema」 */
@@ -154,7 +155,7 @@ export function createSubagentTool(options: SubagentToolOptions): ToolRegistrati
   const { harness, parentId, maxTasks } = options;
   const context = options.context as never;
 
-  async function ensureChild(slot: string) {
+  async function ensureChild(slot: string, api: ToolExecutionApi, context: Context) {
     const key = `${parentId}|${slot}`;
     const known = childConversations.get(key);
     if (known) {
@@ -165,22 +166,33 @@ export function createSubagentTool(options: SubagentToolOptions): ToolRegistrati
           model: options.model,
           instructions: options.instructions,
           maxTurns: options.maxTurns,
+          // 子代理是检索型工作，不继承主对话的思考等级。
+          thinkingLevel: 'off',
           ...(options.childExtensions ? { extensions: options.childExtensions } : {}),
+          modelTools: [...options.childTools],
         }, context);
         return existing;
       }
     }
-    const conversation = await harness.createConversation({
-      ownership: { kind: 'ownerless' },
-      agent: {
-        instructions: options.instructions,
-        model: options.model,
-        maxTurns: options.maxTurns,
-        ...(options.childExtensions ? { extensions: [...options.childExtensions] } : {}),
-        // 只有这些工具对子代理的模型可见：写工具与派发工具都被挡在外面（深度恒为 1）。
-        // 终态工具是 deferred 的，必须在创建时显式列出才可见。
-        modelTools: [...options.childTools],
-      },
+    // 官方子代理模型：子会话由当前工具调用任务拥有（ownership.taskId = api.taskId），
+    // 工具被取消/失败/宿主中断时子会话一起被中止，父回合的空闲等待也会覆盖它。
+    const childId = await api.commit(async (tx) => {
+      const existing = (await tx.scanConversations({ ownerTaskId: api.taskId }, 1)).items[0];
+      if (existing) return existing.id;
+      const created = await tx.createConversation({ ownership: { kind: 'task', taskId: api.taskId } });
+      return created.id;
+    }, context);
+    const conversation = await harness.conversation(childId, context);
+    if (!conversation) throw new Error('子代理会话创建失败');
+    await conversation.configure({
+      model: options.model,
+      instructions: options.instructions,
+      maxTurns: options.maxTurns,
+      // 子代理是检索型工作，不继承主对话的思考等级。
+      thinkingLevel: 'off',
+      ...(options.childExtensions ? { extensions: options.childExtensions } : {}),
+      // 只有这些工具对子代理的模型可见：写工具与派发工具都被挡在外面（深度恒为 1）。
+      modelTools: [...options.childTools],
     }, context);
     childConversations.set(key, conversation.id);
     while (childConversations.size > CHILD_CACHE_MAX) {
@@ -192,16 +204,25 @@ export function createSubagentTool(options: SubagentToolOptions): ToolRegistrati
     return conversation;
   }
 
-  async function runTask(task: { id: string; kind: SubagentKind; prompt: string }): Promise<SubagentTaskResult> {
+  async function runTask(
+    task: { id: string; kind: SubagentKind; prompt: string },
+    api: ToolExecutionApi,
+    context: Context,
+  ): Promise<SubagentTaskResult> {
     const slot = slotOf(task.id);
     const key = `${parentId}|${slot}`;
     // 同一槽位串行：复用同一个子会话，不能同时跑两个回合
     const previous = slotChains.get(key) ?? Promise.resolve();
     const run = previous.catch(() => {}).then(async () => {
       options.signal?.throwIfAborted();
-      const conversation = await ensureChild(slot);
-      // 槽位可能换个 kind 复用：每次运行都把白名单收敛到「只读 + 本 kind 的终态工具」
-      const submission = await conversation.submit({ type: 'input', content: task.prompt }, context);
+      const conversation = await ensureChild(slot, api, context);
+      // 官方前台子代理：子会话由工具调用任务拥有，这里只驱动一次提交并等待结果。
+      // requestId 绑定任务与槽位：重跑时不会向同一子会话重复投递同一条调研。
+      const submission = await conversation.submit({
+        type: 'input',
+        content: task.prompt,
+        requestId: `subagent:${api.taskId}:${slot}`,
+      }, context);
       const settled = await submission.wait(context);
       await conversation.waitForIdle(context);
       options.signal?.throwIfAborted();
@@ -242,6 +263,8 @@ export function createSubagentTool(options: SubagentToolOptions): ToolRegistrati
 
   return defineTool({
     name: 'spawn_subagents',
+    // 子会话按 ownerTaskId 找回、提交按 requestId 去重，重跑不会重复调研。
+    replay: 'safe',
     description: [
       '并行派发只读调研子任务：每个子任务是一个独立上下文的探索代理，各自查地点/攻略/天气后只回结论。',
       'kind=places 让子代理核实地点并交回「名称 + 真实坐标 + 营业/人均」，适合找餐厅、景点、住宿；',
@@ -256,14 +279,14 @@ export function createSubagentTool(options: SubagentToolOptions): ToolRegistrati
         prompt: str({ description: '自包含的调研任务：范围（第几天/哪个片区）、要找什么、输出要求' }),
       }), { description: `最多 ${maxTasks} 个子任务` }),
     }),
-    execute: async (args) => {
+    execute: async (args, api, context) => {
       options.signal?.throwIfAborted();
       const tasks = args.tasks.slice(0, maxTasks).map((task) => ({
         id: task.id.trim() || 'task',
         kind: normalizeKind(task.kind),
         prompt: task.prompt.trim(),
       }));
-      const results = await Promise.all(tasks.map(runTask));
+      const results = await Promise.all(tasks.map((task) => runTask(task, api, context)));
       return { output: [{ type: 'text' as const, text: JSON.stringify({ results }) }] };
     },
   });

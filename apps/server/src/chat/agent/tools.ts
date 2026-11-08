@@ -19,6 +19,7 @@ import { createTripWriteTools } from './writeTools';
 import type { TripDraft } from './tripDraft';
 import { createPlacePointCache, type PlacePointCache } from './placePoints';
 import { createAgentTurnState, mergeBriefPatch, type AgentTurnState } from './turnState';
+import { DEFAULT_DELEGATED_TASK_KIND, isDelegatedTaskKind, type DelegatedTaskKind } from '../../tasks/delegatedTask';
 
 export interface TripToolDeps {
   trip: Trip;
@@ -37,12 +38,12 @@ export interface TripToolDeps {
   /** 本回合跨工具状态：美食候选、追问、Brief 增量、生成结果 */
   state?: AgentTurnState;
   /**
-   * 按当前 Brief 委派一次后台生成（对齐 openmuse 的 delegate_task：立即返回任务 id，worker 持续跑）。
-   * 由 turn 注入（需要 job / 凭据 / 事务），工具本身只负责调用与把结果写回 state。
+   * 通用后台委派（对齐 openmuse 的 delegate_task：立即返回任务 id，worker 持续跑）。
+   * 由 turn 注入（需要 job / 凭据 / 事务），工具只负责调用与把任务引用写回 state。
    */
-  generateTrip?: (api: ToolExecutionApi, context: Context) => Promise<{ jobId?: string; error?: string }>;
-  /** 当前/最近一次生成任务的状态与阶段进度（供主 Agent 回答「生成到哪了」）。 */
-  generationStatus?: () => unknown | Promise<unknown>;
+  delegateTask?: (kind: DelegatedTaskKind, api: ToolExecutionApi, context: Context) => Promise<{ taskId?: string; error?: string }>;
+  /** 当前/最近一次后台任务的状态与阶段进度（供主 Agent 回答「任务到哪了」）。 */
+  taskStatus?: () => unknown | Promise<unknown>;
   /** 当前对话范围（前端选中的某一天）；美食检索默认用它 */
   scopeDayId?: string;
   /** HITL：暂停 Agent，等待用户通过独立接口回答；返回 null 表示超时/取消 */
@@ -135,10 +136,10 @@ function normalizeCategory(value: string | undefined): PoiCategory {
   return (POI_CATEGORIES as readonly string[]).includes(value ?? '') ? value as PoiCategory : 'attraction';
 }
 
-/** 条件更新 + 生成委派 + 任务状态：行程内对话与行前回合共用同一实现。 */
+/** 条件更新 + 通用后台委派 + 任务状态：行程内对话与行前回合共用同一实现。 */
 function delegationTools(
   state: AgentTurnState,
-  deps: Pick<TripToolDeps, 'generateTrip' | 'generationStatus'>,
+  deps: Pick<TripToolDeps, 'delegateTask' | 'taskStatus'>,
 ) {
   const updateBrief = defineTool({
     name: 'update_brief',
@@ -152,41 +153,50 @@ function delegationTools(
     },
   });
 
-  // 生成是后台任务（personal agent 的 delegate_task）：立即返回任务 id，用户在任务页看进度，
-  // 完成后通知并落到新行程；主 Agent 不阻塞，也不假装结果已经出来。
-  const generateTrip = defineTool({
-    name: 'generate_trip',
-    description: '按当前出行条件委派一次完整行程生成（后台任务，立即返回任务 id，通常需要几分钟）。有当前行程时生成它的新版本，不会覆盖旧版本。仅当用户明确要求「生成 / 重新规划整份行程」时调用；调用后告诉用户已在后台开始，不要等结果、不要说已完成。',
-    parameters: obj({}),
-    execute: async (_args, api, context) => {
-      if (!deps.generateTrip) return { output: text('错误：当前会话未启用生成'), isError: true };
-      const result = await deps.generateTrip(api, context);
-      if (!result.jobId) return { output: text(result.error ?? '生成任务没有启动'), isError: true };
-      state.startedGenerationJobId = result.jobId;
-      return { output: text(JSON.stringify({ ok: true, jobId: result.jobId, status: 'running', note: '后台生成已开始。告诉用户可以在任务页查看进度；完成时会通知。不要声称行程已经生成好。' })) };
+  // 通用后台委派：任务立即返回 id，用户在任务页看进度，完成后由任务结果通知主 Agent。
+  // 主 Agent 不阻塞，也不假装结果已经出来。
+  const delegateTask = defineTool({
+    name: 'delegate_task',
+    description: '把较长的后台工作委派给子 Agent，立即返回任务 id（通常需要几分钟）。当前支持 kind=trip_generation：按当前出行条件生成或重新规划整份行程，有当前行程时生成它的新版本、不覆盖旧版本。仅当用户明确要求生成整份行程时调用；调用后告诉用户已在后台开始，不要等结果、不要说已完成。其他咨询或小修改不要调用。',
+    // 同一回合重跑时按 requestId 幂等拿到同一个任务，不会重复建 job。
+    replay: 'safe',
+    parameters: obj({
+      kind: opt(str({ description: `任务类型，目前支持 ${DEFAULT_DELEGATED_TASK_KIND}（缺省）` })),
+      reason: opt(str({ description: '一句话说明为什么委派这次任务' })),
+    }),
+    execute: async (args, api, context) => {
+      if (!deps.delegateTask) return { output: text('错误：当前会话未启用任务委派'), isError: true };
+      if (args.kind && !isDelegatedTaskKind(args.kind)) {
+        return { output: text(`不支持的任务类型：${args.kind}`), isError: true };
+      }
+      const kind: DelegatedTaskKind = isDelegatedTaskKind(args.kind) ? args.kind : DEFAULT_DELEGATED_TASK_KIND;
+      const result = await deps.delegateTask(kind, api, context);
+      if (!result.taskId) return { output: text(result.error ?? '任务没有启动'), isError: true };
+      state.delegatedTask = { id: result.taskId, kind };
+      return { output: text(JSON.stringify({ ok: true, taskId: result.taskId, kind, status: 'running', note: '后台任务已开始。告诉用户可以在任务页查看进度；完成时会通知。不要声称任务已经完成。' })) };
     },
   });
 
-  const generationStatus = defineTool({
-    name: 'generation_status',
-    description: '读取当前或最近一次生成任务的状态、阶段与已完成步骤。用于回答「生成到哪了 / 好了吗」；不要用它代替用户打开任务页，也不要在没有任务时编造进度。',
+  const taskStatus = defineTool({
+    name: 'task_status',
+    description: '读取当前或最近一次后台任务的状态、阶段与已完成步骤。用于回答「任务到哪了 / 好了吗」；不要用它代替用户打开任务页，也不要在没有任务时编造进度。',
     parameters: obj({}),
     execute: async () => {
-      if (!deps.generationStatus) return { output: text(JSON.stringify({ running: false })) };
-      return { output: text(JSON.stringify(await deps.generationStatus())) };
+      if (!deps.taskStatus) return { output: text(JSON.stringify({ running: false })) };
+      return { output: text(JSON.stringify(await deps.taskStatus())) };
     },
   });
 
-  return { updateBrief, generateTrip, generationStatus };
+  return { updateBrief, delegateTask, taskStatus };
 }
 
-/** 行前回合（还没有行程）：只给条件更新与生成委派，不带读/写行程与交互工具。 */
+/** 行前回合（还没有行程）：只给条件更新与任务委派，不带读/写行程与交互工具。 */
 export function createPlanningTools(
-  deps: Pick<TripToolDeps, 'state' | 'generateTrip' | 'generationStatus'>,
+  deps: Pick<TripToolDeps, 'state' | 'delegateTask' | 'taskStatus'>,
 ): ToolRegistration[] {
   const state = deps.state ?? createAgentTurnState();
-  const { updateBrief, generateTrip, generationStatus } = delegationTools(state, deps);
-  return [updateBrief, generateTrip, generationStatus];
+  const { updateBrief, delegateTask, taskStatus } = delegationTools(state, deps);
+  return [updateBrief, delegateTask, taskStatus];
 }
 
 export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
@@ -428,7 +438,7 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     },
   });
 
-  const { updateBrief, generateTrip, generationStatus } = delegationTools(state, deps);
+  const { updateBrief, delegateTask, taskStatus } = delegationTools(state, deps);
 
   return [
     getTrip,
@@ -440,8 +450,8 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     searchFoodTool,
     askUser,
     updateBrief,
-    generateTrip,
-    generationStatus,
+    delegateTask,
+    taskStatus,
     ...createTripWriteTools({ draft: deps.draft, signal, resolvePlace: deps.resolvePlace, cachedPoint: (name) => points.find(name) }),
   ];
 }

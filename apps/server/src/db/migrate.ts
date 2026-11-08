@@ -373,6 +373,8 @@ export async function runMigrations(pool: Pool): Promise<void> {
     // 任务视图（11-07）：生成开始即写 running 行，重启后状态/结果仍可读。列全部 nullable，旧代码忽略。
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS job_id TEXT`);
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS request_id TEXT`);
+    // 通用任务模型（11-08）：记录发起委派的主 Agent 回合，完成回流与审计可对齐。
+    await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS parent_turn_id TEXT`);
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS durable_task_id TEXT`);
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS agent_conversations JSONB`);
     await client.query(`ALTER TABLE generations ADD COLUMN IF NOT EXISTS destination TEXT`);

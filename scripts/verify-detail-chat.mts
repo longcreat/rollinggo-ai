@@ -274,10 +274,10 @@ try {
   assert.equal((await listTripVersions('detail-user', editSource.id))!.versions.length, 2);
   console.log('PASS 自由文本局部改稿（真实工具回放）、edit_result 事件与新版本幂等');
 
-  // 明确重新生成：update_brief 补齐节奏 + generate_trip，回合内委派后台任务；重试返回同一任务。
+  // 明确重新生成：update_brief 补齐节奏 + delegate_task，回合内委派后台任务；重试返回同一任务。
   steps = [
     { tool: 'update_brief', args: { pace: 'moderate', startDate: '2026-11-01' } },
-    { tool: 'generate_trip', args: {} },
+    { tool: 'delegate_task', args: { kind: 'trip_generation' } },
   ];
   finalReply = '将重新生成行程。';
   const regenerateInput = { requestId: uid(), tripId: editResult.editResult.tripId, updatedAt: (await getTrip('detail-user', editResult.editResult.tripId))!.updatedAt, text: '重新生成这趟行程' };
@@ -291,7 +291,7 @@ try {
   cancelLiveRun(regenerateResult.startedGenerationJobId, 'detail-user');
   const regenerateRetry = await fetch(`${base}/api/conversations/${editConversation}/messages/stream`, { method: 'POST', headers, body: JSON.stringify(regenerateInput) });
   assert.match(await regenerateRetry.text(), new RegExp(regenerateResult.startedGenerationJobId));
-  console.log('PASS update_brief + generate_trip 回放启动任务，重试返回同一任务');
+  console.log('PASS update_brief + delegate_task 回放启动任务，重试返回同一任务');
 
   // 追加天数：mock 回放 add_day + add_activity（地点名全局唯一，草稿会拒绝同名重复）。
   let restaurantSeq = 0;

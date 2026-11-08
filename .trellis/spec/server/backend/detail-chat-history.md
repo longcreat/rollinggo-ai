@@ -26,6 +26,12 @@
 
 ## 3. Contracts
 
+- 真实思考流（11-08）：模型/端点声明 reasoning 且会话 `thinkingLevel` 非 off 时，pi-ai 会把
+  `thinking` 块透传到 LiveDoc；runtime 按 `thinking_start` / `thinking_delta` / `thinking_end`
+  做快照差分（正文开始、generation 切换或回合结束即收口），SSE 增加同名事件。
+  UI 只显示「思考了约 N 秒 / N 段推理」，**不渲染原始 CoT**；消息附件只持久化
+  `thinking: { chunks, durationMs }` 供刷新后回看。生成阶段、完成回流和只读子代理保持
+  `thinkingLevel=off`，不把预算烧在隐藏推理上；没有真实 thinking 事件时不显示任何“正在思考”占位。
 - 会话消息的 turn/task 归属（11-08）：`chat_messages.turn_id` / `task_id` 是用户可见会话的单一事实源。
   同一次主 Agent 回合的用户消息与回复共享 `turnId`（= 请求的 `requestId`）；同一子 Agent 任务的委派回复与
   完成总结共享 `taskId`（= `jobId`，完成消息另有 `gen-completion:<jobId>` 的独立 turnId）。
@@ -124,9 +130,12 @@
   Brief 更新、重新生成与改行程都是主 Agent 的工具，工具只写回合状态，回合边界统一提交。
 - 主子代理（2026-11-05，`spawn_subagents`）：主代理可按槽位并行派发只读探索子代理，
   参考出发鸭 `explore_sub_<domain>_<day>`。实现要点：
-  - 每个子任务在**独立 durable 子会话**里跑（`harness.createConversation` + `submit` + `wait`），
-    子会话按「父会话 + 槽位 id」复用，进程内缓存；pi-durable 没有删除会话 API，不复用会让 SQLite
+  - 每个子任务在**由当前工具调用任务拥有的子会话**里跑：工具在 `api.commit()` 里
+    `tx.createConversation({ ownership: { kind: 'task', taskId: api.taskId } })`，再用 `api.conversation(id)`
+    提交并等待。子会话按「父会话 + 槽位 id」复用，进程内缓存；pi-durable 没有删除会话 API，不复用会让 SQLite
     随对话轮次无限增长。同一槽位串行，避免复用会话并发跑两个回合。
+    取消/失败/宿主中断会随工具调用任务级联中止子会话；不要另建一个跨会话的子任务
+    （pi-durable 拒绝「子任务活在所有者会话之外」）。
   - 子代理的 `modelTools` 是白名单（只读五件套），**写工具与派发工具都不可见**，因此深度恒为 1，
     不存在「子代理改行程」。子代理看到的是同一批工具闭包（同一份行程与数据源），预算也共用。
   - 子会话首轮上下文是全新的，任务提示必须自包含；子代理只回结论（≤300 字），不把原始检索结果

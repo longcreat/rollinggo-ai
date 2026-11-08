@@ -5,6 +5,8 @@ export interface GenerationProvenance {
   conversationId?: string;
   kind: GenerationKind;
   targetTripId?: string;
+  /** 发起委派的主 Agent 回合 id（requestId）：完成回流与审计据此对齐。 */
+  parentTurnId?: string;
 }
 
 /** 一次生成的稳定身份：任务行、投影、日志都用它，不携带任何状态。 */

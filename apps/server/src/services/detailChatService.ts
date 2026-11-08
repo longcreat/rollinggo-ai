@@ -1,7 +1,7 @@
 // 行程详情对话：详情页只有一套运行时——完整读写 Agent（harness）。
 //
 // 旧的理解层 / 确定性检索 / editOps / 只读降级链路已移除；这些能力现在都是主 Agent 的工具
-// （search_places / web_search / search_food / add_activity / update_brief / generate_trip…）。
+// （search_places / web_search / search_food / add_activity / update_brief / delegate_task…）。
 // 这里只保留准入：幂等、会话与行程绑定、乐观锁、额度，然后交给 runAgentAnswer。
 import { Value } from '@sinclair/typebox/value';
 import { SendMessageResultSchema, type DetailChatRequest, type SendMessageResult } from '@tripweaver/shared';

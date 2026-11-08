@@ -40,11 +40,12 @@ import type { FastifyBaseLogger } from 'fastify';
 import { db } from '../db/client';
 import { getTripWeather } from '../services/tripWeatherService';
 import { finalizeGenerationTask } from './taskStore';
-import { appendGenerationCompletion } from './completionMessage';
+import { appendTaskCompletion } from '../tasks/completionMessage';
+import { deliverTaskResult } from '../tasks/taskCompletion';
+import type { DelegatedTaskResult } from '../tasks/delegatedTask';
 import type { LlmConfig } from '../services/settingsService';
 import { searchBudgetRemaining } from '../services/quotaService';
 import { createTrip, getTrip } from '../services/tripService';
-import { runCompletionTurn } from './completionTurn';
 import { recordGenerationNotification, getGenerationResult } from '../services/notificationService';
 import { publishNotification, type NotificationEvent } from '../services/notificationStream';
 import { poiBudgetRemaining, resolvePoiSourceForUser } from '../integrations/geoProvider';
@@ -270,13 +271,15 @@ export async function runGeneration(
     if (committed?.status === 'done' && committed.tripId) {
       const trip = await getTrip(run.userId, committed.tripId).catch(() => null);
       if (trip) {
-        await runCompletionTurn({
+        await deliverTaskResult({
           userId: run.userId,
-          jobId: run.jobId,
           conversationId: run.provenance.conversationId,
-          tripId: trip.id,
-          tripTitle: trip.title,
-          days: trip.days.length,
+          result: {
+            id: run.jobId,
+            kind: 'trip_generation',
+            status: 'completed',
+            artifacts: { tripId: trip.id, title: trip.title, days: trip.days.length, destination: form.destination },
+          },
           cfg,
           signal,
         });
@@ -289,7 +292,7 @@ export async function runGeneration(
 
     assertAlive(signal);
     // 两条安全校验尽早并行，拒绝也立即被观察，避免初始化提前退出后的游离 rejection。
-    const modelPromise = buildModel(cfg, { disableDeepSeekThinking: true }).then(
+    const modelPromise = buildModel(cfg).then(
       (model) => ({ ok: true as const, model }),
       (error: unknown) => ({ ok: false as const, error }),
     );
@@ -753,16 +756,18 @@ export async function runGeneration(
       return saved;
     });
     // COMMIT 是成功边界：事务内取消会回滚；提交成功后不再把已保存结果宣告取消。
-    // 子 Agent 结果交回主 Agent 生成最终回答，再落任务终态；失败时内部退回固定完成消息。
-    await runCompletionTurn({
+    // 子 Agent 结果作为任务通知交回主 Agent 生成最终回答，再落任务终态；失败时内部退回固定完成消息。
+    await deliverTaskResult({
       userId: run.userId,
-      jobId: run.jobId,
       conversationId: run.provenance.conversationId,
-      tripId: trip.id,
-      tripTitle: trip.title,
-      days: trip.days.length,
-      summary: research.summary,
-      reviewNotes,
+      result: {
+        id: run.jobId,
+        kind: 'trip_generation',
+        status: 'completed',
+        ...(research.summary ? { summary: research.summary } : {}),
+        notes: reviewNotes,
+        artifacts: { tripId: trip.id, title: trip.title, days: trip.days.length, destination: form.destination },
+      } satisfies DelegatedTaskResult,
       cfg,
       signal,
     });
@@ -799,14 +804,16 @@ export async function runGeneration(
       } catch { logger?.error({ jobId: run.jobId }, 'generation notification write failed'); }
     }
     if (failureMessage) {
-      await appendGenerationCompletion({
+      await appendTaskCompletion({
         userId: run.userId,
-        jobId: run.jobId,
         conversationId: run.provenance.conversationId,
-        status: 'error',
-        destination: form.destination,
-        days: form.days,
-        message: failureMessage,
+        result: {
+          id: run.jobId,
+          kind: 'trip_generation',
+          status: 'failed',
+          error: failureMessage,
+          artifacts: { destination: form.destination, days: form.days },
+        },
       }).catch(() => {});
     }
     try {

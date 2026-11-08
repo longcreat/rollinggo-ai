@@ -38,6 +38,8 @@ export interface GenerationTaskView {
   warnings?: GenerationWarning[];
   error?: string;
   conversationId?: string;
+  /** 发起委派的主 Agent 回合 id（requestId）。 */
+  parentTurnId?: string;
   /** durable task id：重启后取消仍能命中具体任务。 */
   durableTaskId?: string;
   /** 子 Agent key → durable conversation id：任务终态后子页面仍能读取流程。 */
@@ -62,6 +64,7 @@ export function toGenerationTaskView(row: Row): GenerationTaskView | null {
     ...(row.warnings?.length ? { warnings: row.warnings } : {}),
     ...(row.error ? { error: row.error } : {}),
     ...(row.conversationId ? { conversationId: row.conversationId } : {}),
+    ...(row.parentTurnId ? { parentTurnId: row.parentTurnId } : {}),
     ...(row.durableTaskId ? { durableTaskId: row.durableTaskId } : {}),
     ...(row.agentConversations ? { agentConversations: row.agentConversations } : {}),
     createdAt: row.createdAt.getTime(),
@@ -76,6 +79,7 @@ export async function beginGenerationTask(ref: GenerationTaskRef, form: Generate
     userId: ref.userId,
     jobId: ref.jobId,
     requestId: requestId ?? null,
+    parentTurnId: ref.provenance.parentTurnId ?? null,
     conversationId: ref.provenance.conversationId ?? null,
     kind: ref.provenance.kind,
     targetTripId: ref.provenance.targetTripId ?? null,
@@ -105,6 +109,7 @@ export async function finalizeGenerationTask(
     userId: ref.userId,
     jobId: ref.jobId,
     conversationId: ref.provenance.conversationId ?? null,
+    parentTurnId: ref.provenance.parentTurnId ?? null,
     kind: ref.provenance.kind,
     targetTripId: ref.provenance.targetTripId ?? null,
     destination: details.destination ?? null,
@@ -140,6 +145,7 @@ export async function finalizeGenerationTask(
       tokensOut: details.usage?.tokensOut ?? 0,
       amapCalls: details.usage?.amapCalls ?? 0,
       searchCalls: details.usage?.searchCalls ?? 0,
+      ...(ref.provenance.parentTurnId ? { parentTurnId: ref.provenance.parentTurnId } : {}),
     },
   });
 }

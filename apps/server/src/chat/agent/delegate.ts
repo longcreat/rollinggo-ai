@@ -28,6 +28,8 @@ export interface DelegateGenerationInput {
   brief: PlanningBriefData;
   /** 表单入口的幂等键：同一请求重试返回同一个任务，而不是再建一个。 */
   requestId?: string;
+  /** 发起委派的主 Agent 回合 id；随任务保存，完成消息据此归属同一回合。 */
+  parentTurnId?: string;
   /** 已有行程的重新生成：挂到同一版本链的下一版，而不是新建 root。 */
   targetTripId?: string;
   /** 已有任务时的策略：工具内报错；表单入口复用已在跑的任务。 */
@@ -103,9 +105,12 @@ export async function delegateGeneration(
     jobId: uid(),
     userId: input.userId,
     createdAt: Date.now(),
-    provenance: input.targetTripId
-      ? { conversationId: input.conversationId, kind: 'revision', targetTripId: input.targetTripId }
-      : { conversationId: input.conversationId, kind: 'generation' },
+    provenance: {
+      ...(input.targetTripId
+        ? { conversationId: input.conversationId, kind: 'revision' as const, targetTripId: input.targetTripId }
+        : { conversationId: input.conversationId, kind: 'generation' as const }),
+      ...(input.parentTurnId ? { parentTurnId: input.parentTurnId } : {}),
+    },
   };
   const taskInput: GenerationTaskInput = {
     jobId: ref.jobId,

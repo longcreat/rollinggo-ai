@@ -496,11 +496,14 @@ Generation live UI, durable phase agents, and any sub-agent transcript read surf
 - Completion while inspecting a sub-agent page keeps that page; returning to the main timeline
   shows a `查看行程` action instead of forcing navigation. Ordinary completion on the main page
   still hands off to `/trips/:id`.
-- Sub-agent completion returns to the main Agent: `runCompletionTurn` runs one tool-less turn on
-  the main durable conversation (created/bound if absent), hands it the task result + original
-  user request, and appends the model's final answer to the business conversation **before** the
-  task row is finalized. Failure falls back to a fixed completion message; generation success is
-  never rolled back. Do not replace the main-agent answer with a hidden synthetic message.
+- Sub-agent completion returns to the main Agent through the generic task contract
+  (`tasks/delegatedTask.ts` + `tasks/taskCompletion.ts`): the background task result becomes a
+  follow-up input on the main durable conversation, one tool-less turn turns it into the final
+  answer, and the answer is appended to the business conversation **before** the task row is
+  finalized. Failure falls back to a fixed completion message; generation success is never rolled
+  back. Do not replace the main-agent answer with a hidden synthetic message, and do not add a
+  second trip-specific completion prompt: the delivery prompt only sees `DelegatedTaskResult`
+  (kind / status / summary / notes / artifacts / error).
 
 ### 3. Tests Required
 

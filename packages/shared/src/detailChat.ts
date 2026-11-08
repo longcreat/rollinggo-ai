@@ -117,6 +117,11 @@ export const ChatAttachmentSchema = Type.Object({
   })),
   /** 本轮委派的后台生成任务：消息里持久化 jobId，刷新后任务卡仍能读真实状态。 */
   task: Type.Optional(Type.Object({ jobId: Type.String({ minLength: 1, maxLength: 100 }) })),
+  /** 真实思考流元数据：只存规模与耗时，不存原始 CoT。 */
+  thinking: Type.Optional(Type.Object({
+    durationMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 3_600_000 })),
+    chunks: Type.Integer({ minimum: 0, maximum: 100_000 }),
+  })),
 });
 export type ChatAttachment = Static<typeof ChatAttachmentSchema>;
 export const DetailChatRequestSchema = Type.Object({
@@ -133,7 +138,7 @@ export type DetailChatRequest = Static<typeof DetailChatRequestSchema>;
 export const PlanningTurnRequestSchema = Type.Object({
   requestId: Type.String({ minLength: 8, maxLength: 100 }),
   text: Type.String({ minLength: 1, maxLength: 1000 }),
-  /** 表单「开始规划」：即使模型没调用 generate_trip，也要确定性启动一次。 */
+  /** 表单「开始规划」：即使模型没调用 delegate_task，也要确定性启动一次。 */
   autostart: Type.Optional(Type.Boolean()),
 });
 export type PlanningTurnRequest = Static<typeof PlanningTurnRequestSchema>;

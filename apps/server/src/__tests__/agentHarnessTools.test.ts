@@ -46,14 +46,14 @@ function sources(): DetailSources {
 
 function build(
   askUser?: (questions: AgentQuestion[]) => Promise<AgentQuestionAnswer[] | null>,
-  generateTrip?: NonNullable<TripToolDeps['generateTrip']>,
+  delegateTask?: NonNullable<TripToolDeps['delegateTask']>,
 ) {
   const state = createAgentTurnState();
   const tools = createTripTools({
     trip, sources: sources(), signal: AbortSignal.timeout(5_000),
     draft: createTripDraft(trip), state, scopeDayId: 'day-1',
     ...(askUser ? { askUser } : {}),
-    ...(generateTrip ? { generateTrip } : {}),
+    ...(delegateTask ? { delegateTask } : {}),
   });
   return { state, tool: (name: string) => tools.find((item) => item.name === name)! };
 }
@@ -132,15 +132,22 @@ describe('主 Agent 全功能工具', () => {
     assert.deepEqual(state.briefPatch!.removeConstraintIds, ['c1'], '删除 id 去重');
   });
 
-  it('generate_trip 只委派任务并写回 jobId，未启用时明确失败', async () => {
-    const { state, tool } = build(undefined, async () => ({ jobId: 'job-new' }));
-    const result = await run(tool('generate_trip'), {});
+  it('delegate_task 只委派任务并写回任务引用，未启用时明确失败', async () => {
+    const { state, tool } = build(undefined, async () => ({ taskId: 'job-new' }));
+    const result = await run(tool('delegate_task'), { kind: 'trip_generation' });
     assert.equal(result.isError, undefined);
-    assert.equal(state.startedGenerationJobId, 'job-new');
+    assert.deepEqual(state.delegatedTask, { id: 'job-new', kind: 'trip_generation' });
 
     const disabled = build();
-    const failed = await run(disabled.tool('generate_trip'), {});
+    const failed = await run(disabled.tool('delegate_task'), {});
     assert.equal(failed.isError, true);
-    assert.equal(disabled.state.startedGenerationJobId, undefined);
+    assert.equal(disabled.state.delegatedTask, undefined);
+  });
+
+  it('delegate_task 拒绝未知任务类型', async () => {
+    const { tool } = build(undefined, async () => ({ taskId: 'task-new' }));
+    const result = await run(tool('delegate_task'), { kind: 'unknown_kind' });
+    assert.equal(result.isError, true);
+    assert.match(result.output![0]!.text, /不支持的任务类型/);
   });
 });

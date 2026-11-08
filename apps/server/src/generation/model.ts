@@ -14,16 +14,13 @@ export class NoLlmConfiguredError extends Error {
 /**
  * 自定义 OpenAI 兼容端点模型。compat 由 pi-ai 自动探测，但只认 DeepSeek 原生域名；
  * 百炼等其他托管端点由 resolveOpenAiCompat 显式补齐（见 lib/llmCompat.ts）。
+ *
+ * 这里不负责开思考：runner 的 thinkingLevel 默认 off，模型声明 reasoning 后，
+ * off 会让兼容层发出关闭开关；需要推理的调用方显式传 thinkingLevel。
  */
-export async function buildModel(cfg: LlmConfig, options: { disableDeepSeekThinking?: boolean } = {}): Promise<Model<'openai-completions'>> {
+export async function buildModel(cfg: LlmConfig): Promise<Model<'openai-completions'>> {
   if (cfg.byok) await assertSafeBaseUrl(cfg.baseUrl);
-  // 原生 V4 ID（包括透传这些 ID 的兼容网关）使用 DeepSeek 协议；不猜测其他供应商/别名。
-  // reasoning:false 只让 SDK 不发开关，并不能关闭服务端默认启用的思考。
-  const { compat, reasoning } = resolveOpenAiCompat({
-    baseUrl: cfg.baseUrl,
-    model: cfg.model,
-    disableThinking: options.disableDeepSeekThinking === true,
-  });
+  const { compat, reasoning } = resolveOpenAiCompat({ baseUrl: cfg.baseUrl, model: cfg.model });
   return {
     id: cfg.model,
     name: cfg.model,

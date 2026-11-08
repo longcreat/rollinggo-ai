@@ -13,6 +13,7 @@ import { ChatText } from './ChatText';
 import { CopyButton } from './CopyButton';
 import { ChatInput } from './ChatInput';
 import { MessageBubble } from './MessageBubble';
+import { ThinkingPanel } from './ThinkingPanel';
 import { PendingAnswer, type PendingExchange } from './PendingAnswer';
 import { FoodCard } from './FoodCard';
 import { Button } from '../ui/Button';
@@ -30,6 +31,13 @@ interface Props {
 }
 const labels = { food: '推荐美食', explore: '看看沿途玩法', pace: '检查行程节奏', more_food: '再推荐几家', light_food: '换成清淡口味', dinner: '看看晚餐' };
 const initialSuggestions = ['food', 'explore', 'pace'] as const;
+
+/** 历史消息上的思考记录：只保留真实耗时与规模，不存原文。 */
+function HistoryThinking({ message }: { message?: ChatMessage }) {
+  const meta = message?.attachment?.thinking;
+  if (!meta) return null;
+  return <ThinkingPanel thinking={{ active: false, chunks: meta.chunks, ...(meta.durationMs !== undefined ? { durationMs: meta.durationMs } : {}) }} />;
+}
 
 export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, end, onTrip, live = false, liveStatus = 'running', liveSend }: Props) {
   const qc = useQueryClient();
@@ -191,7 +199,8 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
       setPending({ input, parts: [], textOpen: false, state: 'running' });
       controller.current = new AbortController();
       const result = await streamChat(conversationId, input, controller.current.signal, (event) => {
-        if (event.type === 'answer_delta' || event.type === 'progress') setPending((p) => {
+        if (event.type === 'answer_delta' || event.type === 'progress'
+          || event.type === 'thinking_start' || event.type === 'thinking_delta' || event.type === 'thinking_end') setPending((p) => {
           if (!p) return p;
           const parts = reduceStreamParts(p, event);
           return parts ? { ...p, ...parts } : p;
@@ -270,6 +279,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
           if (message.id !== anchor.id) return null;
           const turnText = [taskTurn.start?.content.trim(), taskTurn.completion?.content.trim()].filter(Boolean).join('\n\n');
           return <div key={anchor.id} className="flex w-full min-w-0 flex-col gap-1.5">
+            <HistoryThinking message={taskTurn.start} />
             {taskTurn.start?.content.trim() && <MessageBubble message={taskTurn.start} plain showCopy={false} />}
             <TaskCard jobId={taskTurn.taskId} conversationId={conversationId} />
             {taskTurn.completion && <MessageBubble message={taskTurn.completion} plain copyText={turnText} />}
@@ -303,6 +313,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
           ? parts.findIndex((part) => part.type === 'steps' && part.steps.some((step) => step.name === 'ask_user'))
           : -1;
         return <div key={message.id} className="min-w-0">
+        {message.role === 'assistant' && <HistoryThinking message={message} />}
         {parts?.length ? parts.map((part, index) => {
           if (part.type === 'question') {
             const record = questionRecords[part.index];

@@ -1,6 +1,7 @@
 // 一轮 Agent 的跨工具状态：工具只写这里，turn 在回答结束后统一组装附件、Brief 与生成请求。
 // 参考 openclaw 的 turn state 与 dsh 的 session 事件：工具副作用不直接落库，回合边界统一提交。
 import type { FoodCandidate, PlanningBriefPatch } from '@tripweaver/shared';
+import type { DelegatedTaskRef } from '../../tasks/delegatedTask';
 
 export interface AgentQuestionRecord {
   question: string;
@@ -47,8 +48,10 @@ export interface AgentTurnState {
   questionExpired?: boolean;
   /** 主 Agent 通过 update_brief 提交的 Brief 增量 */
   briefPatch?: Record<string, unknown>;
-  /** generate_trip 委派的后台生成任务 id */
-  startedGenerationJobId?: string;
+  /** delegate_task 委派的后台任务（当前只有 trip_generation） */
+  delegatedTask?: DelegatedTaskRef;
+  /** 本回合真实思考流元数据（不存原文，只存规模与耗时） */
+  thinking?: { startedAt: number; endedAt?: number; chunks: number };
 }
 
 export function createAgentTurnState(excludedFoodKeys: Iterable<string> = []): AgentTurnState {

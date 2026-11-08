@@ -18,7 +18,7 @@ import { SendMessageResultSchema } from '@tripweaver/shared';
 import { allowsWebSearch, collectReferences } from '../detailKnowledge';
 import { applyDialogueDecision, briefStatus, syncBriefTripDates } from '../brief';
 import { resolveDetailSources } from '../detailSources';
-import { agentModelRef, buildAgentModels } from './models';
+import { agentModelRef, agentThinkingLevel, buildAgentModels } from './models';
 import { runAgentTurn, type AgentStreamEvent } from './runtime';
 import type { ConversationId, ToolExecutionApi } from '@earendil-works/pi-durable';
 import type { Context } from '@earendil-works/chord/context';
@@ -35,6 +35,7 @@ import { createGeoSession } from '../../generation/geoPipeline';
 import { createTrip } from '../../services/tripService';
 import { GenerationTask } from '../../generation/generationTask';
 import { delegateGeneration, readGenerationStatus } from './delegate';
+import type { DelegatedTaskKind } from '../../tasks/delegatedTask';
 import { SUBAGENT_READ_ONLY_TOOL_NAMES } from './toolPolicy';
 import { createHitlSession } from './humanInLoop';
 import { markQuestionAnswered, markQuestionExpired, recordQuestion } from './questionStore';
@@ -70,7 +71,7 @@ const SYSTEM_INSTRUCTIONS = [
   '只改用户明确要求的范围；「按这个片区补齐点位」「把某天排顺」本身就是明确要求，直接执行。删除活动、减少天数必须是在用户明确要求时才做。',
   '调用 ask_user 时给 1–3 个问题和可直接点击的短选项；用户在问题卡回答后你会拿到 tool result 并继续本轮，直接使用答案，不要重复问同一个问题。用户留空表示跳过该问题，不要把它当成许可。',
   'ask_user 的每个问题只问一个决定，问题控制在 60 字内，不要把诊断、依据或编号清单塞进问题；需要解释先在正文里简短说，再调用 ask_user。需要两个决定就发两个问题，选项标签控制在 20 字内。',
-  '用户修改下一次完整生成的条件（日期/天数/人数/节奏/偏好/约束）时用 update_brief；用户明确要求按当前条件生成或重新生成整份行程时用 generate_trip。它是后台委派：有当前行程时会生成它的新版本（不是覆盖，也不是另起一份），调用后立即告诉用户「已在后台开始，可在任务页查看进度」，不要等结果、不要声称行程已生成好。用户问「生成到哪了/好了吗」时用 generation_status 读取真实状态。普通咨询或小修改不要调用这两个工具。',
+  '用户修改下一次完整生成的条件（日期/天数/人数/节奏/偏好/约束）时用 update_brief；用户明确要求按当前条件生成或重新生成整份行程时用 delegate_task（kind=trip_generation）。它是后台委派：有当前行程时会生成它的新版本（不是覆盖，也不是另起一份），调用后立即告诉用户「已在后台开始，可在任务页查看进度」，不要等结果、不要声称行程已生成好。用户问「任务到哪了/好了吗」时用 task_status 读取真实状态。普通咨询或小修改不要调用这两个工具。',
   '需要同时调研多个主题（多天安排、多个片区、多组候选）时，用 spawn_subagents 并行派发；单点查询直接调 search_places / web_search / search_food，不要为一件小事开子代理。找具体地点用 kind=places，查政策口碑用 kind=notes。',
   '子代理 kind=places 返回的 data.places 带真实坐标：把它加进行程时直接用同一个 name 调 add_activity，系统会复用该坐标，不要自己填经纬度。返回结果是调研材料，引用前核对是否与当前行程一致。',
   '用户要求按片区规划或补点时，先 search_area_places 展开该片区内的真实景点（如西湖→断桥/白堤/苏堤、宽窄巷子→街区内的点），再 search_places 查具体地点；不要把一整片景区当成一个点，也不要只放两三个相距很远的粗点。',
@@ -146,31 +147,36 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
       emit({ type: 'question_expired', questionId, reason });
     },
   });
-  // 回合内已记录的 Brief 增量 + 库里的 Brief：generate_trip 与回合末落库共用同一份推导。
+  // 回合内已记录的 Brief 增量 + 库里的 Brief：delegate_task 与回合末落库共用同一份推导。
   const evidenceSequence = (detail.messages.at(-1)?.sequence ?? 0) + 1;
   const briefWithPatch = () => state.briefPatch
     ? applyDialogueDecision(detail.conversation.brief.data, { ...state.briefPatch, intent: 'update_brief' }, evidenceSequence)
     : detail.conversation.brief.data;
 
-  // 对齐 openmuse 的 delegate_task：只负责把后台任务建起来并立即返回任务 id，不阻塞对话。
+  // 通用后台委派：只负责把 durable 任务建起来并立即返回任务 id，不阻塞对话。
   // background 让它不受本回合 stop / waitForIdle 影响；进程重启后任务照常 resume（与表单入口一致）。
-  const generateTrip = (api: ToolExecutionApi, context: Context) => delegateGeneration({
-    userId,
-    conversationId,
-    brief: briefWithPatch(),
-    // 行程内重新生成 = 当前行程的下一版，保持版本链与同一个会话。
-    targetTripId: trip.id,
-    onRunning: 'error',
-    createTask: (input) =>
-      api.createTask(GenerationTask, input, { ownership: { kind: 'conversation' }, background: true }, context),
-  });
+  const delegateTask = async (kind: DelegatedTaskKind, api: ToolExecutionApi, context: Context) => {
+    if (kind !== 'trip_generation') return { error: `不支持的任务类型：${kind}` };
+    const delegated = await delegateGeneration({
+      userId,
+      conversationId,
+      brief: briefWithPatch(),
+      // 行程内重新生成 = 当前行程的下一版，保持版本链与同一个会话。
+      targetTripId: trip.id,
+      parentTurnId: input.requestId,
+      onRunning: 'error',
+      createTask: (taskInput) =>
+        api.createTask(GenerationTask, taskInput, { ownership: { kind: 'conversation' }, background: true }, context),
+    });
+    return delegated.jobId ? { taskId: delegated.jobId } : { error: delegated.error };
+  };
 
-  const generationStatus = () => readGenerationStatus(userId, state.startedGenerationJobId);
+  const taskStatus = () => readGenerationStatus(userId, state.delegatedTask?.id);
 
   const tools = createTripTools({
     trip, sources, signal, getWeather: getTripWeather, points, draft, resolvePlace, state,
-    generateTrip,
-    generationStatus,
+    delegateTask,
+    taskStatus,
     askUser: (questions) => hitl.ask(questions),
     // 问答记录写入后立刻在有序片段里打点：历史渲染时问答卡片回到它真实发生的位置。
     onQuestionRecorded: (index) => {
@@ -223,6 +229,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     }
   };
   const stepLabel = (name: string) => (TOOL_LABEL[name] ?? '处理中').slice(0, 40);
+  const thinkingLevel = agentThinkingLevel(cfg);
   let result: Awaited<ReturnType<typeof runAgentTurn>>;
   try {
     result = await runAgentTurn({
@@ -231,6 +238,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     tools,
     instructions: SYSTEM_INSTRUCTIONS,
     model: agentModelRef(cfg.model),
+    ...(thinkingLevel ? { thinkingLevel } : {}),
     prompt,
     conversationId: durableId === null ? null : durableId as unknown as ConversationId,
     // 主 Agent 不设轮数上限（harness 默认）：需要停止时由用户中断，避免长任务被硬切断。
@@ -278,6 +286,20 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
           }
         }
         emit({ type: 'answer_delta', text: event.text, replace: true });
+      }
+      if (event.type === 'thinking_start') {
+        openText = -1;
+        state.thinking = { startedAt: Date.now(), chunks: 0 };
+        emit({ type: 'thinking_start' });
+      }
+      if (event.type === 'thinking_delta') {
+        if (!state.thinking) state.thinking = { startedAt: Date.now(), chunks: 0 };
+        state.thinking.chunks += 1;
+        emit({ type: 'thinking_delta', text: event.text });
+      }
+      if (event.type === 'thinking_end') {
+        if (state.thinking) state.thinking.endedAt = Date.now();
+        emit({ type: 'thinking_end' });
       }
     },
     });
@@ -341,7 +363,13 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     references,
     ...(state.questions.length ? { questions: state.questions } : {}),
     ...(state.foodNotes.length && !state.foodCandidates.length ? { notice: state.foodNotes.join(' ').slice(0, 500) } : {}),
-    ...(state.startedGenerationJobId ? { task: { jobId: state.startedGenerationJobId } } : {}),
+    ...(state.thinking ? {
+      thinking: {
+        chunks: state.thinking.chunks,
+        durationMs: Math.max(0, (state.thinking.endedAt ?? Date.now()) - state.thinking.startedAt),
+      },
+    } : {}),
+    ...(state.delegatedTask ? { task: { jobId: state.delegatedTask.id } } : {}),
   };
 
   // Brief 增量在回合边界统一落地；工具只记录意图，不直接写库。
@@ -378,7 +406,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
           role: 'assistant',
           content: answer,
           turnId: input.requestId,
-          ...(state.startedGenerationJobId ? { taskId: state.startedGenerationJobId } : {}),
+          ...(state.delegatedTask ? { taskId: state.delegatedTask.id } : {}),
           attachment: savedAttachment,
           ...(version ? { relatedTripId: savedTrip.id } : {}),
         },
@@ -388,7 +416,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
     if (!messages?.[0] || !messages[1] || !brief) throw new Error('会话保存失败');
     const intent = outcomes.length
       ? 'modify_itinerary'
-      : state.startedGenerationJobId
+      : state.delegatedTask
         ? 'confirm'
         : state.briefPatch
           ? 'update_brief'
@@ -398,7 +426,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
       replyMessage: messages[1],
       brief,
       intent,
-      ...(state.startedGenerationJobId ? { startedGenerationJobId: state.startedGenerationJobId } : {}),
+      ...(state.delegatedTask ? { startedGenerationJobId: state.delegatedTask.id } : {}),
       ...(version ? { editResult: { tripId: savedTrip.id, version, previousTripId: latest.id, outcomes } } : {}),
     };
     if (!Value.Check(SendMessageResultSchema, payload)) throw new Error('对话结果无效');

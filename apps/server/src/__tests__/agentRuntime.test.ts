@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { after, describe, it } from 'node:test';
 import { createModels } from '@earendil-works/pi-ai/models';
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
-import { fauxAssistantMessage, fauxProvider, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
+import { fauxAssistantMessage, fauxProvider, fauxText, fauxThinking, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
 import { defineExtension, defineTask, defineTool } from '@earendil-works/pi-durable';
 import { obj } from '@earendil-works/pi-schema';
 import type { Trip } from '@tripweaver/shared';
@@ -438,6 +438,27 @@ describe('agent runtime', () => {
     assert.equal(result.status, 'done');
     assert.equal(ran, true, '子任务必须真正执行');
     assert.deepEqual(result.toolCalls, ['run_child']);
+    await closeAgentRuntime(path);
+  });
+
+  it('真实 thinking 块按 start/delta/end 透传，且不混入正文', async () => {
+    const path = await storage();
+    const { faux, models } = fauxModels();
+    faux.setResponses([fauxAssistantMessage([fauxThinking('先判断用户要什么。'), fauxText('最终答案')])]);
+    const events: AgentStreamEvent[] = [];
+    const result = await runAgentTurn({
+      storagePath: path, models, tools: [], instructions: '测试',
+      model: { provider: 'faux', modelId: 'faux-1' }, prompt: '问题', maxTurns: 2,
+      onEvent: (event) => events.push(event),
+    });
+    assert.equal(result.text, '最终答案');
+    assert.ok(events.some((event) => event.type === 'thinking_start'), '应当有真实的 thinking_start');
+    assert.ok(events.some((event) => event.type === 'thinking_end'), '正文开始/回合结束时应收口');
+    assert.equal(
+      events.filter((event) => event.type === 'thinking_delta').map((event) => event.text).join(''),
+      '先判断用户要什么。',
+    );
+    assert.equal(events.filter((event) => event.type === 'text').at(-1)?.text, '最终答案');
     await closeAgentRuntime(path);
   });
 

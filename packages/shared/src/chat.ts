@@ -123,7 +123,7 @@ export const SendMessageResultSchema = Type.Object({
   replyMessage: ChatMessageSchema,
   brief: PlanningBriefViewSchema,
   intent: StringEnum(CHAT_INTENTS),
-  /** 主 Agent 通过 generate_trip 委派的后台生成任务；前端据此进入任务直播页 */
+  /** 主 Agent 通过 delegate_task 委派的后台生成任务；前端据此进入任务直播页 */
   startedGenerationJobId: Type.Optional(Type.String()),
   /** R1（09-24）：按需修订结果。LLM 判定修改意图即直接执行，落版本链下一版 */
   editResult: Type.Optional(
@@ -140,6 +140,10 @@ export const SendMessageResultSchema = Type.Object({
 const StreamEnvelope = { requestId: Type.String(), sequence: Type.Integer({ minimum: 1 }) };
 export const ChatStreamEventSchema = Type.Union([
   Type.Object({ ...StreamEnvelope, type: Type.Literal('accepted') }),
+  // 真实思考流：只在模型真的返回 thinking 时出现，不用静态“正在思考”占位。
+  Type.Object({ ...StreamEnvelope, type: Type.Literal('thinking_start') }),
+  Type.Object({ ...StreamEnvelope, type: Type.Literal('thinking_delta'), text: Type.String() }),
+  Type.Object({ ...StreamEnvelope, type: Type.Literal('thinking_end') }),
   Type.Object({ ...StreamEnvelope, type: Type.Literal('progress'), text: Type.String(), step: Type.Optional(AgentStepSchema) }),
   Type.Object({ ...StreamEnvelope, type: Type.Literal('answer_delta'), text: Type.String(), replace: Type.Optional(Type.Boolean()) }),
   // HITL：Agent 在工具执行中暂停，用户回答后同一回合继续。

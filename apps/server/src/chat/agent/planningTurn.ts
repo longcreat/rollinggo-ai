@@ -1,5 +1,5 @@
 // 行前回合：还没有行程，只有会话与 Brief。表单入口把首条消息交给主 Agent，
-// Agent 确认条件后调用 generate_trip 委派后台任务；模型漏调时用确定性兜底启动。
+// Agent 确认条件后调用 delegate_task 委派后台任务；模型漏调时用确定性兜底启动。
 import { Value } from '@sinclair/typebox/value';
 import type { AgentStep, ChatAttachment, PlanningBriefData, PlanningTurnRequest, SendMessageResult } from '@tripweaver/shared';
 import { SendMessageResultSchema, requiredBriefFields } from '@tripweaver/shared';
@@ -14,11 +14,12 @@ import { readBinding, saveBinding } from './binding';
 import { delegateGeneration, readGenerationStatus } from './delegate';
 import { TOOL_LABEL } from './labels';
 import { PLANNING_INSTRUCTIONS, buildPlanningPrompt } from './planningPrompt';
-import { agentModelRef, buildAgentModels } from './models';
+import { agentModelRef, agentThinkingLevel, buildAgentModels } from './models';
 import { runAgentTurn } from './runtime';
 import { createPlanningTools } from './tools';
 import { createAgentTurnState } from './turnState';
 import type { DetailChatEmit } from './turn';
+import type { DelegatedTaskKind } from '../../tasks/delegatedTask';
 import type { ConversationId, ToolExecutionApi } from '@earendil-works/pi-durable';
 import type { Context } from '@earendil-works/chord/context';
 
@@ -43,25 +44,32 @@ export async function runPlanningAnswer(options: RunPlanningAnswerOptions): Prom
     : detail.conversation.brief.data;
 
   const createTask = (taskInput: GenerationTaskInput) => startGenerationTask(taskInput);
-  const generateTrip = (api: ToolExecutionApi, context: Context) => delegateGeneration({
-    userId,
-    conversationId,
-    brief: briefWithPatch(),
-    requestId: input.requestId,
-    onRunning: 'adopt',
-    createTask: (taskInput) =>
-      api.createTask(GenerationTask, taskInput, { ownership: { kind: 'conversation' }, background: true }, context),
-  });
-  const generationStatus = () => readGenerationStatus(userId, state.startedGenerationJobId);
+  const delegateTask = async (kind: DelegatedTaskKind, api: ToolExecutionApi, context: Context) => {
+    if (kind !== 'trip_generation') return { error: `不支持的任务类型：${kind}` };
+    const delegated = await delegateGeneration({
+      userId,
+      conversationId,
+      brief: briefWithPatch(),
+      requestId: input.requestId,
+      parentTurnId: input.requestId,
+      onRunning: 'adopt',
+      createTask: (taskInput) =>
+        api.createTask(GenerationTask, taskInput, { ownership: { kind: 'conversation' }, background: true }, context),
+    });
+    return delegated.jobId ? { taskId: delegated.jobId } : { error: delegated.error };
+  };
+  const taskStatus = () => readGenerationStatus(userId, state.delegatedTask?.id);
 
   const durableId = await readBinding(userId, conversationId);
+  const thinkingLevel = agentThinkingLevel(cfg);
   const steps: AgentStep[] = [];
   const result = await runAgentTurn({
     storagePath: agentStoragePath(userId),
     models: await buildAgentModels(cfg),
-    tools: createPlanningTools({ state, generateTrip, generationStatus }),
+    tools: createPlanningTools({ state, delegateTask, taskStatus }),
     instructions: PLANNING_INSTRUCTIONS,
     model: agentModelRef(cfg.model),
+    ...(thinkingLevel ? { thinkingLevel } : {}),
     prompt: buildPlanningPrompt({ brief: detail.conversation.brief.data, text: input.text, autostart: Boolean(input.autostart) }),
     // 行前回合只确认并委派，不需要长工具链；给上限避免异常模型把表单提交拖住。
     maxTurns: 6,
@@ -84,12 +92,25 @@ export async function runPlanningAnswer(options: RunPlanningAnswerOptions): Prom
         emit({ type: 'progress', text: event.type === 'tool_start' ? `正在${label}…` : `${label}${event.status === 'done' ? '完成' : '未完成'}`, step: { ...step } });
       }
       if (event.type === 'text') emit({ type: 'answer_delta', text: event.text, replace: true });
+      if (event.type === 'thinking_start') {
+        state.thinking = { startedAt: Date.now(), chunks: 0 };
+        emit({ type: 'thinking_start' });
+      }
+      if (event.type === 'thinking_delta') {
+        if (!state.thinking) state.thinking = { startedAt: Date.now(), chunks: 0 };
+        state.thinking.chunks += 1;
+        emit({ type: 'thinking_delta', text: event.text });
+      }
+      if (event.type === 'thinking_end') {
+        if (state.thinking) state.thinking.endedAt = Date.now();
+        emit({ type: 'thinking_end' });
+      }
     },
   });
   signal.throwIfAborted();
 
-  // 模型没调用 generate_trip 时确定性兜底：表单「开始规划」不能因为一次模型判断而没反应。
-  let startedJobId = state.startedGenerationJobId;
+  // 模型没调用 delegate_task 时确定性兜底：表单「开始规划」不能因为一次模型判断而没反应。
+  let startedJobId = state.delegatedTask?.id;
   let failure: string | undefined;
   if (input.autostart && !startedJobId) {
     const brief = briefWithPatch();
@@ -102,12 +123,13 @@ export async function runPlanningAnswer(options: RunPlanningAnswerOptions): Prom
         conversationId,
         brief,
         requestId: input.requestId,
+        parentTurnId: input.requestId,
         onRunning: 'adopt',
         createTask,
       });
       if (delegated.jobId) startedJobId = delegated.jobId;
       else failure = delegated.error;
-      if (delegated.jobId) state.startedGenerationJobId = delegated.jobId;
+      if (delegated.jobId) state.delegatedTask = { id: delegated.jobId, kind: 'trip_generation', parentTurnId: input.requestId };
     }
   }
 
@@ -126,6 +148,12 @@ export async function runPlanningAnswer(options: RunPlanningAnswerOptions): Prom
     summary: steps.map((step) => step.label).slice(0, 20),
     ...(steps.length ? { steps: steps.slice(0, 24) } : {}),
     candidates: [],
+    ...(state.thinking ? {
+      thinking: {
+        chunks: state.thinking.chunks,
+        durationMs: Math.max(0, (state.thinking.endedAt ?? Date.now()) - state.thinking.startedAt),
+      },
+    } : {}),
     ...(startedJobId ? { task: { jobId: startedJobId } } : {}),
   };
 

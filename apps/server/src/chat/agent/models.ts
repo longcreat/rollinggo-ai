@@ -5,19 +5,18 @@
 // BYOK 的 baseUrl 仍要过 ssrfGuard（架构 §5.1/§9），自建供应商的鉴权用闭包注入用户 Key。
 import { createModels, createProvider, type Models } from '@earendil-works/pi-ai/models';
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
-import type { Model } from '@earendil-works/pi-ai';
+import type { Model, ModelThinkingLevel } from '@earendil-works/pi-ai';
 import type { LlmConfig } from '../../services/settingsService';
 import { assertSafeBaseUrl } from '../../integrations/ssrfGuard';
-import { isDashScopeBaseUrl, resolveOpenAiCompat } from '../../lib/llmCompat';
+import { resolveOpenAiCompat } from '../../lib/llmCompat';
 
 export const AGENT_PROVIDER_ID = 'tripweaver';
 
 /** 构造一个带用户 Key 的 Models 集合；每次调用返回独立实例，便于按用户切换配置。 */
 export async function buildAgentModels(cfg: LlmConfig): Promise<Models> {
   if (cfg.byok) await assertSafeBaseUrl(cfg.baseUrl);
-  // 百炼托管的 DeepSeek 参数名与原生不同：显式关思考，工具轮更稳、也更便宜。
-  const disableThinking = isDashScopeBaseUrl(cfg.baseUrl);
-  const { compat, reasoning } = resolveOpenAiCompat({ baseUrl: cfg.baseUrl, model: cfg.model, disableThinking });
+  // reasoning 只声明能力；思考开关由每个会话的 thinkingLevel 决定（见 agentThinkingLevel）。
+  const { compat, reasoning } = resolveOpenAiCompat({ baseUrl: cfg.baseUrl, model: cfg.model });
   const model: Model<'openai-completions'> = {
     id: cfg.model,
     name: cfg.model,
@@ -55,4 +54,12 @@ export async function buildAgentModels(cfg: LlmConfig): Promise<Models> {
 /** 当前模型引用，供 Harness 的 agent 配置使用。 */
 export function agentModelRef(modelId: string) {
   return { provider: AGENT_PROVIDER_ID, modelId };
+}
+
+/**
+ * 主对话的思考等级：只在模型/端点真正支持思考开关时开启。
+ * 其余调用（生成阶段、完成回流、子代理）保持默认 off，避免把预算烧在隐藏推理上。
+ */
+export function agentThinkingLevel(cfg: LlmConfig): ModelThinkingLevel | null {
+  return resolveOpenAiCompat({ baseUrl: cfg.baseUrl, model: cfg.model }).supportsThinking ? 'medium' : null;
 }

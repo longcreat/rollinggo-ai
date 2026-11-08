@@ -3,6 +3,11 @@
 // pi-ai 只按 baseUrl 自动识别 DeepSeek 原生（`*.deepseek.com`）；托管在别家（如阿里云百炼
 // dashscope.aliyuncs.com）的 DeepSeek 认不出来，会按 OpenAI 默认发 `max_completion_tokens`，
 // 而百炼要 `max_tokens`。这类差异在这里集中判断，避免散落到两处模型构造里。
+//
+// 思考开关与「是否声明 reasoning」分开：
+//   - reasoning 只表示模型支持思考；pi-ai 只有 reasoning=true 时才发送思考开关。
+//   - 真正开启/关闭由请求级 thinkingLevel 决定（off 时 qwen 发 enable_thinking:false、
+//     deepseek 发 thinking:{type:"disabled"}）。主对话按 agentThinkingLevel 开，其余默认 off。
 import type { Model } from '@earendil-works/pi-ai/compat';
 
 export type OpenAiCompat = NonNullable<Model<'openai-completions'>['compat']>;
@@ -31,48 +36,46 @@ export function isBailianDeepSeekModel(model: string): boolean {
 export interface CompatDecision {
   /** 传给 pi-ai Model 的 compat；undefined = 用自动探测的默认值。 */
   compat: OpenAiCompat | undefined;
-  /** 是否声明为 reasoning 模型：pi-ai 只有在 reasoning 为 true 时才会发送思考开关。 */
+  /** 模型声明支持推理；真正开启还需请求级 thinkingLevel 非 off。 */
   reasoning: boolean;
+  /** 端点/模型是否支持思考开关（主对话据此决定是否给非 off 的 thinkingLevel）。 */
+  supportsThinking: boolean;
 }
 
 /**
  * 决定一个模型该如何和端点对话。
  *
- * - 百炼：一律 `max_tokens`，并关掉 developer 角色与 store 字段；DeepSeek 模型要关思考时
- *   用百炼的 `enable_thinking: false`（pi-ai 的 qwen 分支会发这个字段），并补 reasoning
- *   占位以兼容工具续轮。
- * - 原生 DeepSeek：保持既有行为（`thinking: {type:"disabled"}`）。
+ * - 百炼：一律 `max_tokens`，并关掉 developer 角色与 store 字段；DeepSeek 模型声明 reasoning
+ *   并走 qwen 的 `enable_thinking` 开关。
+ * - 原生 DeepSeek V4：`thinking: {type:"disabled"}` / `{type:"enabled"}` 这一套。
  * - 其他：不加任何私有参数，交给 pi-ai 默认。
  */
-export function resolveOpenAiCompat(input: {
-  baseUrl: string;
-  model: string;
-  disableThinking: boolean;
-}): CompatDecision {
-  const dashscope = isDashScopeBaseUrl(input.baseUrl);
-  if (dashscope) {
-    const thinkingOff = input.disableThinking && isBailianDeepSeekModel(input.model);
+export function resolveOpenAiCompat(input: { baseUrl: string; model: string }): CompatDecision {
+  if (isDashScopeBaseUrl(input.baseUrl)) {
+    const thinking = isBailianDeepSeekModel(input.model);
     return {
       compat: {
         maxTokensField: 'max_tokens',
         // 百炼不接受 OpenAI 的 developer 角色与 store 字段；不关掉会随 reasoning=true 一起被发出去。
         supportsDeveloperRole: false,
         supportsStore: false,
-        ...(thinkingOff
+        ...(thinking
           ? {
             thinkingFormat: 'qwen' as const,
             requiresReasoningContentOnAssistantMessages: true,
           }
           : {}),
       },
-      reasoning: thinkingOff,
+      reasoning: thinking,
+      supportsThinking: thinking,
     };
   }
-  const thinkingOff = input.disableThinking && NATIVE_DEEPSEEK_THINKING_MODEL.test(input.model);
+  const thinking = NATIVE_DEEPSEEK_THINKING_MODEL.test(input.model);
   return {
-    compat: thinkingOff
+    compat: thinking
       ? { thinkingFormat: 'deepseek' as const, requiresReasoningContentOnAssistantMessages: true }
       : undefined,
-    reasoning: thinkingOff,
+    reasoning: thinking,
+    supportsThinking: thinking,
   };
 }

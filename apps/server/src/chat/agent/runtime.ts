@@ -4,6 +4,7 @@
 // 业务数据（行程、来源、提交）全部由调用方通过工具闭包注入，运行时不懂旅行。
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import type { Models } from '@earendil-works/pi-ai/models';
+import type { ModelThinkingLevel } from '@earendil-works/pi-ai';
 import {
   AssistantEntry,
   Harness,
@@ -24,6 +25,10 @@ import { GenerationTask } from '../../generation/generationTask';
 export type AgentStreamEvent =
   // 当前 generation 的完整正文快照；HITL 后 generation 会重开，增量不可靠。
   | { type: 'text'; text: string }
+  // 真实思考流：只在模型返回 thinking 块时出现，不伪造。
+  | { type: 'thinking_start' }
+  | { type: 'thinking_delta'; text: string }
+  | { type: 'thinking_end' }
   | { type: 'tool_start'; callId: string; name: string; startedAt: number }
   | { type: 'tool_end'; callId: string; name: string; status: 'done' | 'error' | 'stopped'; durationMs: number }
   | { type: 'done'; conversationId: ConversationId }
@@ -37,6 +42,8 @@ export interface RunAgentTurnOptions {
   instructions: string;
   /** 本轮的模型（provider + modelId），每次运行都写回会话配置。 */
   model: { provider: string; modelId: string };
+  /** 思考等级；缺省/off 时不开启（兼容层会显式发关闭开关）。 */
+  thinkingLevel?: ModelThinkingLevel;
   prompt: string;
   /** 不传则新建 durable 会话。 */
   conversationId?: ConversationId | null;
@@ -162,6 +169,16 @@ function readAnswerText(message: unknown): string {
   return content.filter((block) => block.type === 'text' && typeof block.text === 'string').map((block) => block.text!).join('');
 }
 
+/** 只读可见的思考文本；redacted 块是安全过滤后的加密载荷，不当作 CoT 展示。 */
+function readThinkingText(message: unknown): string {
+  const content = (message as { content?: { type?: string; thinking?: string; redacted?: boolean }[] } | undefined)?.content;
+  if (!Array.isArray(content)) return '';
+  return content
+    .filter((block) => block.type === 'thinking' && typeof block.thinking === 'string' && block.redacted !== true)
+    .map((block) => block.thinking!)
+    .join('');
+}
+
 /**
  * 跑一轮：订阅 LiveDoc（工具状态 + 流式片段），结束后读最终答案。
  * 工具事件同时用于 SSE 的进度提示。
@@ -180,7 +197,12 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
     if (conversationId === null) {
       const conversation = await harness.createConversation({
         ownership: { kind: 'ownerless' },
-        agent: { instructions: options.instructions, model: options.model, maxTurns: options.maxTurns },
+        agent: {
+          instructions: options.instructions,
+          model: options.model,
+          maxTurns: options.maxTurns,
+          ...(options.thinkingLevel ? { thinkingLevel: options.thinkingLevel } : {}),
+        },
       }, context);
       conversationId = conversation.id;
       await options.onConversationCreated?.(conversationId);
@@ -228,6 +250,7 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
       model: options.model,
       instructions: options.instructions,
       maxTurns: options.maxTurns ?? null,
+      thinkingLevel: options.thinkingLevel ?? null,
       extensions: selected,
     }, context);
 
@@ -244,6 +267,16 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
     const openTools = new Map<string, { name: string; startedAt: number }>();
     const toolCalls: string[] = [];
     let streamed = '';
+    // 思考流按 generation 的完整快照做差分；generation 清空/重开时收口上一段。
+    let thinkingAttempt = -1;
+    let thinkingSent = '';
+    let thinkingOpen = false;
+    let thinkingSeen = false;
+    const endThinking = () => {
+      if (!thinkingOpen) return;
+      thinkingOpen = false;
+      options.onEvent?.({ type: 'thinking_end' });
+    };
 
     const finishOpenTools = () => {
       for (const [callId, tool] of openTools) {
@@ -281,7 +314,29 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
         }
       }
       const partial = value?.generation?.message;
+      const attempt = value?.generation?.attempt;
+      if (attempt !== undefined && attempt !== thinkingAttempt) {
+        endThinking();
+        thinkingAttempt = attempt;
+        thinkingSent = '';
+        streamed = '';
+      }
+      const thinking = readThinkingText(partial);
+      if (thinking && thinking !== thinkingSent) {
+        if (!thinkingOpen) {
+          thinkingOpen = true;
+          thinkingSeen = true;
+          options.onEvent?.({ type: 'thinking_start' });
+        }
+        options.onEvent?.({ type: 'thinking_delta', text: thinking.slice(thinkingSent.length) });
+        thinkingSent = thinking;
+      } else if (!thinking && thinkingOpen) {
+        endThinking();
+        thinkingSent = '';
+      }
       const text = readAnswerText(partial);
+      // 正文开始就收口思考面板；后面的工具轮再思考会重新开一段。
+      if (text && thinkingOpen) endThinking();
       // generation.message 本身就是完整快照；HITL 后会从空重新长，按快照替换而不是累加增量。
       if (text !== streamed) {
         options.onEvent?.({ type: 'text', text });
@@ -315,6 +370,17 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
         ? await conversation.commit((tx) => tx.entry(AssistantEntry, settled.answer), context)
         : undefined;
       const answer = readAnswerText(entry?.model?.[0]);
+      // 低延迟/非流式供应商可能在 partial 落盘前就结束：用已提交的最终回答补一次真实思考事件，
+      // 仍然只来自模型返回的 thinking 块，不伪造状态。
+      if (!thinkingSeen) {
+        const finalThinking = readThinkingText(entry?.model?.[0]);
+        if (finalThinking) {
+          thinkingSeen = true;
+          options.onEvent?.({ type: 'thinking_start' });
+          options.onEvent?.({ type: 'thinking_delta', text: finalThinking });
+          options.onEvent?.({ type: 'thinking_end' });
+        }
+      }
       if (answer && answer !== streamed) options.onEvent?.({ type: 'text', text: answer });
       // 和 pi 的 transcript 一样以 committed entries 为准：ask_user 前后的正文都在，
       // 不再依赖流式增量拼接（增量在 generation 重开时会重复或缺段）。
@@ -333,6 +399,7 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
       return { conversationId, status: 'done', text, toolCalls };
     } finally {
       options.signal?.removeEventListener('abort', onAbort);
+      endThinking();
       finishOpenTools();
       // 停止失败不能盖住原始错误（尤其是 AbortError，调用方靠它区分「已停止」）。
       await live.stop().catch(() => {});

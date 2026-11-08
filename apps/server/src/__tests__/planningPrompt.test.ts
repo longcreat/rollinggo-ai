@@ -24,9 +24,9 @@ test('行前提示包含用户原文与结构化出行条件', () => {
   assert.match(prompt, /偏好 美食、文化/);
 });
 
-test('autostart 才附加「立即调用 generate_trip」指令', () => {
-  assert.match(buildPlanningPrompt({ brief, text: '', autostart: true }), /立即调用 generate_trip/);
-  assert.doesNotMatch(buildPlanningPrompt({ brief, text: '', autostart: false }), /立即调用 generate_trip/);
+test('autostart 才附加「立即调用 delegate_task」指令', () => {
+  assert.match(buildPlanningPrompt({ brief, text: '', autostart: true }), /立即调用 delegate_task/);
+  assert.doesNotMatch(buildPlanningPrompt({ brief, text: '', autostart: false }), /立即调用 delegate_task/);
 });
 
 test('行前回答禁止固定话术与逐项复述', () => {

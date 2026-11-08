@@ -4,6 +4,8 @@ import type { AgentPart, AgentQuestionAnswer, DetailChatRequest, PendingQuestion
 import { Button } from '../ui/Button';
 import { AgentActivity } from './AgentActivity';
 import { ChatText } from './ChatText';
+import { ThinkingPanel } from './ThinkingPanel';
+import type { StreamThinking } from '../../lib/chatStreamParts';
 
 export interface PendingExchange<T extends { text: string } = DetailChatRequest> {
   input: T;
@@ -12,12 +14,16 @@ export interface PendingExchange<T extends { text: string } = DetailChatRequest>
   /** 当前最后一段正文是否仍在流式增长；工具/问题出现后关闭 */
   textOpen: boolean;
   state: 'running' | 'stopped' | 'error';
+  /** 真实思考流的状态；没有 thinking 事件时缺省，不显示占位。 */
+  thinking?: StreamThinking;
   /** HITL：Agent 在工具中暂停时的问题；回答后同一回合继续 */
   question?: PendingQuestionView;
   questionState?: 'pending' | 'answered' | 'expired';
   questionExpiredReason?: 'timeout' | 'cancelled';
   questionAnswers?: AgentQuestionAnswer[];
 }
+
+/** 折叠的思考面板：只展示真实状态与规模，不把原始 CoT 渲染出来。 */
 
 export function PendingAnswer({ pending, busy, readOnly, onRetry, onRestore }: {
   pending: PendingExchange<{ text: string }>;
@@ -32,6 +38,7 @@ export function PendingAnswer({ pending, busy, readOnly, onRetry, onRestore }: {
   return <>
     <div className="chat-bubble self-end max-w-[85%] whitespace-pre-wrap break-words rounded-2xl bg-slate-900 text-white px-3.5 py-2.5 text-sm shadow-2xs">{pending.input.text}</div>
     <div className="min-w-0">
+      {pending.thinking && <ThinkingPanel thinking={pending.thinking} />}
       {pending.parts.map((part, index) => part.type === 'text'
         ? <div key={`text-${index}`} className="mb-1.5 break-words px-1 py-0.5 text-sm leading-relaxed text-slate-800"><ChatText text={part.text} markdown /></div>
         : part.type === 'steps' ? <AgentActivity key={`steps-${index}`} steps={part.steps}

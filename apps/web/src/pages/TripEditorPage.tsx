@@ -25,6 +25,7 @@ import { BotIcon, SendIcon, PlusIcon } from '../components/home/HomeIcons';
 import { Compass, PanelLeftClose } from 'lucide-react';
 import { useLiveTrip } from '../hooks/useLiveTrip';
 import { LiveAgentStream } from '../components/live/LiveAgentStream';
+import { SubAgentPage } from '../components/live/SubAgentPage';
 
 type MobileTab = 'chat' | 'list' | 'map';
 
@@ -35,7 +36,9 @@ export function TripEditorPage() {
   const me = useMe();
   const userId = me.data?.id;
   // 直播模式：/agent/:jobId 与 /trips/:id 共用同一个工作区，只切换数据源。
-  const liveJobId = useMatch('/agent/:jobId')?.params.jobId;
+  // splat 让主时间线 ↔ 子 Agent 页面保持同一个页面实例，SSE 不重连。
+  const liveJobId = useMatch('/agent/:jobId/*')?.params.jobId;
+  const subAgentStage = useMatch('/agent/:jobId/agents/:stage')?.params.stage ?? null;
   const live = Boolean(liveJobId);
   const liveState = useLiveTrip(liveJobId);
   // 投影在任务过期/重启后可能缺席；持久任务行仍能告诉我们终态与 tripId，交接不依赖内存。
@@ -118,18 +121,21 @@ export function TripEditorPage() {
   // 直播：每天 plan_day 到达就整份替换合成行程，保留当前选中的天。
   useEffect(() => {
     const next = liveState.trip;
-    if (!live || !next) return;
+    if (!live || !next || completedTripId) return;
     const current = useEditorStore.getState();
     if (current.trip?.id === next.id && current.trip.updatedAt === next.updatedAt) return;
     // 只有同一次生成内的天行更新才沿用选中天；新任务从总览开始，避免继承上一趟行程的第 N 天。
     const filter = current.trip?.id === next.id ? current.dayFilter : null;
     load(next);
     if (filter !== null) useEditorStore.getState().setDayFilter(filter);
-  }, [live, liveState.trip, load]);
+  }, [live, liveState.trip, load, completedTripId]);
 
   // 完成：先把正式行程写进缓存再原地切到 /trips/:id，避免闪屏。
+  // 如果完成时用户正在子 Agent 页面，则保留现场；返回主 Agent 后也不再强制跳转。
+  const completedWhileInspecting = useRef(false);
   useEffect(() => {
     if (!live || !completedTripId) return;
+    if (subAgentStage) completedWhileInspecting.current = true;
     let alive = true;
     void qc.fetchQuery({
       queryKey: keys.trip(completedTripId),
@@ -141,11 +147,13 @@ export function TripEditorPage() {
       if (!Value.Check(TripSchema, saved)) console.warn('[generation] 落库行程未通过 schema 校验，仍进入详情页');
       qc.setQueryData(keys.trip(completedTripId), saved);
       load(saved as Trip);
-      useEditorStore.getState().setDayFilter(null);
-      navigate(`/trips/${completedTripId}`, { replace: true });
+      if (!subAgentStage && !completedWhileInspecting.current) {
+        useEditorStore.getState().setDayFilter(null);
+        navigate(`/trips/${completedTripId}`, { replace: true });
+      }
     }).catch(() => {});
     return () => { alive = false; };
-  }, [live, completedTripId, qc, load, navigate]);
+  }, [live, completedTripId, qc, load, navigate, subAgentStage]);
 
   useEffect(() => { useEditorStore.getState().setReadOnly(readOnly || busy); }, [readOnly, busy]);
   const begin = async () => {
@@ -371,22 +379,35 @@ export function TripEditorPage() {
           {/* 对话内容与输入流 */}
           <div className="flex-1 min-h-0 flex flex-col">
             {live ? (
-              <LiveAgentStream
-                stream={liveState.stream}
-                destination={liveState.trip?.destination ?? ''}
-                days={liveState.trip?.days.length}
-                cancelling={liveState.cancelling}
-                error={liveState.cancellationError ?? liveState.error}
-                lost={liveState.lost}
-                onCancel={liveState.cancel}
-                onHome={() => navigate('/')}
-                onRetry={() => {
-                  // 失败重试：复用手上这份表单参数回 /trips/new 自动再发起一次；
-                  // 没有留档（比如从通知里恢复的任务）时退回首页，别把用户卡死在死路。
-                  const saved = sessionStorage.getItem('tw.lastTripDraftParams');
-                  navigate(saved ? `/trips/new?${saved}&autostart=1` : '/');
-                }}
-              />
+              liveJobId && subAgentStage ? (
+                <SubAgentPage
+                  jobId={liveJobId}
+                  stage={subAgentStage}
+                  stream={liveState.stream}
+                  completedTripId={completedTripId}
+                  onTrip={() => completedTripId && navigate(`/trips/${completedTripId}`)}
+                  onBack={() => navigate(`/agent/${liveJobId}`)}
+                />
+              ) : (
+                <LiveAgentStream
+                  jobId={liveJobId ?? ''}
+                  stream={liveState.stream}
+                  destination={liveState.trip?.destination ?? ''}
+                  days={liveState.trip?.days.length}
+                  cancelling={liveState.cancelling}
+                  error={liveState.cancellationError ?? liveState.error}
+                  lost={liveState.lost}
+                  onCancel={liveState.cancel}
+                  onTrip={completedTripId ? () => navigate(`/trips/${completedTripId}`) : undefined}
+                  onHome={() => navigate('/')}
+                  onRetry={() => {
+                    // 失败重试：复用手上这份表单参数回 /trips/new 自动再发起一次；
+                    // 没有留档（比如从通知里恢复的任务）时退回首页，别把用户卡死在死路。
+                    const saved = sessionStorage.getItem('tw.lastTripDraftParams');
+                    navigate(saved ? `/trips/new?${saved}&autostart=1` : '/');
+                  }}
+                />
+              )
             ) : conversationId ? (
               <ChatPanel
                 conversationId={conversationId}

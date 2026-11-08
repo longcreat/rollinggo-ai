@@ -129,18 +129,23 @@ try {
     return jobId;
   };
 
-  await begin();
-  // 进度文案只能来自用户可读标签，不能泄露服务端内部工具名。
+  const jobId = await begin();
+  // 主时间线只显示子 Agent 条目（阶段名/状态/步数），不能泄露服务端内部工具名。
+  await page.locator('[data-subagent-row]').first().waitFor({ timeout: 30_000 });
   const liveLines = new Set();
   for (let i = 0; i < 6; i++) {
-    for (const text of await page.locator('section[aria-label] li span').allInnerTexts()) liveLines.add(text.replace(/\s+/g, ''));
+    for (const text of await page.locator('[data-subagent-row]').allInnerTexts()) liveLines.add(text.replace(/\s+/g, ''));
     await sleep(200);
   }
-  assert.ok(liveLines.size > 0, '未采样到进度文案');
+  assert.ok(liveLines.size > 0, '未采样到子 Agent 条目');
   for (const line of liveLines) {
-    const core = line.replace(/^正在/, '').replace(/[…\.]+$/, '');
-    assert.ok(!INTERNAL_LABELS.includes(core), `进度文案直接显示了内部 label：${line}`);
+    for (const label of INTERNAL_LABELS) assert.ok(!line.includes(label), `子 Agent 条目直接显示了内部 label：${label}`);
   }
+  // 点击条目进入子 Agent 页面（同一工作区、URL 变化），再返回主时间线。
+  await page.locator('[data-subagent-row]').first().click();
+  await page.waitForURL((url) => new RegExp(`^/agent/${jobId}/agents/[^/]+$`).test(url.pathname), { timeout: 15_000 });
+  await page.getByRole('button', { name: '返回主 Agent', exact: true }).click();
+  await page.waitForURL((url) => url.pathname === `/agent/${jobId}`, { timeout: 15_000 });
   const firstTripId = await editor();
   assert.ok(await page.getByRole('region', { name: '行程总览' }).isVisible(), '生成完成应停在总览');
   assert.equal(planningPosts.length, 1, '表单提交应只发生一次行前回合');

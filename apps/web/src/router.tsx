@@ -53,7 +53,8 @@ export const router = createBrowserRouter([
         children: [
           { path: '/trips', element: withSuspense(<TripListPage />) },
           { path: '/trips/new', element: withSuspense(<NewTripPage />) },
-          { path: '/agent/:jobId', element: withSuspense(<TripEditorPage />) },
+          // splat 保持同一个 TripEditorPage 实例：主时间线 ↔ 子 Agent 页面只换左栏，SSE 不重连。
+          { path: '/agent/:jobId/*', element: withSuspense(<TripEditorPage />) },
           { path: '/trips/:id', element: withSuspense(<TripEditorPage />) },
         ],
       },

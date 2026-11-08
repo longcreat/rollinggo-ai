@@ -1,6 +1,6 @@
 import { Button } from '../components/ui/Button';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useMatch, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useMatch, useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Value } from '@sinclair/typebox/value';
 import { keys, useGenerationTask, useHealthCheck, useMe, useLogout, useTrip, useTripConversation, useTripVersions } from '../api/hooks';
@@ -32,6 +32,9 @@ type MobileTab = 'chat' | 'list' | 'map';
 export function TripEditorPage() {
   const { id = '' } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const state = location.state as { from?: string } | null;
+  const backFrom = state?.from?.startsWith('/') && !state.from.startsWith('//') ? state.from : null;
   const qc = useQueryClient();
   const me = useMe();
   const userId = me.data?.id;
@@ -386,7 +389,7 @@ export function TripEditorPage() {
                   stream={liveState.stream}
                   completedTripId={completedTripId}
                   onTrip={() => completedTripId && navigate(`/trips/${completedTripId}`)}
-                  onBack={() => navigate(`/agent/${liveJobId}`)}
+                  onBack={() => navigate(backFrom ?? `/agent/${liveJobId}`)}
                 />
               ) : (
                 <LiveAgentStream

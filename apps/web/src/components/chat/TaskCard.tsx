@@ -2,17 +2,22 @@
 // 数据来自持久任务行，刷新/重启后仍能读到终态。
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
-import { keys, useCancelGeneration, useGenerationTask } from '../../api/hooks';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { ChevronRight } from 'lucide-react';
+import { keys, useCancelGeneration, useGenerationAgents, useGenerationTask } from '../../api/hooks';
 import { Spinner } from '../ui/Button';
+import { durationText, STATUS_LABEL, StatusIcon } from '../live/liveStatus';
 
 export function TaskCard({ jobId, conversationId }: { jobId: string; conversationId?: string }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
   const task = useGenerationTask(jobId);
   const cancel = useCancelGeneration();
   const data = task.data;
   const status = data?.status ?? 'running';
+  const agents = useGenerationAgents(jobId, status === 'running');
+  const from = location.pathname + location.search;
   // 任务终态时刷新会话：服务端已补了一条完成消息，卡片旁边的对话要立即看到。
   useEffect(() => {
     if (!conversationId || status === 'running') return;
@@ -78,6 +83,34 @@ export function TaskCard({ jobId, conversationId }: { jobId: string; conversatio
           {data?.summary && <p className="m-0">{data.summary}</p>}
           {data?.reviewNotes?.length ? <p className="m-0">提醒 {data.reviewNotes.length} 条：{data.reviewNotes.slice(0, 2).join('；')}</p> : null}
           {warnings.length > 0 && <p className="m-0">{hard > 0 ? `硬冲突 ${hard} 条` : `优化建议 ${warnings.length} 条`}</p>}
+        </div>
+      )}
+      {!!agents.data?.agents.length && (
+        <div className="mt-2 border-t border-slate-100 pt-1">
+          {agents.data.agents.map((agent) => {
+            const duration = durationText(agent.durationMs);
+            return (
+              <Link
+                key={agent.stage}
+                to={`/agent/${encodeURIComponent(jobId)}/agents/${agent.stage}`}
+                state={{ from }}
+                data-chat-subagent={agent.stage}
+                aria-label={`进入「${agent.label}」子 Agent 页面，${STATUS_LABEL[agent.status]}`}
+                className="flex items-center gap-2 rounded-lg px-1 py-1 text-[11px] text-slate-500 no-underline transition-colors hover:bg-slate-50"
+              >
+                <StatusIcon
+                  running={agent.status === 'running'}
+                  error={agent.status === 'error'}
+                  done={agent.status === 'done'}
+                />
+                <span className="min-w-0 flex-1 truncate font-medium text-slate-600">{agent.label}</span>
+                <span className="shrink-0 text-slate-400">{STATUS_LABEL[agent.status]}</span>
+                <span className="shrink-0 text-slate-400">{agent.completed}/{agent.total} 步</span>
+                {duration && <span className="shrink-0 text-slate-400">{duration}</span>}
+                <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-300" aria-hidden="true" />
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>

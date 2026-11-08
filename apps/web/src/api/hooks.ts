@@ -421,6 +421,26 @@ export function useGenerationTask(jobId: string | undefined) {
   });
 }
 
+export interface GenerationAgentNode {
+  stage: 'research' | 'plan' | 'review';
+  label: string;
+  status: 'running' | 'done' | 'error';
+  total: number;
+  completed: number;
+  durationMs: number;
+}
+
+/** 主 Agent 对话里的子 Agent 节点：任务运行中轮询，终态后只读缓存。 */
+export function useGenerationAgents(jobId: string | undefined, running: boolean) {
+  return useQuery({
+    queryKey: ['generation-agents', jobId ?? ''] as const,
+    queryFn: ({ signal }) => api.get<{ agents: GenerationAgentNode[] }>(`/api/generations/${encodeURIComponent(jobId!)}/agents`, { signal }),
+    enabled: Boolean(jobId),
+    refetchInterval: running ? 3_000 : false,
+    staleTime: 10_000,
+  });
+}
+
 /** 行前回合（表单入口）：主 Agent 确认条件后委派后台生成，返回 SendMessageResult。 */
 export function useStartPlanning() {
   return useMutation({
@@ -429,6 +449,14 @@ export function useStartPlanning() {
       if (!Value.Check(SendMessageResultSchema, data)) throw new Error('规划结果格式异常，请重试');
       return data as SendMessageResult;
     },
+  });
+}
+
+/** 表单直达：条件已齐备时跳过行前 LLM 回合，直接创建生成任务。 */
+export function useStartGenerationDirect() {
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: { requestId: string; text?: string } }) =>
+      api.post<{ jobId: string }>(`/api/conversations/${encodeURIComponent(id)}/generate`, input),
   });
 }
 

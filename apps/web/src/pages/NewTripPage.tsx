@@ -23,7 +23,7 @@ import {
   useCurrentGeneration,
   useMe,
   useSaveBriefSnapshot,
-  useStartPlanning,
+  useStartGenerationDirect,
   useUsage,
 } from '../api/hooks';
 import { useTravelPreferencesDraft } from '../components/TravelPreferencesProvider';
@@ -81,7 +81,7 @@ export function NewTripPage() {
   const userId = me.data?.id ?? '';
   const createConversation = useCreateConversation();
   const patchBrief = useSaveBriefSnapshot();
-  const startPlanning = useStartPlanning();
+  const startGeneration = useStartGenerationDirect();
   const current = useCurrentGeneration(userId, Boolean(userId));
   const preferences = useTravelPreferencesDraft();
 
@@ -122,7 +122,7 @@ export function NewTripPage() {
     : generationExhausted
       ? '今日生成次数已用完，明天再来（已有行程仍可继续编辑）。'
       : null;
-  const busy = starting || createConversation.isPending || patchBrief.isPending || startPlanning.isPending;
+  const busy = starting || createConversation.isPending || patchBrief.isPending || startGeneration.isPending;
   const runningJobId = current.data?.status === 'running' ? current.data.jobId : null;
 
   const start = async (action: 'fresh' | 'resume') => {
@@ -159,25 +159,21 @@ export function NewTripPage() {
       replay.delete('autostart');
       sessionStorage.setItem('tw.lastTripDraftParams', replay.toString());
 
-      const result = await startPlanning.mutateAsync({
+      const result = await startGeneration.mutateAsync({
         id: conversationId,
-        input: { requestId, text: text || `规划${draft.city}${draft.days}天行程`, autostart: true },
+        input: { requestId, ...(text ? { text } : {}) },
       });
-      if (result.startedGenerationJobId) {
-        // 首页选择只在生成真正开始后记忆；存的是本次提交的快照，不误存用户之后的新草稿。
-        void preferences.persist({
-          preferences: draft.preferences,
-          transportMode: draft.transportMode ?? 'transit',
-          pace: draft.pace,
-          partySize: draft.partySize,
-          extraNotes: draft.extraNotes,
-        });
-        clearPlanningEntry();
-        void qc.invalidateQueries({ queryKey: keys.currentGeneration(userId) });
-        navigate(`/agent/${encodeURIComponent(result.startedGenerationJobId)}`, { replace: true });
-        return;
-      }
-      setError(result.replyMessage.content || '生成没有启动，请回首页重试。');
+      // 首页选择只在生成真正开始后记忆；存的是本次提交的快照，不误存用户之后的新草稿。
+      void preferences.persist({
+        preferences: draft.preferences,
+        transportMode: draft.transportMode ?? 'transit',
+        pace: draft.pace,
+        partySize: draft.partySize,
+        extraNotes: draft.extraNotes,
+      });
+      clearPlanningEntry();
+      void qc.invalidateQueries({ queryKey: keys.currentGeneration(userId) });
+      navigate(`/agent/${encodeURIComponent(result.jobId)}`, { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : '启动失败，请稍后重试');
     } finally {

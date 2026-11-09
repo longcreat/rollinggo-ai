@@ -484,6 +484,52 @@ describe('agent runtime', () => {
     await closeAgentRuntime(path);
   });
 
+  it('跨工具轮次时思考流不被 slice 截断且工具前正文完整保留', async () => {
+    const path = await storage();
+    const { faux, models } = fauxModels();
+    const getDay = defineTool({
+      name: 'get_day', description: '获取某天行程', parameters: obj({}),
+      execute: async () => ({ output: [{ type: 'text' as const, text: '第一天已获取' }] }),
+    });
+    const turn1Thinking = '这次改用新闻频道检索。';
+    const turn1Text = '我先看一下你现在的第 1 天怎么排的，再对照主流路线。';
+    const turn2Thinking = '用户问"查一下杭州一日游路线"。现在给出对照：……';
+    const turn2Text = '现状路线 vs 主流推荐路线。';
+
+    faux.setResponses([
+      fauxAssistantMessage([fauxThinking(turn1Thinking), fauxText(turn1Text), fauxToolCall('get_day', {})], { stopReason: 'toolUse' }),
+      fauxAssistantMessage([fauxThinking(turn2Thinking), fauxText(turn2Text)], { stopReason: 'stop' }),
+    ]);
+
+    const events: AgentStreamEvent[] = [];
+    const result = await runAgentTurn({
+      storagePath: path, models, tools: [getDay], instructions: '测试系统提示',
+      model: { provider: 'faux', modelId: 'faux-1' }, prompt: '查一下杭州一日游路线', maxTurns: 3,
+      onEvent: (event) => events.push(event),
+    });
+
+    assert.equal(result.status, 'done');
+    assert.deepEqual(result.toolCalls, ['get_day']);
+
+    // 检查 assistantEntries 地面真值
+    assert.equal(result.assistantEntries?.length, 2, '必须有两个 assistant entry');
+    assert.equal(result.assistantEntries?.[0]?.text, turn1Text);
+    assert.equal(result.assistantEntries?.[0]?.thinking, turn1Thinking);
+    assert.equal(result.assistantEntries?.[1]?.text, turn2Text);
+    assert.equal(result.assistantEntries?.[1]?.thinking, turn2Thinking);
+
+    // 检查思考事件：不能被前一轮的 12 字符切除，第二轮必须以完整中文开头
+    const thinkingDeltas = events.filter((e) => e.type === 'thinking_delta').map((e) => e.text);
+    const fullThinking = thinkingDeltas.join('');
+    assert.ok(fullThinking.includes('用户问"查一下杭州一日游路线"'), '第二轮思考前缀绝不能被 slice 切掉');
+
+    // 检查正文事件：工具前必须完整流出 turn1Text
+    const textEvents = events.filter((e) => e.type === 'text').map((e) => e.text);
+    assert.ok(textEvents.includes(turn1Text), '工具调用前正文必须完整发出全句');
+
+    await closeAgentRuntime(path);
+  });
+
   it('Harness 关闭后从缓存摘除，下一次请求重新打开', async () => {
     const path = await storage();
     const first = await getAgentRuntime(path);

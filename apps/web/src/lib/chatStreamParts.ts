@@ -57,7 +57,7 @@ export function reduceStreamParts(state: StreamParts, event: ChatStreamEvent): S
     const parts = [...state.parts];
     const last = parts.at(-1);
     if (event.replace) {
-      if (state.textOpen && last?.type === 'text') parts[parts.length - 1] = { type: 'text', text: event.text };
+      if (last?.type === 'text') parts[parts.length - 1] = { type: 'text', text: event.text };
       else parts.push({ type: 'text', text: event.text });
     } else if (state.textOpen && last?.type === 'text') {
       parts[parts.length - 1] = { type: 'text', text: last.text + event.text };

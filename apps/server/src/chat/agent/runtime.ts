@@ -68,11 +68,18 @@ export interface RunAgentTurnOptions {
   };
 }
 
+export interface AssistantTurnEntry {
+  text: string;
+  thinking: string;
+  toolCalls: string[];
+}
+
 export interface AgentTurnResult {
   conversationId: ConversationId;
   status: string;
   text: string;
   toolCalls: string[];
+  assistantEntries?: AssistantTurnEntry[];
 }
 
 interface Runtime {
@@ -179,6 +186,14 @@ function readThinkingText(message: unknown): string {
     .join('');
 }
 
+function readToolCalls(message: unknown): string[] {
+  const content = (message as { content?: { type?: string; name?: string }[] } | undefined)?.content;
+  if (!Array.isArray(content)) return [];
+  return content
+    .filter((block) => block.type === 'toolCall' && typeof block.name === 'string')
+    .map((block) => block.name!);
+}
+
 /**
  * 跑一轮：订阅 LiveDoc（工具状态 + 流式片段），结束后读最终答案。
  * 工具事件同时用于 SSE 的进度提示。
@@ -267,9 +282,8 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
     const openTools = new Map<string, { name: string; startedAt: number }>();
     const toolCalls: string[] = [];
     let streamed = '';
-    // 思考流按 generation 的完整快照做差分；generation 清空/重开时收口上一段。
-    let thinkingAttempt = -1;
-    let thinkingSent = '';
+    // 当前 AssistantMessage 生成内部的已发送思考增量；换轮（进入工具或新 generation）时重置为 0。
+    let generationThinkingSent = '';
     let thinkingOpen = false;
     let thinkingSeen = false;
     const endThinking = () => {
@@ -299,6 +313,21 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
           toolStates.set(slot.callId, 'running');
           openTools.set(slot.callId, { name: slot.name, startedAt });
           toolCalls.push(slot.name);
+
+          // 进入工具前收口当轮思考，并清空思考增量计数器，确保下一轮思考从头开始不被切片。
+          endThinking();
+          generationThinkingSent = '';
+
+          // 核心对齐 pi-agent-core：模型在 call tool 前产生的正文已经在底层 AssistantEntry 落盘。
+          // 在发出 tool_start 前强制读回并 flush 完整正文，彻底消除流式缓冲造成的半截残肢（如「我先」）。
+          const latestEntries = await conversation.entries({ order: 'descending' }, 1, undefined, context).catch(() => undefined);
+          const latestAssistant = latestEntries?.items?.find((item) => item.kind === AssistantEntry.kind);
+          const committedText = readAnswerText(latestAssistant?.model?.[0]);
+          if (committedText && committedText !== streamed) {
+            options.onEvent?.({ type: 'text', text: committedText });
+            streamed = committedText;
+          }
+
           options.onEvent?.({ type: 'tool_start', callId: slot.callId, name: slot.name, startedAt });
         }
         if (slot.status === 'done' && previous !== 'done' && previous !== 'error') {
@@ -314,33 +343,32 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
         }
       }
       const partial = value?.generation?.message;
-      const attempt = value?.generation?.attempt;
-      if (attempt !== undefined && attempt !== thinkingAttempt) {
+      if (!partial) {
+        // generation 被删除（进入 tools 或等待状态），收尾思考并重置增量状态，迎接下一轮。
         endThinking();
-        thinkingAttempt = attempt;
-        thinkingSent = '';
-        // streamed 不能清空：它记录的是本轮已经发给前端的上一段正文；清空后结束回退会把旧正文再发一遍。
-      }
-      const thinking = readThinkingText(partial);
-      if (thinking && thinking !== thinkingSent) {
-        if (!thinkingOpen) {
-          thinkingOpen = true;
-          thinkingSeen = true;
-          options.onEvent?.({ type: 'thinking_start' });
+        generationThinkingSent = '';
+      } else {
+        const thinking = readThinkingText(partial);
+        if (thinking && thinking !== generationThinkingSent) {
+          if (!thinkingOpen) {
+            thinkingOpen = true;
+            thinkingSeen = true;
+            options.onEvent?.({ type: 'thinking_start' });
+          }
+          options.onEvent?.({ type: 'thinking_delta', text: thinking.slice(generationThinkingSent.length) });
+          generationThinkingSent = thinking;
+        } else if (!thinking && thinkingOpen) {
+          endThinking();
+          generationThinkingSent = '';
         }
-        options.onEvent?.({ type: 'thinking_delta', text: thinking.slice(thinkingSent.length) });
-        thinkingSent = thinking;
-      } else if (!thinking && thinkingOpen) {
-        endThinking();
-        thinkingSent = '';
-      }
-      const text = readAnswerText(partial);
-      // 正文开始就收口思考面板；后面的工具轮再思考会重新开一段。
-      if (text && thinkingOpen) endThinking();
-      // generation.message 本身就是完整快照；HITL 后会从空重新长，按快照替换而不是累加增量。
-      if (text !== streamed) {
-        options.onEvent?.({ type: 'text', text });
-        streamed = text;
+        const text = readAnswerText(partial);
+        // 正文开始就收口思考面板；后面的工具轮再思考会重新开一段。
+        if (text && thinkingOpen) endThinking();
+        // generation.message 本身就是当前轮次快照；HITL 后会从空重新长，按快照替换而不是累加增量。
+        if (text && text !== streamed) {
+          options.onEvent?.({ type: 'text', text });
+          streamed = text;
+        }
       }
     });
 
@@ -388,15 +416,21 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
         ...(minEntryId !== undefined ? { minEntryId } : {}),
         order: 'ascending',
       }, 200, undefined, context).catch(() => undefined);
-      const text = transcript?.items
+      const assistantEntries: AssistantTurnEntry[] = (transcript?.items ?? [])
         .filter((item) => item.kind === AssistantEntry.kind)
         .flatMap((item) => item.model ?? [])
-        .map((message) => readAnswerText(message))
+        .map((message) => ({
+          text: readAnswerText(message),
+          thinking: readThinkingText(message),
+          toolCalls: readToolCalls(message),
+        }));
+      const text = assistantEntries
+        .map((item) => item.text)
         .filter((part) => part.trim())
         .join('\n\n') || answer;
       finishOpenTools();
       options.onEvent?.({ type: 'done', conversationId });
-      return { conversationId, status: 'done', text, toolCalls };
+      return { conversationId, status: 'done', text, toolCalls, assistantEntries };
     } finally {
       options.signal?.removeEventListener('abort', onAbort);
       endThinking();

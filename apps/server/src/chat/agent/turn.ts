@@ -428,6 +428,28 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
   if (spoken && !parts.some((part) => part.type === 'text')) {
     parts.push({ type: 'text', text: spoken.slice(0, 4000) });
   }
+
+  // 核心对齐 pi-agent-core 架构：以 Durable SQLite 中真实 committed AssistantEntry 为唯一事实源。
+  // 对流式阶段生成的 parts 进行严格校准，彻底修复任何流式快照竞态导致的截断残存（如「我先」或思考开头削切）。
+  if (result.assistantEntries && result.assistantEntries.length > 0) {
+    let textEntryIdx = 0;
+    let thinkingEntryIdx = 0;
+    for (const part of parts) {
+      if (part.type === 'text' && textEntryIdx < result.assistantEntries.length) {
+        const entryText = result.assistantEntries[textEntryIdx]?.text.trim();
+        if (entryText && entryText.length > part.text.length) {
+          part.text = entryText.slice(0, 4000);
+        }
+        textEntryIdx++;
+      } else if (part.type === 'thinking' && thinkingEntryIdx < result.assistantEntries.length) {
+        const entryThinking = result.assistantEntries[thinkingEntryIdx]?.thinking.trim();
+        if (entryThinking && entryThinking.length > (part.thinking?.length ?? 0)) {
+          part.thinking = entryThinking;
+        }
+        thinkingEntryIdx++;
+      }
+    }
+  }
   // 有改动时即使模型没说话也要落版本；只有追问/美食卡片而没有正文时允许空回答。
   if (result.status !== 'done' || (!spoken && !next && !state.questionExpired && !state.foodCandidates.length)) {
     throw Object.assign(new Error('回答中断，请重试'), { statusCode: 502 });

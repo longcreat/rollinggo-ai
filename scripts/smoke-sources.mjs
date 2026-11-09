@@ -13,8 +13,8 @@ if (process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.https_proxy
 for (const p of ['apps/server/.env', '.env']) if (existsSync(p)) config({ path: p });
 
 const amapKey = process.env.AMAP_KEY ?? '';
-const searchKey = process.env.SEARCH_API_KEY ?? '';
-const searchBase = (process.env.SEARCH_API_BASE_URL || 'https://api.langsearch.com').replace(/\/+$/, '');
+const searchKey = process.env.TAVILY_API_KEY || process.env.SEARCH_API_KEY || '';
+const searchBase = (process.env.SEARCH_API_BASE_URL || 'https://api.tavily.com').replace(/\/+$/, '');
 
 let failures = 0;
 
@@ -47,23 +47,24 @@ if (!amapKey) {
   }
 }
 
-// ---------- Web 搜索（LangSearch / 博查同族） ----------
+// ---------- Web 搜索（Tavily API） ----------
 if (!searchKey) {
-  console.log('[websearch] 未配置 SEARCH_API_KEY，跳过（生成时该源自动降级；LangSearch 免费申请见 .env.example）');
+  console.log('[websearch] 未配置 TAVILY_API_KEY / SEARCH_API_KEY，跳过（生成时该源自动降级；申请见 .env.example）');
 } else {
   try {
-    const res = await fetch(`${searchBase}/v1/web-search`, {
+    const endpoint = searchBase.endsWith('/search') ? searchBase : `${searchBase}/search`;
+    const res = await fetch(endpoint, {
       method: 'POST',
       headers: { authorization: `Bearer ${searchKey}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ query: '故宫 门票 预约', summary: true, count: 3, freshness: 'noLimit' }),
+      body: JSON.stringify({ api_key: searchKey, query: '故宫 门票 预约 开放时间', max_results: 3 }),
       signal: AbortSignal.timeout(15_000),
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const body = await res.json();
-    const pages = body?.data?.webPages?.value ?? body?.webPages?.value ?? [];
-    if (!Array.isArray(pages) || !pages.length) throw new Error('返回结构异常或无结果');
-    console.log(`[websearch] 连通正常（${searchBase}），返回 ${pages.length} 条：`);
-    for (const h of pages) console.log(`  - ${h.name}｜${h.siteName ?? '-'}｜${h.url}`);
+    const results = Array.isArray(body?.results) ? body.results : [];
+    if (!results.length) throw new Error('返回结构异常或无结果');
+    console.log(`[websearch] 连通正常（${endpoint}），返回 ${results.length} 条：`);
+    for (const h of results) console.log(`  - ${h.title}｜${h.url}`);
   } catch (err) {
     failures += 1;
     console.error(`[websearch] 探测失败：${err instanceof Error ? err.message : err}`);

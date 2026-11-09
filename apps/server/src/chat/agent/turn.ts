@@ -350,6 +350,7 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
           const part = parts[index];
           if (part?.type !== 'thinking') continue;
           part.chunks = (part.chunks ?? 0) + 1;
+          part.thinking = (part.thinking ?? '') + event.text;
           break;
         }
         emit({ type: 'thinking_delta', text: event.text });

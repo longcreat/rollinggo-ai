@@ -31,7 +31,11 @@ export function reduceStreamParts(state: StreamParts, event: ChatStreamEvent): S
     const part = state.parts[index];
     if (part?.type !== 'thinking') return null;
     const parts = [...state.parts];
-    parts[index] = { ...part, chunks: (part.chunks ?? 0) + 1 };
+    parts[index] = {
+      ...part,
+      chunks: (part.chunks ?? 0) + 1,
+      thinking: (part.thinking ?? '') + (event.text ?? ''),
+    };
     return { ...state, parts, textOpen: false };
   }
   if (event.type === 'thinking_end') {

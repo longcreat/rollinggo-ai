@@ -77,13 +77,14 @@ export type AgentStep = Static<typeof AgentStepSchema>;
 
 // 一轮回答的有序片段：思考段、正文段、工具段与 HITL 问答按真实事件顺序排列（对齐 pi transcript / Qoder 的已处理块）。
 export const AgentPartSchema = Type.Union([
-  /** 真实思考段：只留时间线位置与耗时，不存原始 CoT。 */
+  /** 真实思考段：对齐 pi ThinkingContent，记录时间线位置、耗时与思考过程内容。 */
   Type.Object({
     type: Type.Literal('thinking'),
     startedAt: Type.Integer({ minimum: 0 }),
     endedAt: Type.Optional(Type.Integer({ minimum: 0 })),
     durationMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 3_600_000 })),
     chunks: Type.Optional(Type.Integer({ minimum: 0, maximum: 100_000 })),
+    thinking: Type.Optional(Type.String({ maxLength: 100_000 })),
   }),
   Type.Object({ type: Type.Literal('text'), text: Type.String({ maxLength: 4000 }) }),
   Type.Object({ type: Type.Literal('steps'), steps: Type.Array(AgentStepSchema, { maxItems: 24 }) }),

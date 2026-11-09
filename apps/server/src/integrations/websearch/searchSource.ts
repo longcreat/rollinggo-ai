@@ -21,6 +21,12 @@ export interface WebSearchHit {
   score?: number;
 }
 
+export interface WebPageContent {
+  title: string;
+  url: string;
+  content: string;
+}
+
 export interface SearchOptions {
   topic?: 'general' | 'news';
   days?: number;
@@ -30,6 +36,7 @@ export interface SearchOptions {
 export interface SearchSource {
   readonly kind: 'websearch' | 'null';
   search(query: string, signal?: AbortSignal, options?: SearchOptions): Promise<WebSearchHit[]>;
+  extract?(url: string, signal?: AbortSignal): Promise<WebPageContent | null>;
   selfCheck(): Promise<SourceStatus>;
 }
 
@@ -41,6 +48,9 @@ export class NullSearchSource implements SearchSource {
 
   async search(): Promise<WebSearchHit[]> {
     return [];
+  }
+  async extract(): Promise<WebPageContent | null> {
+    return null;
   }
   async selfCheck(): Promise<SourceStatus> {
     return { configured: false, checked: true, ok: null, message: `${this.reason}（生成时自动降级为模型知识调研）` };
@@ -58,16 +68,72 @@ function resolveTavilyEndpoint(baseUrl: string): string {
   return trimmed.endsWith('/search') ? trimmed : `${trimmed}/search`;
 }
 
+function resolveTavilyExtractEndpoint(baseUrl: string): string {
+  const trimmed = baseUrl.replace(/\/+$/, '');
+  if (trimmed.endsWith('/search')) {
+    return `${trimmed.slice(0, -7)}/extract`;
+  }
+  return trimmed.endsWith('/extract') ? trimmed : `${trimmed}/extract`;
+}
+
 export class TavilySearchSource implements SearchSource {
   readonly kind = 'websearch' as const;
   private queue = createSerialQueue(SEARCH_MIN_INTERVAL_MS);
   private cache = new TtlCache<WebSearchHit[]>(SEARCH_CACHE_TTL_MS, 300);
+
+  private extractCache = new TtlCache<WebPageContent | null>(60 * 60 * 1000, 100);
 
   constructor(
     private baseUrl: string,
     private apiKey: string,
     private validateBaseUrlBeforeUse = false,
   ) {}
+
+  /** 提取指定网页正文 Markdown 内容 */
+  async extract(url: string, signal?: AbortSignal): Promise<WebPageContent | null> {
+    signal?.throwIfAborted();
+    if (!/^https?:\/\//i.test(url)) return null;
+    const cached = this.extractCache.get(url);
+    if (cached !== undefined) return cached;
+
+    return this.queue(async () => {
+      signal?.throwIfAborted();
+      if (this.validateBaseUrlBeforeUse) await assertSafeBaseUrl(this.baseUrl);
+      const endpoint = resolveTavilyExtractEndpoint(this.baseUrl);
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          api_key: this.apiKey,
+          urls: [url],
+          format: 'markdown',
+        }),
+        signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const body = (await res.json()) as Record<string, unknown>;
+      const results = Array.isArray(body.results) ? (body.results as Record<string, unknown>[]) : [];
+      if (!results.length) {
+        this.extractCache.set(url, null);
+        return null;
+      }
+
+      const item = results[0]!;
+      const content = str(item.raw_content) || str(item.content);
+      const page: WebPageContent = {
+        title: str(item.title) || url,
+        url: str(item.url) || url,
+        content: content.slice(0, 8000),
+      };
+      this.extractCache.set(url, page);
+      return page;
+    });
+  }
 
   /** 失败抛给调用方分支处理 */
   private async request(query: string, count: number, signal?: AbortSignal, options?: SearchOptions): Promise<WebSearchHit[]> {
@@ -186,6 +252,11 @@ export function createTaskSearchSource(inner: SearchSource): TaskSearchSource {
       const hits = await inner.search(query, signal, options);
       if (hits.length) stats.gotResults = true;
       return hits;
+    },
+    async extract(url, signal) {
+      signal?.throwIfAborted();
+      if (inner.kind === 'null' || !inner.extract) return null;
+      return inner.extract(url, signal);
     },
     selfCheck: () => inner.selfCheck(),
   };

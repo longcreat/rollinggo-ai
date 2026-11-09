@@ -47,11 +47,11 @@ const run = async (tool: { execute: (...args: never[]) => Promise<unknown> }, ar
 };
 
 describe('工具装配', () => {
-  it('主 Agent 全量工具：读 6 + 美食/追问/Brief/委派/状态 5 + 写 9', () => {
+  it('主 Agent 全量工具：读 7 + 美食/追问/Brief/委派/状态 5 + 写 9', () => {
     const draft = createTripDraft(trip());
     const tools = createTripTools({ trip: trip(), sources: sources(), signal: new AbortController().signal, draft });
     assert.deepEqual(tools.map((tool) => tool.name), [
-      'get_trip', 'get_day', 'search_places', 'search_area_places', 'web_search', 'get_weather',
+      'get_trip', 'get_day', 'search_places', 'search_area_places', 'web_search', 'fetch_web_page', 'get_weather',
       'search_food', 'ask_user', 'update_brief', 'delegate_task', 'task_status',
       'add_activity', 'update_activity', 'delete_activity', 'move_activity', 'reorder_day',
       'add_day', 'update_day', 'delete_day', 'update_trip',

@@ -12,7 +12,7 @@ import type { DetailSources } from '../detailSources';
 import type { DetailKnowledge } from '../detailKnowledge';
 import type { WebSearchHit } from '../../integrations/websearch/searchSource';
 import type { SourcedPoi } from '../../integrations/geoContracts';
-import { searchAreaPlacesCore, webSearchCore, type AreaAccess, type WebAccess } from '../../agent/tools/dataTools';
+import { searchAreaPlacesCore, webSearchCore, webFetchCore, type AreaAccess, type WebAccess, type WebFetchAccess } from '../../agent/tools/dataTools';
 import { searchFood } from '../foodSearch';
 import { classifySubPoi } from '../../services/geofenceImport';
 import { createTripWriteTools } from './writeTools';
@@ -345,6 +345,34 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     },
   });
 
+  const chatWebFetchAccess: WebFetchAccess = {
+    signal,
+    async fetch(url) {
+      try {
+        const page = sources.search.extract ? await sources.search.extract(url, signal) : null;
+        return page
+          ? { ok: true, page }
+          : { ok: false, error: `未能从「${url}」提取到正文内容` };
+      } catch (error) {
+        return { ok: false, error: `网页正文提取失败：${error instanceof Error ? error.message : '未知错误'}` };
+      }
+    },
+  };
+  const webFetchCoreInstance = webFetchCore(chatWebFetchAccess);
+  const fetchWebPage = defineTool({
+    name: webFetchCoreInstance.name,
+    description: webFetchCoreInstance.description,
+    parameters: webFetchCoreInstance.parameters as never,
+    execute: async (args) => {
+      const result = await webFetchCoreInstance.run(args as Record<string, unknown>);
+      return {
+        output: text(result.text),
+        ...(result.details ? { details: result.details } : {}),
+        ...(result.isError ? { isError: true } : {}),
+      };
+    },
+  });
+
   const getWeather = defineTool({
     name: 'get_weather',
     description: '查询指定城市或当前行程的天气预报（由和风天气官方提供 15 天真实数据）。可自由指定城市（city）；缺省时自动使用当前会话或行程城市。',
@@ -507,6 +535,7 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     searchPlaces,
     searchAreaPlaces,
     webSearch,
+    fetchWebPage,
     getWeather,
     searchFoodTool,
     askUser,

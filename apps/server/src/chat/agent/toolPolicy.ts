@@ -11,6 +11,7 @@ export const SUBAGENT_READ_ONLY_TOOL_NAMES = [
   'get_day',
   'search_places',
   'web_search',
+  'fetch_web_page',
   'get_weather',
 ] as const;
 

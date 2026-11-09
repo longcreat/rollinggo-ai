@@ -60,6 +60,39 @@ test('WebSearchSource (Tavily) 规范请求构造与透传', async () => {
   } finally { globalThis.fetch = original; }
 });
 
+test('WebSearchSource (Tavily) extract 网页正文提取与缓存', async () => {
+  const original = globalThis.fetch;
+  const source = new WebSearchSource('https://api.tavily.com', 'test-key');
+  let capturedUrl = '';
+  let capturedBody: any = null;
+  let calls = 0;
+  globalThis.fetch = async (url, init) => {
+    calls++;
+    capturedUrl = String(url);
+    capturedBody = JSON.parse(init!.body as string);
+    return Response.json({
+      results: [{
+        title: '冷空气降温通报',
+        url: 'https://example.com/hz-weather-news',
+        raw_content: '# 杭州气温骤降\n\n今日平原地区降温明显...',
+      }],
+    });
+  };
+  try {
+    const page = await source.extract('https://example.com/hz-weather-news');
+    assert.equal(capturedUrl, 'https://api.tavily.com/extract');
+    assert.equal(capturedBody?.urls?.[0], 'https://example.com/hz-weather-news');
+    assert.equal(capturedBody?.format, 'markdown');
+    assert.equal(page?.title, '冷空气降温通报');
+    assert.ok(page?.content.includes('今日平原地区降温明显'));
+
+    // 第二次调用应命中内存缓存，不重复发网络请求
+    const cached = await source.extract('https://example.com/hz-weather-news');
+    assert.equal(cached?.title, '冷空气降温通报');
+    assert.equal(calls, 1);
+  } finally { globalThis.fetch = original; }
+});
+
 test('地点搜索的取消不污染缓存，重试可正常查询', async () => {
   const original = globalThis.fetch;
   // 高德配额闸门走 DB，测试里 stub 成恒放行（真实扣账在 amapQuotaLedger 单测覆盖）

@@ -45,6 +45,11 @@ export interface WebAccess {
   search(query: string, options?: { topic?: 'general' | 'news'; days?: number; maxResults?: number }): Promise<{ ok: true; hits: WebHit[] } | { ok: false; error: string }>;
 }
 
+export interface WebFetchAccess {
+  readonly signal: AbortSignal;
+  fetch(url: string): Promise<{ ok: true; page: { title: string; url: string; content: string } } | { ok: false; error: string }>;
+}
+
 export interface ToolCore {
   name: string;
   description: string;
@@ -135,6 +140,36 @@ export function webSearchCore(access: WebAccess): ToolCore {
       const found = await access.search(query, { ...(topic ? { topic } : {}), maxResults });
       if (!found.ok) return { text: found.error, isError: true };
       return { text: JSON.stringify({ hits: found.hits.slice(0, maxResults) }), details: { count: found.hits.length } };
+    },
+  };
+}
+
+export function webFetchCore(access: WebFetchAccess): ToolCore {
+  return {
+    name: 'fetch_web_page',
+    description: '提取指定网页的完整正文 Markdown 内容。当 web_search 返回的摘要不够详尽，或者需要深入核实某一景区的官方公告、预约政策细节、新闻通报全文时调用。',
+    parameters: {
+      type: 'object',
+      properties: {
+        url: { type: 'string', description: '需要提取正文的完整网页 URL（通常来自 web_search 的结果）' },
+      },
+      required: ['url'],
+      additionalProperties: false,
+    },
+    async run(args) {
+      access.signal.throwIfAborted();
+      const rawUrl = typeof args.url === 'string' ? args.url.trim() : '';
+      if (!rawUrl || !/^https?:\/\//i.test(rawUrl)) {
+        return { text: '错误：url 必须是以 http:// 或 https:// 开头的合法网页链接', isError: true };
+      }
+      const res = await access.fetch(rawUrl);
+      if (!res.ok) return { text: res.error, isError: true };
+      const { title, url, content } = res.page;
+      const truncated = content.length > 5000 ? `${content.slice(0, 5000)}\n\n...(内容过长已截断)` : content;
+      return {
+        text: JSON.stringify({ title, url, content: truncated }),
+        details: { url, contentLength: content.length },
+      };
     },
   };
 }

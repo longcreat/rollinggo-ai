@@ -77,10 +77,14 @@ export function createDetailSources(deps: SourceDeps, signal: AbortSignal, allow
   };
   const search: SearchSource = {
     kind: allowWeb ? deps.search.kind : 'null',
-    search: async (query) => {
-      const hits = await call('search', query, deps.search.kind !== 'null', () => deps.search.search(query, signal));
+    search: async (query, _, options) => {
+      const hits = await call('search', query, deps.search.kind !== 'null', () => deps.search.search(query, signal, options));
       for (const hit of hits) if (!web.some((item) => item.url === hit.url)) web.push(hit);
       return hits;
+    },
+    extract: async (url) => {
+      if (!allowWeb || deps.search.kind === 'null' || !deps.search.extract) return null;
+      return deps.search.extract(url, signal);
     },
     selfCheck: () => deps.search.selfCheck(),
   };

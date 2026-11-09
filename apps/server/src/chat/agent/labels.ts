@@ -4,6 +4,7 @@ export const TOOL_LABEL: Record<string, string> = {
   get_day: '看当天的安排',
   search_places: '查地点',
   web_search: '搜资料',
+  fetch_web_page: '读网页',
   get_weather: '查天气',
   search_food: '找餐厅',
   ask_user: '确认信息',

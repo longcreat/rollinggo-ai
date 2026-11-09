@@ -41,7 +41,7 @@ import { createHitlSession } from './humanInLoop';
 import { markQuestionAnswered, markQuestionExpired, recordQuestion } from './questionStore';
 import { claimsUnappliedEdit, withEditCorrection } from './editClaim';
 import { readBinding, saveBinding } from './binding';
-import { TOOL_LABEL } from './labels';
+import { TOOL_LABEL, toolDetail } from './labels';
 import { buildPlanningPrompt } from './planningPrompt';
 import { withTimeContext } from './timeContext';
 
@@ -341,22 +341,25 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
       if (event.type === 'tool_start' || event.type === 'tool_end') {
         if (event.type === 'tool_start') openText = -1;
         const label = stepLabel(event.name);
+        const detail = event.type === 'tool_start' ? toolDetail(event.name, event.args) : undefined;
         const previous = steps.find((item) => item.id === event.callId.slice(0, 100));
         const step: AgentStep = event.type === 'tool_start'
           ? {
             id: event.callId.slice(0, 100), name: event.name.slice(0, 60), label,
             status: 'running', startedAt: event.startedAt,
+            ...(detail ? { detail } : {}),
           }
           : {
             id: event.callId.slice(0, 100), name: event.name.slice(0, 60), label,
             status: event.status,
             ...(previous?.startedAt !== undefined ? { startedAt: previous.startedAt } : {}),
+            ...(previous?.detail ? { detail: previous.detail } : {}),
             durationMs: event.durationMs,
           };
         upsertStep(step);
         upsertPartStep(step);
         const text = event.type === 'tool_start'
-          ? `正在${label}…`
+          ? `正在${label}${detail ? ` · ${detail}` : ''}…`
           : event.status === 'error' ? `${label}未完成` : event.status === 'stopped' ? `${label}已停止` : `${label}完成`;
         emit({ type: 'progress', text, step: { ...step } });
       }

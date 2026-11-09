@@ -69,6 +69,8 @@ export const AgentStepSchema = Type.Object({
   name: Type.String({ minLength: 1, maxLength: 60 }),
   /** 用户向标签，服务端 TOOL_LABEL 单一来源 */
   label: Type.String({ minLength: 1, maxLength: 40 }),
+  /** 动态语义参数（如搜索关键词、目标地名、城市等），提升视觉透明度 */
+  detail: Type.Optional(Type.String({ maxLength: 80 })),
   status: StringEnum(AGENT_STEP_STATUSES),
   startedAt: Type.Optional(Type.Integer({ minimum: 0 })),
   durationMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 600000 })),

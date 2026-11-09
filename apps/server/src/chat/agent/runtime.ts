@@ -29,7 +29,7 @@ export type AgentStreamEvent =
   | { type: 'thinking_start' }
   | { type: 'thinking_delta'; text: string }
   | { type: 'thinking_end' }
-  | { type: 'tool_start'; callId: string; name: string; startedAt: number }
+  | { type: 'tool_start'; callId: string; name: string; startedAt: number; args?: Record<string, unknown> }
   | { type: 'tool_end'; callId: string; name: string; status: 'done' | 'error' | 'stopped'; durationMs: number }
   | { type: 'done'; conversationId: ConversationId }
   | { type: 'error'; message: string };
@@ -322,13 +322,16 @@ export async function runAgentTurn(options: RunAgentTurnOptions): Promise<AgentT
           // 在发出 tool_start 前强制读回并 flush 完整正文，彻底消除流式缓冲造成的半截残肢（如「我先」）。
           const latestEntries = await conversation.entries({ order: 'descending' }, 1, undefined, context).catch(() => undefined);
           const latestAssistant = latestEntries?.items?.find((item) => item.kind === AssistantEntry.kind);
+          const toolCallBlock = (latestAssistant?.model?.[0] as { content?: { type?: string; id?: string; arguments?: Record<string, unknown> }[] } | undefined)
+            ?.content?.find((c) => c.type === 'toolCall' && c.id === slot.callId);
+          const args = toolCallBlock?.arguments;
           const committedText = readAnswerText(latestAssistant?.model?.[0]);
           if (committedText && committedText !== streamed) {
             options.onEvent?.({ type: 'text', text: committedText });
             streamed = committedText;
           }
 
-          options.onEvent?.({ type: 'tool_start', callId: slot.callId, name: slot.name, startedAt });
+          options.onEvent?.({ type: 'tool_start', callId: slot.callId, name: slot.name, startedAt, ...(args ? { args } : {}) });
         }
         if (slot.status === 'done' && previous !== 'done' && previous !== 'error') {
           const startedAt = openTools.get(slot.callId)?.startedAt ?? Date.now();

@@ -28,10 +28,11 @@ function StatusIcon({ status, className = '', size = 13 }: { status: AgentStep['
 }
 
 function singleText(row: AgentStep, status: AgentStep['status'], state: AgentActivityState) {
-  if (status === 'running') return `正在${row.label}…`;
-  if (state === 'stopped') return `已停止 · ${row.label}`;
-  if (state === 'error') return `未完成 · ${row.label}`;
-  return `已完成 · ${row.label}`;
+  const labelWithDetail = row.detail ? `${row.label} · ${row.detail}` : row.label;
+  if (status === 'running') return `正在${labelWithDetail}…`;
+  if (state === 'stopped') return `已停止 · ${labelWithDetail}`;
+  if (state === 'error') return `未完成 · ${labelWithDetail}`;
+  return `已完成 · ${labelWithDetail}`;
 }
 
 export function AgentActivity({ steps, state }: {
@@ -136,7 +137,12 @@ export function AgentActivity({ steps, state }: {
                   <StatusIcon status={status} className="h-2.5 w-2.5" size={10} />
                 </span>
                 <span className={`min-w-0 flex-1 truncate text-[11px] ${status === 'running' ? 'font-medium text-slate-700' : 'text-slate-500'}`}>
-                  {row.label}
+                  <span>{row.label}</span>
+                  {row.detail && (
+                    <span className="ml-1 text-slate-400 font-normal">
+                      · {row.detail}
+                    </span>
+                  )}
                   {duration && <span className="ml-1.5 font-mono text-[10px] text-slate-400">· {duration}</span>}
                 </span>
               </li>

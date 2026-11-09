@@ -20,11 +20,11 @@ function formatDuration(ms?: number): string | null {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
-function StatusIcon({ status, className = '' }: { status: AgentStep['status']; className?: string }) {
-  if (status === 'running') return <SoftRadar size={14} className="text-slate-700" />;
-  if (status === 'error') return <AlertCircle className={`text-slate-500 ${className}`} aria-hidden="true" />;
+function StatusIcon({ status, className = '', size = 13 }: { status: AgentStep['status']; className?: string; size?: number }) {
+  if (status === 'running') return <SoftRadar size={size} className="text-slate-700" />;
+  if (status === 'error') return <AlertCircle className={`text-rose-500 ${className}`} aria-hidden="true" />;
   if (status === 'stopped') return <MinusCircle className={`text-slate-400 ${className}`} aria-hidden="true" />;
-  return <Check className={`text-slate-600 ${className}`} aria-hidden="true" />;
+  return <Check className={`text-slate-500 ${className}`} aria-hidden="true" strokeWidth={2.2} />;
 }
 
 function singleText(row: AgentStep, status: AgentStep['status'], state: AgentActivityState) {
@@ -110,30 +110,47 @@ export function AgentActivity({ steps, state }: {
       </Button>
 
       {open && (
-        <ol id={listId} className="m-0 list-none p-0">
+        <ol id={listId} className="relative m-0 list-none p-0 mt-0.5">
           {rows.map((row, index) => {
             const status = rowStatus(row.status);
             const duration = status !== 'running' ? formatDuration(row.durationMs) : null;
+            const isLast = index === rows.length - 1 && (!collapseMobileRows || showAll);
             return (
-              <li key={row.id} className={`relative flex min-w-0 items-center gap-2 py-1 leading-4 ${collapseMobileRows && index < rows.length - 2 ? 'max-sm:hidden' : ''}`}>
-                <span aria-hidden="true" className={`absolute left-[7.5px] top-0 w-px bg-slate-200 ${index === rows.length - 1 ? 'h-1/2' : 'h-full'}`} />
-                <span className="relative flex h-4 w-4 shrink-0 items-center justify-center bg-white">
-                  <StatusIcon status={status} className="h-3.5 w-3.5" />
+              <li
+                key={row.id}
+                className={`relative flex min-w-0 items-center gap-2 py-1 pl-5 leading-4 ${
+                  collapseMobileRows && index < rows.length - 2 ? 'max-sm:hidden' : ''
+                }`}
+              >
+                {/* 树状竖向导轨线：精准对齐顶层父级图标中心（7.5px） */}
+                <span
+                  aria-hidden="true"
+                  className={`absolute left-[7.5px] top-0 w-px bg-slate-200 ${isLast ? 'h-1/2' : 'h-full'}`}
+                />
+                {/* 树状横向分支线：自导轨引向二级子项 */}
+                <span
+                  aria-hidden="true"
+                  className="absolute left-[7.5px] top-1/2 w-2.5 h-px bg-slate-200"
+                />
+                <span className="relative flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full bg-slate-50 text-slate-500 ring-1 ring-slate-200/80">
+                  <StatusIcon status={status} className="h-2.5 w-2.5" size={10} />
                 </span>
-                <span className={`min-w-0 flex-1 truncate ${status === 'running' ? 'font-medium text-slate-700' : 'text-slate-500'}`}>
+                <span className={`min-w-0 flex-1 truncate text-[11px] ${status === 'running' ? 'font-medium text-slate-700' : 'text-slate-500'}`}>
                   {row.label}
-                  {duration && <span className="ml-1.5 text-slate-400 font-mono text-[11px]">· {duration}</span>}
+                  {duration && <span className="ml-1.5 font-mono text-[10px] text-slate-400">· {duration}</span>}
                 </span>
               </li>
             );
           })}
           {collapseMobileRows && (
-            <li className="py-1 pl-6 sm:hidden">
+            <li className="relative flex min-w-0 items-center py-1 pl-5 sm:hidden">
+              <span aria-hidden="true" className="absolute left-[7.5px] top-0 h-1/2 w-px bg-slate-200" />
+              <span aria-hidden="true" className="absolute left-[7.5px] top-1/2 w-2.5 h-px bg-slate-200" />
               <Button
                 variant="plain"
                 type="button"
                 onClick={() => setShowAll(true)}
-                className="p-0 text-slate-400 transition-colors hover:text-slate-600"
+                className="p-0 text-[11px] text-slate-400 transition-colors hover:text-slate-600"
               >
                 查看全部 {rows.length} 步
               </Button>

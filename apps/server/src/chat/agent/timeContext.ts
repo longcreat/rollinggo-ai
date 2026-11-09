@@ -48,7 +48,7 @@ export function buildCurrentTimeContext(now: Date = new Date()): string {
     `相对日期基准：明天 ${formatDate(tomorrow)}｜后天 ${formatDate(dayAfter)}｜${weekendDesc}`,
     '时间纪律：',
     '1. 行程规划与安排时，用户提到「今天/明天/后天/周末/下周」必须以此处的基准日期为准换算成具体日期填入行程（如 startDate）。',
-    '2. 全网搜索（web_search）时，严禁在搜索词中添加未发生的未来年份（如 2026年）或写死精确年月日！搜索新闻与时效资讯时，使用「城市 + 关键词 + 最新/今日」（如「杭州 最新动态」「杭州 今日要闻」），并配合 freshness 参数限定时效范围。',
+    '2. 全网搜索（web_search）时直接使用自然语言描述搜索目标，查实时动态或今日新闻可将 topic 设为 news。',
     '</current_time>',
   ].join('\n');
 }

@@ -17,7 +17,7 @@ test('网页查询取消传到 HTTP，不把取消结果写入跨轮缓存', asy
   let calls = 0;
   globalThis.fetch = async (_url, init) => {
     calls++;
-    if (calls > 1) return Response.json({ data: { webPages: { value: [{ name: '真实结果', url: 'https://example.com/source', summary: '资料' }] } } });
+    if (calls > 1) return Response.json({ results: [{ title: '真实结果', url: 'https://example.com/source', content: '资料' }] });
     started();
     return new Promise((_resolve, reject) => init!.signal!.addEventListener('abort', () => reject(init!.signal!.reason), { once: true }));
   };
@@ -30,24 +30,33 @@ test('网页查询取消传到 HTTP，不把取消结果写入跨轮缓存', asy
   } finally { globalThis.fetch = original; }
 });
 
-test('WebSearchSource 智能容错：清洗误注入的未发生年份并自动推断时效性 freshness', async () => {
+test('WebSearchSource (Tavily) 规范请求构造与透传', async () => {
   const original = globalThis.fetch;
-  const source = new WebSearchSource('https://example.com', 'test');
+  const source = new WebSearchSource('https://api.tavily.com', 'test-key');
+  let capturedUrl = '';
+  let capturedHeaders: any = null;
   let capturedBody: any = null;
-  globalThis.fetch = async (_url, init) => {
+  globalThis.fetch = async (url, init) => {
+    capturedUrl = String(url);
+    capturedHeaders = init?.headers;
     capturedBody = JSON.parse(init!.body as string);
-    return Response.json({ data: { webPages: { value: [{ name: '今日杭州新闻', url: 'https://example.com/hz', summary: '要闻速递' }] } } });
+    return Response.json({
+      answer: '杭州今日阳光明媚',
+      results: [{ title: '今日杭州新闻', url: 'https://example.com/hz', content: '要闻速递', published_date: '2026-11-09' }],
+    });
   };
   try {
-    // 1. 输入带假想未来年份与新闻词，自动剔除未来年份并推断 freshness 为 oneDay
-    await source.search('杭州 2026年11月9日 新闻');
-    assert.equal(capturedBody?.query, '杭州 新闻');
-    assert.equal(capturedBody?.freshness, 'oneDay');
+    const hits = await source.search('搜索今天杭州的新闻', undefined, { topic: 'news' });
+    assert.equal(capturedUrl, 'https://api.tavily.com/search');
+    assert.equal(capturedHeaders?.authorization, 'Bearer test-key');
+    assert.equal(capturedBody?.query, '搜索今天杭州的新闻');
+    assert.equal(capturedBody?.topic, 'news');
+    assert.equal(capturedBody?.include_answer, true);
 
-    // 2. 显式指定 freshness 时优先采纳
-    await source.search('西湖 预约 政策', undefined, { freshness: 'oneWeek' });
-    assert.equal(capturedBody?.query, '西湖 预约 政策');
-    assert.equal(capturedBody?.freshness, 'oneWeek');
+    // 验证 answer 会作为首条摘要前置返回
+    assert.equal(hits[0]?.title, 'Tavily 智能事实综述');
+    assert.equal(hits[0]?.summary, '杭州今日阳光明媚');
+    assert.equal(hits[1]?.title, '今日杭州新闻');
   } finally { globalThis.fetch = original; }
 });
 

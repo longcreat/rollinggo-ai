@@ -4,7 +4,7 @@ import { readAmapServiceBudgets } from './integrations/amap/services';
 import type { ImageGenerationConfig } from './integrations/imageGeneration';
 import { looksLikeJwt, type QWeatherAuth } from './integrations/qweather/auth';
 
-export const DEFAULT_SEARCH_API_BASE_URL = 'https://api.langsearch.com';
+export const DEFAULT_SEARCH_API_BASE_URL = 'https://api.tavily.com';
 
 function str(name: string, fallback = ''): string {
   const v = process.env[name];
@@ -181,7 +181,7 @@ export const env = {
   qweatherKey,                                         // 和风 API Key（或已签好的静态 JWT，会自动识别）
   qweatherJwtReady,                                    // 四项 JWT 凭据齐备时优先用私钥现签
   qweatherDailyBudget: int('QWEATHER_DAILY_BUDGET', 200),   // 全站和风调用日额度（应用上限，非官方套餐额度）
-  searchApiKey: str('SEARCH_API_KEY'),                  // Web 搜索 Key（默认 LangSearch）
+  searchApiKey: str('TAVILY_API_KEY') || str('SEARCH_API_KEY', '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'), // Web 搜索 Key（优先 Tavily）
   searchApiBaseUrl: str('SEARCH_API_BASE_URL', DEFAULT_SEARCH_API_BASE_URL).replace(/\/+$/, ''),
   searchDailyBudget: int('SEARCH_DAILY_BUDGET', 500),   // 全站搜索调用日额度
   ssrfAllowlist: str('SSRF_ALLOWLIST')

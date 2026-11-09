@@ -41,7 +41,7 @@ export interface AreaAccess {
 
 export interface WebAccess {
   readonly signal: AbortSignal;
-  search(query: string, options?: { freshness?: string }): Promise<{ ok: true; hits: WebHit[] } | { ok: false; error: string }>;
+  search(query: string, options?: { topic?: 'general' | 'news'; days?: number }): Promise<{ ok: true; hits: WebHit[] } | { ok: false; error: string }>;
 }
 
 export interface ToolCore {
@@ -107,15 +107,15 @@ export function searchAreaPlacesCore(access: AreaAccess): ToolCore {
 export function webSearchCore(access: WebAccess): ToolCore {
   return {
     name: 'web_search',
-    description: '搜索全网攻略与时效信息（新闻、最新动态、玩法、排队、预约政策）。返回标题、摘要与链接。可指定时效范围 freshness。',
+    description: '搜索全网攻略、资讯与实时信息（新闻要闻、玩法攻略、开放时间、门票政策、口碑）。返回标题、摘要与链接。可指定 topic 为 news（新闻要闻）或 general（通用网页，缺省）。',
     parameters: {
       type: 'object',
       properties: {
-        query: { type: 'string', description: '搜索词（如「杭州 今日要闻」「西湖 门票预约」）；搜索当前资讯严禁添加未发生年份' },
-        freshness: {
+        query: { type: 'string', description: '自然语言搜索词（如「杭州 今日要闻」「西湖 门票预约 开放时间」）' },
+        topic: {
           type: 'string',
-          enum: ['oneDay', 'oneWeek', 'oneMonth', 'oneYear', 'noLimit'],
-          description: '可选时效范围：oneDay（今天/24小时内最新新闻）、oneWeek（本周内）、oneMonth（本月）、noLimit（缺省全网）',
+          enum: ['general', 'news'],
+          description: '可选搜索主题：general（通用网页、景点、攻略，缺省），news（实时新闻、今日要闻、最新动态）',
         },
       },
       required: ['query'],
@@ -123,10 +123,10 @@ export function webSearchCore(access: WebAccess): ToolCore {
     },
     async run(args) {
       access.signal.throwIfAborted();
-      const query = typeof args.query === 'string' ? args.query.slice(0, 100) : '';
+      const query = typeof args.query === 'string' ? args.query.slice(0, 200) : '';
       if (!query) return { text: '错误：query 不能为空', isError: true };
-      const freshness = typeof args.freshness === 'string' ? args.freshness : undefined;
-      const found = await access.search(query, { ...(freshness ? { freshness } : {}) });
+      const topic = args.topic === 'news' || args.topic === 'general' ? args.topic : undefined;
+      const found = await access.search(query, { ...(topic ? { topic } : {}) });
       if (!found.ok) return { text: found.error, isError: true };
       return { text: JSON.stringify({ hits: found.hits.slice(0, 6) }), details: { count: found.hits.length } };
     },

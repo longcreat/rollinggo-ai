@@ -524,8 +524,8 @@ export async function runGeneration(
         if (!env.amapKey) return [];
         return poiAreaGate(() => searchAreaPois(env.amapKey, { city: form.destination, ...query }, plannerSignal));
       },
-      webSearch: async (query, plannerSignal) => {
-        const hits = await search.source.search(query, plannerSignal);
+      webSearch: async (query, plannerSignal, options) => {
+        const hits = await search.source.search(query, plannerSignal, options);
         return hits.map((hit) => ({ title: hit.title, url: hit.url, summary: hit.summary }));
       },
       recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'plan', round: 2 }),

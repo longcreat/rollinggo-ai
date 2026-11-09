@@ -41,7 +41,7 @@ export interface PlannerDeps {
   /** 片区检索（高德周边/多边形），由 orchestrator 注入并计配额。 */
   searchArea(query: { center: GeoPoint; radiusM: number; keywords?: string }, signal: AbortSignal): Promise<SourcedPoi[]>;
   /** 网页检索（复用同一轮 search source 与日额度）。 */
-  webSearch(query: string, signal: AbortSignal): Promise<{ title: string; url: string; summary: string }[]>;
+  webSearch(query: string, signal: AbortSignal, options?: { topic?: 'general' | 'news'; days?: number }): Promise<{ title: string; url: string; summary: string }[]>;
   /** 每天排完后回调（直播页据此逐日长出行程与地图点位）。 */
   onDayPlanned?(day: { dayIndex: number; title?: string; stops: PlanDayEventStop[] }): void;
   signal: AbortSignal;
@@ -204,11 +204,11 @@ export function buildPlannerTools(deps: PlannerDeps): AgentTool[] {
 
   const plannerWebAccess: WebAccess = {
     signal: deps.signal,
-    async search(query) {
+    async search(query, options) {
       if (webCalls >= WEB_SEARCH_CAP) return { ok: false, error: '错误：本轮联网检索次数已用完，请直接规划或提交' };
       webCalls += 1;
       try {
-        return { ok: true, hits: await deps.webSearch(query, deps.signal) };
+        return { ok: true, hits: await deps.webSearch(query, deps.signal, options) };
       } catch (error) {
         return { ok: false, error: `联网检索失败：${error instanceof Error ? error.message : '未知错误'}` };
       }

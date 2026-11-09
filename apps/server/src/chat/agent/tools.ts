@@ -321,7 +321,7 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
     signal,
     async search(query, options) {
       try {
-        const hits = await sources.search.search(query, signal, options as never);
+        const hits = await sources.search.search(query, signal, options);
         return hits.length
           ? { ok: true, hits: hits.map(({ title, url, summary }) => ({ title, url, summary })) }
           : { ok: false, error: `未搜到「${query}」的相关资料` };

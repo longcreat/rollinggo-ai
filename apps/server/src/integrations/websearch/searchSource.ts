@@ -1,7 +1,6 @@
-// Web 搜索适配层（架构 §6）：调研候选的攻略语义层（玩法/避雷/预约政策）
-// 默认 LangSearch；博查同族 schema，改 SEARCH_API_BASE_URL + Key 即可切换，零代码改动。
-// 原则沿用 ContentSource 骨架：串行限速 + TTL 缓存 + 任务级上限 + Null 降级 + selfCheck，
-// 任何故障不抛错到上层 —— search 回空数组、selfCheck 变红。
+// Web 搜索适配层：通过 Tavily 官方 API 提供高质量实时网络搜索、内容提炼与事实溯源。
+// 遵循成熟 Harness 的设计原则：直接透传自然语言 Query，由专业 AI 搜索引擎完成意图识别与排序，
+// 零人工关键词正则篡改，零脆弱硬编码。
 import { env } from '../../env';
 import { createSerialQueue } from '../../lib/serialQueue';
 import { TtlCache } from '../../lib/ttlCache';
@@ -9,20 +8,22 @@ import { resolveSearchCredential } from '../../services/settingsService';
 import { assertSafeBaseUrl } from '../ssrfGuard';
 import type { SourceStatus } from '../sourceStatus';
 
-const SEARCH_MIN_INTERVAL_MS = 1000;              // 免费档限流未明示，串行 1s 保守姿态
+const SEARCH_MIN_INTERVAL_MS = 500;
 const SEARCH_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_RESULTS = 6;
 
 export interface WebSearchHit {
   title: string;
   url: string;
-  summary: string;        // LangSearch summary 优先，缺失回退 snippet
-  siteName: string;
-  datePublished: string;  // 'YYYY-MM-DD' 或 ''
+  summary: string;
+  siteName?: string;
+  datePublished?: string;
+  score?: number;
 }
 
 export interface SearchOptions {
-  freshness?: 'oneDay' | 'oneWeek' | 'oneMonth' | 'oneYear' | 'noLimit';
+  topic?: 'general' | 'news';
+  days?: number;
 }
 
 export interface SearchSource {
@@ -45,37 +46,18 @@ export class NullSearchSource implements SearchSource {
   }
 }
 
-// ---------- 宽容解析（LangSearch / 博查同族：data.webPages.value） ----------
+// ---------- Tavily API 实现 ----------
 
 function str(v: unknown): string {
   return typeof v === 'string' ? v : '';
 }
 
-function pickPages(body: unknown): Record<string, unknown>[] {
-  const root = (typeof body === 'object' && body !== null ? body : {}) as Record<string, unknown>;
-  const data = (root.data ?? root) as Record<string, unknown>;
-  const webPages = (data.webPages ?? {}) as Record<string, unknown>;
-  return Array.isArray(webPages.value) ? (webPages.value as Record<string, unknown>[]) : [];
+function resolveTavilyEndpoint(baseUrl: string): string {
+  const trimmed = baseUrl.replace(/\/+$/, '');
+  return trimmed.endsWith('/search') ? trimmed : `${trimmed}/search`;
 }
 
-function mapHit(raw: Record<string, unknown>): WebSearchHit | null {
-  const title = str(raw.name).trim();
-  const url = str(raw.url);
-  if (!title || !/^https?:\/\//.test(url)) return null;
-  return {
-    title: title.slice(0, 80),
-    url: url.slice(0, 300),
-    // 摘要不截断：上游 summary 已是浓缩结果，再按字数砍会让模型「记不住」关键条件。
-    // 上下文膨胀交给 pi-durable 的 compaction（阈值/溢出都会摘要旧轮次），而不是丢数据。
-    summary: str(raw.summary) || str(raw.snippet),
-    siteName: str(raw.siteName).slice(0, 30),
-    datePublished: str(raw.datePublished).slice(0, 10),
-  };
-}
-
-// ---------- LangSearch（博查同族）实现 ----------
-
-export class WebSearchSource implements SearchSource {
+export class TavilySearchSource implements SearchSource {
   readonly kind = 'websearch' as const;
   private queue = createSerialQueue(SEARCH_MIN_INTERVAL_MS);
   private cache = new TtlCache<WebSearchHit[]>(SEARCH_CACHE_TTL_MS, 300);
@@ -87,50 +69,73 @@ export class WebSearchSource implements SearchSource {
   ) {}
 
   /** 失败抛给调用方分支处理 */
-  private async request(query: string, count: number, signal?: AbortSignal, freshness: string = 'noLimit'): Promise<WebSearchHit[]> {
+  private async request(query: string, count: number, signal?: AbortSignal, options?: SearchOptions): Promise<WebSearchHit[]> {
     return this.queue(async () => {
       signal?.throwIfAborted();
       if (this.validateBaseUrlBeforeUse) await assertSafeBaseUrl(this.baseUrl);
 
-      // 搜索词智能容错：清洗误注入的未来年份（如 2026年 / 2026-），避免搜索引擎匹配不到新闻
-      let sanitizedQuery = query.slice(0, 100);
-      if (/202[6-9]/.test(sanitizedQuery) && /(新闻|今日|今天|最新|突发|动态|管制|公告)/.test(sanitizedQuery)) {
-        sanitizedQuery = sanitizedQuery.replace(/202[6-9][\-\/年]?\d{0,2}[\-\/月]?\d{0,2}日?/g, '').replace(/\s+/g, ' ').trim();
-        if (!sanitizedQuery) sanitizedQuery = query.slice(0, 100);
-      }
-
-      // 时效性智能推断：如果未显式指定 freshness，但搜索词含有“今天/今日/单日/突发/最新动态”，自动设为相应时效范围
-      let effectiveFreshness = freshness;
-      if (effectiveFreshness === 'noLimit') {
-        if (/(今天|今日|突发|最新新闻|今日新闻|\d{1,2}月\d{1,2}日)/.test(query)) {
-          effectiveFreshness = 'oneDay';
-        } else if (/(新闻|最新动态|近期变化|最新消息)/.test(query)) {
-          effectiveFreshness = 'oneWeek';
-        }
-      }
-
-      const res = await fetch(`${this.baseUrl}/v1/web-search`, {
+      const endpoint = resolveTavilyEndpoint(this.baseUrl);
+      const res = await fetch(endpoint, {
         method: 'POST',
-        headers: { authorization: `Bearer ${this.apiKey}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ query: sanitizedQuery, summary: true, count, freshness: effectiveFreshness }),
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+        },
+        body: JSON.stringify({
+          api_key: this.apiKey,
+          query: query.slice(0, 400),
+          search_depth: 'basic',
+          include_answer: true,
+          max_results: count,
+          ...(options?.topic ? { topic: options.topic } : {}),
+          ...(options?.days ? { days: options.days } : {}),
+        }),
         signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
       });
+
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const hits = pickPages(await res.json())
-        .map(mapHit)
-        .filter((h): h is WebSearchHit => h !== null);
-      return hits.slice(0, count);
+      const body = (await res.json()) as Record<string, unknown>;
+
+      const rawResults = Array.isArray(body.results) ? (body.results as Record<string, unknown>[]) : [];
+      const hits: WebSearchHit[] = [];
+
+      // 若 Tavily 提供了直接提炼的 answer 综述，优先作为权威精炼事实
+      const answer = str(body.answer).trim();
+      if (answer) {
+        hits.push({
+          title: 'Tavily 智能事实综述',
+          url: endpoint,
+          summary: answer,
+          siteName: 'Tavily Answer',
+          datePublished: '',
+        });
+      }
+
+      for (const raw of rawResults) {
+        const title = str(raw.title).trim();
+        const url = str(raw.url);
+        if (!title || !/^https?:\/\//.test(url)) continue;
+        hits.push({
+          title: title.slice(0, 100),
+          url: url.slice(0, 300),
+          summary: str(raw.content) || str(raw.snippet),
+          datePublished: str(raw.published_date).slice(0, 25),
+          ...(typeof raw.score === 'number' ? { score: raw.score } : {}),
+        });
+      }
+
+      return hits.slice(0, count + (answer ? 1 : 0));
     });
   }
 
   async search(query: string, signal?: AbortSignal, options?: SearchOptions): Promise<WebSearchHit[]> {
     signal?.throwIfAborted();
-    const freshness = options?.freshness ?? 'noLimit';
-    const key = `${query.trim().toLowerCase()}:${freshness}`;
+    const topic = options?.topic ?? 'general';
+    const key = `${query.trim().toLowerCase()}:${topic}`;
     const cached = this.cache.get(key);
     if (cached) return cached;
     try {
-      const hits = await this.request(query, MAX_RESULTS, signal, freshness);
+      const hits = await this.request(query, MAX_RESULTS, signal, options);
       signal?.throwIfAborted();
       this.cache.set(key, hits);
       return hits;
@@ -142,18 +147,21 @@ export class WebSearchSource implements SearchSource {
 
   async selfCheck(): Promise<SourceStatus> {
     try {
-      await this.request('故宫 门票 预约', 1);
-      return { configured: true, checked: true, ok: true, message: 'Web 搜索数据源连接正常' };
+      await this.request('故宫 开放时间', 1);
+      return { configured: true, checked: true, ok: true, message: 'Tavily 搜索数据源连接正常' };
     } catch (err) {
       return {
         configured: true,
         checked: true,
         ok: false,
-        message: `Web 搜索连接失败：${err instanceof Error ? err.message : '未知错误'}（生成时自动降级）`,
+        message: `Tavily 搜索连接失败：${err instanceof Error ? err.message : '未知错误'}（生成时自动降级）`,
       };
     }
   }
 }
+
+/** 保持别名导出以兼容已有类型引用 */
+export { TavilySearchSource as WebSearchSource };
 
 // ---------- 任务级上限包装（单次生成 ≤10 次搜索） ----------
 
@@ -168,12 +176,12 @@ export function createTaskSearchSource(inner: SearchSource): TaskSearchSource {
   const stats = { calls: 0, gotResults: false };
   const source: SearchSource = {
     kind: inner.kind,
-    async search(query, signal) {
+    async search(query, signal, options) {
       signal?.throwIfAborted();
       if (inner.kind === 'null') return [];                  // Null 源不计数，不烧日额度
       if (stats.calls >= SEARCH_MAX_PER_TASK) return [];
       stats.calls += 1;
-      const hits = await inner.search(query, signal);
+      const hits = await inner.search(query, signal, options);
       if (hits.length) stats.gotResults = true;
       return hits;
     },
@@ -185,7 +193,7 @@ export function createTaskSearchSource(inner: SearchSource): TaskSearchSource {
 // ---------- 按用户动态构造 ----------
 
 const nullSource = new NullSearchSource();
-const webSource = env.searchApiKey ? new WebSearchSource(env.searchApiBaseUrl, env.searchApiKey) : null;
+const webSource = env.searchApiKey ? new TavilySearchSource(env.searchApiBaseUrl, env.searchApiKey) : null;
 
 export interface ResolvedSearchSource {
   source: SearchSource;
@@ -199,7 +207,7 @@ export function createSearchSource(
   apiKey: string | null | undefined,
   validateBaseUrlBeforeUse = false,
 ): SearchSource {
-  return baseUrl && apiKey ? new WebSearchSource(baseUrl, apiKey, validateBaseUrlBeforeUse) : nullSource;
+  return baseUrl && apiKey ? new TavilySearchSource(baseUrl, apiKey, validateBaseUrlBeforeUse) : nullSource;
 }
 
 /** 个人配置优先；个人 URL 在构造前复查，不安全时降级而不是中断生成。 */

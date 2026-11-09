@@ -41,7 +41,7 @@ export interface AreaAccess {
 
 export interface WebAccess {
   readonly signal: AbortSignal;
-  search(query: string, options?: { topic?: 'general' | 'news'; days?: number }): Promise<{ ok: true; hits: WebHit[] } | { ok: false; error: string }>;
+  search(query: string, options?: { topic?: 'general' | 'news'; days?: number; maxResults?: number }): Promise<{ ok: true; hits: WebHit[] } | { ok: false; error: string }>;
 }
 
 export interface ToolCore {
@@ -117,6 +117,10 @@ export function webSearchCore(access: WebAccess): ToolCore {
           enum: ['general', 'news'],
           description: '可选搜索主题：general（通用网页、景点、攻略，缺省），news（实时新闻、今日要闻、最新动态）',
         },
+        max_results: {
+          type: 'integer',
+          description: '可选返回结果数量（1–10，缺省 8）',
+        },
       },
       required: ['query'],
       additionalProperties: false,
@@ -126,9 +130,10 @@ export function webSearchCore(access: WebAccess): ToolCore {
       const query = typeof args.query === 'string' ? args.query.slice(0, 200) : '';
       if (!query) return { text: '错误：query 不能为空', isError: true };
       const topic = args.topic === 'news' || args.topic === 'general' ? args.topic : undefined;
-      const found = await access.search(query, { ...(topic ? { topic } : {}) });
+      const maxResults = typeof args.max_results === 'number' ? Math.min(Math.max(args.max_results, 1), 10) : 8;
+      const found = await access.search(query, { ...(topic ? { topic } : {}), maxResults });
       if (!found.ok) return { text: found.error, isError: true };
-      return { text: JSON.stringify({ hits: found.hits.slice(0, 6) }), details: { count: found.hits.length } };
+      return { text: JSON.stringify({ hits: found.hits.slice(0, maxResults) }), details: { count: found.hits.length } };
     },
   };
 }

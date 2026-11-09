@@ -10,7 +10,7 @@ import type { SourceStatus } from '../sourceStatus';
 
 const SEARCH_MIN_INTERVAL_MS = 500;
 const SEARCH_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
-const MAX_RESULTS = 6;
+const MAX_RESULTS = 8;
 
 export interface WebSearchHit {
   title: string;
@@ -24,6 +24,7 @@ export interface WebSearchHit {
 export interface SearchOptions {
   topic?: 'general' | 'news';
   days?: number;
+  maxResults?: number;
 }
 
 export interface SearchSource {
@@ -130,12 +131,13 @@ export class TavilySearchSource implements SearchSource {
 
   async search(query: string, signal?: AbortSignal, options?: SearchOptions): Promise<WebSearchHit[]> {
     signal?.throwIfAborted();
+    const count = options?.maxResults ? Math.min(Math.max(options.maxResults, 1), 10) : MAX_RESULTS;
     const topic = options?.topic ?? 'general';
-    const key = `${query.trim().toLowerCase()}:${topic}`;
+    const key = `${query.trim().toLowerCase()}:${topic}:${count}`;
     const cached = this.cache.get(key);
     if (cached) return cached;
     try {
-      const hits = await this.request(query, MAX_RESULTS, signal, options);
+      const hits = await this.request(query, count, signal, options);
       signal?.throwIfAborted();
       this.cache.set(key, hits);
       return hits;

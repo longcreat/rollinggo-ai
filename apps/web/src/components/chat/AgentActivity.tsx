@@ -13,6 +13,12 @@ const TITLE: Record<AgentActivityState, string> = {
   error: '未完成',
 };
 
+function formatDuration(ms?: number): string | null {
+  if (!ms || ms <= 0) return null;
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(1)}s`;
+}
+
 function StatusIcon({ status, className = '' }: { status: AgentStep['status']; className?: string }) {
   if (status === 'running') return <LoaderCircle className={`motion-safe:animate-spin text-slate-500 ${className}`} aria-hidden="true" />;
   if (status === 'error') return <AlertCircle className={`text-rose-500 ${className}`} aria-hidden="true" />;
@@ -55,19 +61,25 @@ export function AgentActivity({ steps, state }: {
   if (rows.length === 1) {
     const row = rows[0]!;
     const status = rowStatus(row.status);
-    return <div data-agent-activity="" className="mb-1.5 flex min-w-0 items-center gap-2 text-xs leading-4 text-slate-500">
+    const duration = status !== 'running' ? formatDuration(row.durationMs) : null;
+    return <div data-agent-activity="" className="mb-2 flex min-w-0 items-center gap-2 text-xs leading-4 text-slate-500">
       <span className="flex h-4 w-4 shrink-0 items-center justify-center">
         <StatusIcon status={status} className="h-3.5 w-3.5" />
       </span>
-      <span className={`min-w-0 truncate ${status === 'running' ? 'font-medium text-slate-700' : 'text-slate-600'}`}>{singleText(row, status, state)}</span>
+      <span className={`min-w-0 flex-1 truncate ${status === 'running' ? 'font-medium text-slate-700' : 'text-slate-600'}`}>
+        {singleText(row, status, state)}
+        {duration && <span className="ml-1.5 text-slate-400">· {duration}</span>}
+      </span>
     </div>;
   }
 
-  const meta = `${steps.length} 步`;
+  const totalDuration = rows.reduce((acc, row) => acc + (row.durationMs ?? 0), 0);
+  const formattedTotal = formatDuration(totalDuration);
+  const meta = `${steps.length} 步${formattedTotal ? ` · ${formattedTotal}` : ''}`;
   const collapseMobileRows = rows.length > 2 && !showAll;
 
   return (
-    <section data-agent-activity="" className="mb-1.5 w-full min-w-0 text-xs">
+    <section data-agent-activity="" className="mb-2 w-full min-w-0 text-xs">
       <Button
         variant="plain"
         type="button"
@@ -89,13 +101,17 @@ export function AgentActivity({ steps, state }: {
         <ol id={listId} className="m-0 list-none p-0">
           {rows.map((row, index) => {
             const status = rowStatus(row.status);
+            const duration = status !== 'running' ? formatDuration(row.durationMs) : null;
             return (
               <li key={row.id} className={`relative flex min-w-0 items-center gap-2 py-1 leading-4 ${collapseMobileRows && index < rows.length - 2 ? 'max-sm:hidden' : ''}`}>
                 <span aria-hidden="true" className={`absolute left-[7.5px] top-0 w-px bg-slate-200 ${index === rows.length - 1 ? 'h-1/2' : 'h-full'}`} />
                 <span className="relative flex h-4 w-4 shrink-0 items-center justify-center bg-white">
                   <StatusIcon status={status} className="h-3.5 w-3.5" />
                 </span>
-                <span className={`min-w-0 flex-1 truncate ${status === 'running' ? 'font-medium text-slate-700' : 'text-slate-500'}`}>{row.label}</span>
+                <span className={`min-w-0 flex-1 truncate ${status === 'running' ? 'font-medium text-slate-700' : 'text-slate-500'}`}>
+                  {row.label}
+                  {duration && <span className="ml-1.5 text-slate-400">· {duration}</span>}
+                </span>
               </li>
             );
           })}

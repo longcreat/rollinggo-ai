@@ -26,7 +26,7 @@ export function ThinkingRow({ thinking, className = '' }: { thinking: ThinkingVi
     : `${Math.max(1, Math.round((durationMs ?? 0) / 1000))}s`;
 
   return (
-    <div data-agent-activity="" className={`mb-1.5 flex min-w-0 items-center gap-2 text-xs leading-4 text-slate-500 ${className}`}>
+    <div data-agent-activity="" className={`mb-2 flex min-w-0 items-center gap-2 text-xs leading-4 text-slate-500 ${className}`}>
       <span className="flex h-4 w-4 shrink-0 items-center justify-center">
         {active
           ? <LoaderCircle className="h-3.5 w-3.5 motion-safe:animate-spin text-slate-500" aria-hidden="true" />

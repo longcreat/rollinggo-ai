@@ -316,7 +316,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
       {(() => {
         const renderAssistantBody = (
           message: ChatMessage,
-          options?: { showCopy?: boolean; copyText?: string },
+          options?: { showCopy?: boolean; copyText?: string; taskId?: string },
         ) => {
           const activitySteps = message.attachment
             ? message.attachment.steps ?? stepsFromSummary(message.attachment.summary)
@@ -362,6 +362,7 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
 
           const showCopy = options?.showCopy ?? true;
           const copyText = options?.copyText ?? message.content;
+          let taskCardRendered = false;
 
           return (
             <div className="flex w-full min-w-0 flex-col gap-1.5">
@@ -388,14 +389,22 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
                           editExists={!versionIds || !message.relatedTripId || versionIds.has(message.relatedTripId)}
                         />
                       </div>
-                    : <div key={`text-${index}`} className="chat-bubble mb-1.5 break-words rounded-2xl bg-slate-50/90 px-3.5 py-2.5 text-sm leading-relaxed text-slate-800"><ChatText text={part.text} markdown /></div>;
+                    : <div key={`text-${index}`} className="mb-1.5 break-words px-1 py-0.5 text-sm leading-relaxed text-slate-800"><ChatText text={part.text} markdown /></div>;
                 }
+                const isDelegateStep = part.steps.some((s) => s.name === 'delegate_task');
+                if (isDelegateStep && options?.taskId) taskCardRendered = true;
                 return <Fragment key={`steps-${index}`}>
                   <AgentActivity steps={part.steps} state="completed" />
+                  {isDelegateStep && options?.taskId && (
+                    <TaskCard jobId={options.taskId} conversationId={conversationId} />
+                  )}
                   {index === legacyAnchor && questionsCard(questionRecords, `q-${message.id}`)}
                 </Fragment>;
               }) : <>
                   {activitySteps.length > 0 && <AgentActivity steps={activitySteps} state="completed" />}
+                  {options?.taskId && (
+                    <TaskCard jobId={options.taskId} conversationId={conversationId} />
+                  )}
                   {message.content.trim() && (
                     <MessageBubble
                       plain
@@ -409,6 +418,9 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
                     />
                   )}
                 </>}
+              {options?.taskId && !taskCardRendered && parts?.length ? (
+                <TaskCard jobId={options.taskId} conversationId={conversationId} />
+              ) : null}
               {!hasQuestionParts && legacyAnchor < 0 && questionsCard(questionRecords, `q-${message.id}-tail`)}
               {message.attachment?.notice && <p className="mb-0 mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-500">{message.attachment.notice}</p>}
               {trip && message.attachment?.candidates.map((candidate) => (
@@ -454,8 +466,9 @@ export function ChatPanel({ conversationId, trip, dayId, readOnly, busy, begin, 
               {taskTurn.start && renderAssistantBody(taskTurn.start, {
                 showCopy: !taskTurn.completion,
                 copyText: turnText,
+                taskId: taskTurn.taskId,
               })}
-              <TaskCard jobId={taskTurn.taskId} conversationId={conversationId} />
+              {!taskTurn.start && <TaskCard jobId={taskTurn.taskId} conversationId={conversationId} />}
               {taskTurn.completion && renderAssistantBody(taskTurn.completion, {
                 showCopy: true,
                 copyText: turnText,

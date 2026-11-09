@@ -73,6 +73,14 @@ describe('主 Agent 全功能工具', () => {
     assert.match(result.output![0]!.text, /陈麻婆豆腐/);
   });
 
+  it('search_food 支持指定异地城市平滑检索餐饮 POI', async () => {
+    const { tool } = build();
+    // 当前行程是成都，但指定查询杭州美食
+    const result = await run(tool('search_food'), { query: '西湖醋鱼', city: '杭州' });
+    assert.equal(result.isError, undefined);
+    assert.match(result.output![0]!.text, /陈麻婆豆腐/);
+  });
+
   it('ask_user 暂停后拿到答案并写回回合记录（同一回合继续）', async () => {
     let asked: AgentQuestion[] = [];
     const { state, tool } = build(async (questions) => {

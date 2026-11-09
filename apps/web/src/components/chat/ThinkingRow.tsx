@@ -1,5 +1,6 @@
 // 思考节点（对齐 Pi 开源 Agent 的 ThinkingContent 与折叠展开交互）：
 // 默认紧凑折叠显示「思考过程 · 3s」，可点击展开查看完整思维链 Markdown；进行中动态计时与流式展现。
+// 样式与 AgentActivity 工具行保持像素级左对齐（px-0、h-4 w-4 图标容器、gap-2）。
 import { useEffect, useState } from 'react';
 import { Brain, ChevronDown, LoaderCircle } from 'lucide-react';
 import { ChatText } from './ChatText';
@@ -41,13 +42,13 @@ export function ThinkingRow({ thinking, className = '' }: { thinking: ThinkingVi
         disabled={!canExpand}
         onClick={() => canExpand && setOpen((prev) => !prev)}
         aria-expanded={canExpand ? open : undefined}
-        className={`group inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-md px-2 py-1 text-xs text-slate-500 transition-colors ${
+        className={`group flex min-w-0 max-w-full items-center gap-2 px-0 py-0.5 text-xs text-slate-500 transition-colors ${
           canExpand
-            ? 'cursor-pointer hover:bg-slate-100/80 active:bg-slate-200/60'
+            ? 'cursor-pointer hover:text-slate-800'
             : 'cursor-default'
         }`}
       >
-        <span className="flex h-3.5 w-3.5 shrink-0 items-center justify-center">
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center">
           {active ? (
             <LoaderCircle className="h-3.5 w-3.5 motion-safe:animate-spin text-slate-500" aria-hidden="true" />
           ) : (
@@ -55,7 +56,7 @@ export function ThinkingRow({ thinking, className = '' }: { thinking: ThinkingVi
           )}
         </span>
 
-        <span className="truncate font-medium text-slate-600">
+        <span className="truncate font-medium text-slate-600 group-hover:text-slate-800">
           {active ? '思考中' : '思考过程'}
         </span>
 
@@ -76,7 +77,7 @@ export function ThinkingRow({ thinking, className = '' }: { thinking: ThinkingVi
       </button>
 
       {open && thinkingText && (
-        <div className="mt-1.5 mb-2 ml-2 max-w-full rounded-r-lg border-l-2 border-slate-300 bg-slate-50/70 px-3 py-2 text-xs leading-relaxed text-slate-600 select-text">
+        <div className="mt-1.5 mb-2 max-w-full rounded-r-lg border-l-2 border-slate-300 bg-slate-50/70 pl-3 pr-2 py-2 text-xs leading-relaxed text-slate-600 select-text">
           <div className="chat-markdown font-sans text-slate-600">
             <ChatText text={thinkingText} markdown />
           </div>

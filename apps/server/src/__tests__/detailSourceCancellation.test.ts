@@ -30,6 +30,27 @@ test('网页查询取消传到 HTTP，不把取消结果写入跨轮缓存', asy
   } finally { globalThis.fetch = original; }
 });
 
+test('WebSearchSource 智能容错：清洗误注入的未发生年份并自动推断时效性 freshness', async () => {
+  const original = globalThis.fetch;
+  const source = new WebSearchSource('https://example.com', 'test');
+  let capturedBody: any = null;
+  globalThis.fetch = async (_url, init) => {
+    capturedBody = JSON.parse(init!.body as string);
+    return Response.json({ data: { webPages: { value: [{ name: '今日杭州新闻', url: 'https://example.com/hz', summary: '要闻速递' }] } } });
+  };
+  try {
+    // 1. 输入带假想未来年份与新闻词，自动剔除未来年份并推断 freshness 为 oneDay
+    await source.search('杭州 2026年11月9日 新闻');
+    assert.equal(capturedBody?.query, '杭州 新闻');
+    assert.equal(capturedBody?.freshness, 'oneDay');
+
+    // 2. 显式指定 freshness 时优先采纳
+    await source.search('西湖 预约 政策', undefined, { freshness: 'oneWeek' });
+    assert.equal(capturedBody?.query, '西湖 预约 政策');
+    assert.equal(capturedBody?.freshness, 'oneWeek');
+  } finally { globalThis.fetch = original; }
+});
+
 test('地点搜索的取消不污染缓存，重试可正常查询', async () => {
   const original = globalThis.fetch;
   // 高德配额闸门走 DB，测试里 stub 成恒放行（真实扣账在 amapQuotaLedger 单测覆盖）

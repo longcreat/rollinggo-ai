@@ -21,9 +21,13 @@ export interface WebSearchHit {
   datePublished: string;  // 'YYYY-MM-DD' 或 ''
 }
 
+export interface SearchOptions {
+  freshness?: 'oneDay' | 'oneWeek' | 'oneMonth' | 'oneYear' | 'noLimit';
+}
+
 export interface SearchSource {
   readonly kind: 'websearch' | 'null';
-  search(query: string, signal?: AbortSignal): Promise<WebSearchHit[]>;
+  search(query: string, signal?: AbortSignal, options?: SearchOptions): Promise<WebSearchHit[]>;
   selfCheck(): Promise<SourceStatus>;
 }
 
@@ -83,14 +87,32 @@ export class WebSearchSource implements SearchSource {
   ) {}
 
   /** 失败抛给调用方分支处理 */
-  private async request(query: string, count: number, signal?: AbortSignal): Promise<WebSearchHit[]> {
+  private async request(query: string, count: number, signal?: AbortSignal, freshness: string = 'noLimit'): Promise<WebSearchHit[]> {
     return this.queue(async () => {
       signal?.throwIfAborted();
       if (this.validateBaseUrlBeforeUse) await assertSafeBaseUrl(this.baseUrl);
+
+      // 搜索词智能容错：清洗误注入的未来年份（如 2026年 / 2026-），避免搜索引擎匹配不到新闻
+      let sanitizedQuery = query.slice(0, 100);
+      if (/202[6-9]/.test(sanitizedQuery) && /(新闻|今日|今天|最新|突发|动态|管制|公告)/.test(sanitizedQuery)) {
+        sanitizedQuery = sanitizedQuery.replace(/202[6-9][\-\/年]?\d{0,2}[\-\/月]?\d{0,2}日?/g, '').replace(/\s+/g, ' ').trim();
+        if (!sanitizedQuery) sanitizedQuery = query.slice(0, 100);
+      }
+
+      // 时效性智能推断：如果未显式指定 freshness，但搜索词含有“今天/今日/单日/突发/最新动态”，自动设为相应时效范围
+      let effectiveFreshness = freshness;
+      if (effectiveFreshness === 'noLimit') {
+        if (/(今天|今日|突发|最新新闻|今日新闻|\d{1,2}月\d{1,2}日)/.test(query)) {
+          effectiveFreshness = 'oneDay';
+        } else if (/(新闻|最新动态|近期变化|最新消息)/.test(query)) {
+          effectiveFreshness = 'oneWeek';
+        }
+      }
+
       const res = await fetch(`${this.baseUrl}/v1/web-search`, {
         method: 'POST',
         headers: { authorization: `Bearer ${this.apiKey}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ query: query.slice(0, 100), summary: true, count, freshness: 'noLimit' }),
+        body: JSON.stringify({ query: sanitizedQuery, summary: true, count, freshness: effectiveFreshness }),
         signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15_000)]) : AbortSignal.timeout(15_000),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -101,13 +123,14 @@ export class WebSearchSource implements SearchSource {
     });
   }
 
-  async search(query: string, signal?: AbortSignal): Promise<WebSearchHit[]> {
+  async search(query: string, signal?: AbortSignal, options?: SearchOptions): Promise<WebSearchHit[]> {
     signal?.throwIfAborted();
-    const key = query.trim().toLowerCase();
+    const freshness = options?.freshness ?? 'noLimit';
+    const key = `${query.trim().toLowerCase()}:${freshness}`;
     const cached = this.cache.get(key);
     if (cached) return cached;
     try {
-      const hits = await this.request(query, MAX_RESULTS, signal);
+      const hits = await this.request(query, MAX_RESULTS, signal, freshness);
       signal?.throwIfAborted();
       this.cache.set(key, hits);
       return hits;

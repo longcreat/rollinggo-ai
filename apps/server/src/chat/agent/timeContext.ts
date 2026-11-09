@@ -46,7 +46,9 @@ export function buildCurrentTimeContext(now: Date = new Date()): string {
     `当前日期：${dateStr}（${dayOfWeek}）`,
     `当前时间：${hours}:${minutes}（中国标准时间 UTC+8）`,
     `相对日期基准：明天 ${formatDate(tomorrow)}｜后天 ${formatDate(dayAfter)}｜${weekendDesc}`,
-    '时间纪律：用户提到「今天/明天/后天/周末/下周」等时间时，必须以此处的实时日期为准换算成具体 YYYY-MM-DD，严禁推测或编造年份和月份。',
+    '时间纪律：',
+    '1. 行程规划与安排时，用户提到「今天/明天/后天/周末/下周」必须以此处的基准日期为准换算成具体日期填入行程（如 startDate）。',
+    '2. 全网搜索（web_search）时，严禁在搜索词中添加未发生的未来年份（如 2026年）或写死精确年月日！搜索新闻与时效资讯时，使用「城市 + 关键词 + 最新/今日」（如「杭州 最新动态」「杭州 今日要闻」），并配合 freshness 参数限定时效范围。',
     '</current_time>',
   ].join('\n');
 }

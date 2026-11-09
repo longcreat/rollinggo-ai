@@ -319,9 +319,9 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
 
   const chatWebAccess: WebAccess = {
     signal,
-    async search(query) {
+    async search(query, options) {
       try {
-        const hits = await sources.search.search(query);
+        const hits = await sources.search.search(query, signal, options as never);
         return hits.length
           ? { ok: true, hits: hits.map(({ title, url, summary }) => ({ title, url, summary })) }
           : { ok: false, error: `未搜到「${query}」的相关资料` };

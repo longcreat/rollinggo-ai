@@ -1,9 +1,10 @@
-// 思考节点（对齐 Pi 开源 Agent 的 ThinkingContent 与折叠展开交互）：
-// 默认紧凑折叠显示「思考过程 · 3s」，可点击展开查看完整思维链 Markdown；进行中动态计时与流式展现。
-// 样式与 AgentActivity 工具行保持像素级左对齐（px-0、h-4 w-4 图标容器、gap-2）。
+// 思考节点（对齐 Pi 开源 Agent 与 ZCode 黑白极简 Soft Radar 设计）：
+// 进行中展示标志性 Soft Radar 5x5 点阵雷达扫光，完成态展示黑白极简灵感微星芒；
+// 默认紧凑折叠显示「思考过程 · 3s」，右侧箭头可展开查看完整思维链 Markdown。
 import { useEffect, useState } from 'react';
-import { Brain, ChevronDown, LoaderCircle } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import { ChatText } from './ChatText';
+import { SoftRadar } from '../ui/SoftRadar';
 
 export interface ThinkingView {
   startedAt?: number;
@@ -50,9 +51,22 @@ export function ThinkingRow({ thinking, className = '' }: { thinking: ThinkingVi
       >
         <span className="flex h-4 w-4 shrink-0 items-center justify-center">
           {active ? (
-            <LoaderCircle className="h-3.5 w-3.5 motion-safe:animate-spin text-slate-500" aria-hidden="true" />
+            <SoftRadar size={14} className="text-slate-700" />
           ) : (
-            <Brain className="h-3.5 w-3.5 text-slate-400 group-hover:text-slate-600 transition-colors" aria-hidden="true" />
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="text-slate-400 group-hover:text-slate-600 transition-colors"
+              aria-hidden="true"
+            >
+              <path d="M8 2C8 5.2 5.2 8 2 8C5.2 8 8 10.8 8 14C8 10.8 10.8 8 14 8C10.8 8 8 5.2 8 2Z" />
+            </svg>
           )}
         </span>
 
@@ -68,7 +82,7 @@ export function ThinkingRow({ thinking, className = '' }: { thinking: ThinkingVi
 
         {canExpand && (
           <ChevronDown
-            className={`h-3 w-3 shrink-0 text-slate-400 transition-transform duration-200 group-hover:text-slate-600 ${
+            className={`ml-auto h-3 w-3 shrink-0 text-slate-400 transition-transform duration-200 group-hover:text-slate-600 ${
               open ? 'rotate-180' : ''
             }`}
             aria-hidden="true"

@@ -2,9 +2,10 @@
 // 只展示工具动作标签，不展示参数、结果、耗时或模型思维链。
 import { useEffect, useId, useRef, useState } from 'react';
 import type { AgentStep } from '@tripweaver/shared';
-import { AlertCircle, Check, ChevronDown, LoaderCircle, MinusCircle } from 'lucide-react';
+import { AlertCircle, Check, ChevronDown, MinusCircle } from 'lucide-react';
 import type { AgentActivityState } from '../../lib/agentActivity';
 import { Button } from '../ui/Button';
+import { SoftRadar } from '../ui/SoftRadar';
 
 const TITLE: Record<AgentActivityState, string> = {
   running: '处理中',
@@ -20,10 +21,10 @@ function formatDuration(ms?: number): string | null {
 }
 
 function StatusIcon({ status, className = '' }: { status: AgentStep['status']; className?: string }) {
-  if (status === 'running') return <LoaderCircle className={`motion-safe:animate-spin text-slate-500 ${className}`} aria-hidden="true" />;
-  if (status === 'error') return <AlertCircle className={`text-rose-500 ${className}`} aria-hidden="true" />;
-  if (status === 'stopped') return <MinusCircle className={`text-amber-500 ${className}`} aria-hidden="true" />;
-  return <Check className={`text-emerald-600 ${className}`} aria-hidden="true" />;
+  if (status === 'running') return <SoftRadar size={14} className="text-slate-700" />;
+  if (status === 'error') return <AlertCircle className={`text-slate-500 ${className}`} aria-hidden="true" />;
+  if (status === 'stopped') return <MinusCircle className={`text-slate-400 ${className}`} aria-hidden="true" />;
+  return <Check className={`text-slate-600 ${className}`} aria-hidden="true" />;
 }
 
 function singleText(row: AgentStep, status: AgentStep['status'], state: AgentActivityState) {
@@ -68,7 +69,7 @@ export function AgentActivity({ steps, state }: {
       </span>
       <span className={`min-w-0 flex-1 truncate ${status === 'running' ? 'font-medium text-slate-700' : 'text-slate-600'}`}>
         {singleText(row, status, state)}
-        {duration && <span className="ml-1.5 text-slate-400">· {duration}</span>}
+        {duration && <span className="ml-1.5 text-slate-400 font-mono text-[11px]">· {duration}</span>}
       </span>
     </div>;
   }
@@ -86,15 +87,26 @@ export function AgentActivity({ steps, state }: {
         aria-expanded={open}
         aria-controls={listId}
         onClick={() => { userToggled.current = true; setOpen((value) => !value); }}
-        className="group flex w-full min-w-0 items-center gap-2 rounded-md px-0 py-0.5 text-left transition-colors hover:bg-slate-50"
+        className="group flex w-full min-w-0 items-center gap-2 rounded-md px-0 py-0.5 text-left transition-colors hover:text-slate-800"
       >
-        <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-400 transition-colors group-hover:border-slate-300 group-hover:text-slate-600">
-          <ChevronDown className={`h-2.5 w-2.5 transition-transform motion-reduce:transition-none ${open ? '' : '-rotate-90'}`} aria-hidden="true" />
+        <span className="flex h-4 w-4 shrink-0 items-center justify-center">
+          {running ? (
+            <SoftRadar size={14} className="text-slate-700" />
+          ) : (
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="text-slate-500" aria-hidden="true">
+              <rect x="2.5" y="2.5" width="11" height="4.5" rx="1.5"/>
+              <path d="M4.5 10.5h7M6 13.5h4" strokeOpacity="0.6"/>
+            </svg>
+          )}
         </span>
         <span className="min-w-0 flex-1 truncate">
           <span className={`font-medium ${running ? 'text-slate-700' : 'text-slate-600'}`}>{TITLE[state]}</span>
-          <span className="ml-1.5 text-slate-400"> · {meta}</span>
+          <span className="ml-1.5 text-slate-400 font-mono text-[11px]"> · {meta}</span>
         </span>
+        <ChevronDown
+          className={`ml-auto h-3 w-3 shrink-0 text-slate-400 transition-transform duration-200 group-hover:text-slate-600 ${open ? '' : '-rotate-90'}`}
+          aria-hidden="true"
+        />
       </Button>
 
       {open && (
@@ -110,7 +122,7 @@ export function AgentActivity({ steps, state }: {
                 </span>
                 <span className={`min-w-0 flex-1 truncate ${status === 'running' ? 'font-medium text-slate-700' : 'text-slate-500'}`}>
                   {row.label}
-                  {duration && <span className="ml-1.5 text-slate-400">· {duration}</span>}
+                  {duration && <span className="ml-1.5 text-slate-400 font-mono text-[11px]">· {duration}</span>}
                 </span>
               </li>
             );

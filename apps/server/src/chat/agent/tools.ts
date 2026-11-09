@@ -323,7 +323,7 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
       try {
         const hits = await sources.search.search(query, signal, options);
         return hits.length
-          ? { ok: true, hits: hits.map(({ title, url, summary }) => ({ title, url, summary })) }
+          ? { ok: true, hits: hits.map(({ title, url, summary, datePublished }) => ({ title, url, summary, ...(datePublished ? { datePublished } : {}) })) }
           : { ok: false, error: `未搜到「${query}」的相关资料` };
       } catch (error) {
         return { ok: false, error: `联网检索失败：${error instanceof Error ? error.message : '未知错误'}` };

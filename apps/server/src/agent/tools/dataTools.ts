@@ -14,6 +14,7 @@ export interface WebHit {
   title: string;
   url: string;
   summary: string;
+  datePublished?: string;
 }
 
 export interface GeoPoint {

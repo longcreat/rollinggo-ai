@@ -234,7 +234,7 @@ export function SettingsDialog({ email, onClose }: { email: string; onClose: () 
                   ? `已保存个人 Key（尾号 ${view.searchApiKeyLast4}），留空则不修改`
                   : view?.hasSiteSearchKey
                     ? '当前使用站点默认 Key；填写后仅你的任务优先使用个人配置'
-                    : '填写 LangSearch 或兼容服务 API Key'
+                    : '填写 Tavily API Key'
               }
             />
           </label>
@@ -244,7 +244,7 @@ export function SettingsDialog({ email, onClose }: { email: string; onClose: () 
               value={curSearchApiBaseUrl}
               disabled={clearSearchConfig}
               onChange={(e) => setSearchApiBaseUrl(e.target.value)}
-              placeholder="https://api.langsearch.com（新配置留空时使用此默认值）"
+              placeholder="https://api.tavily.com（新配置留空时使用此默认值）"
             />
           </label>
           <p className={"muted [color:var(--color-muted)] [font-size:0.88rem]"}>

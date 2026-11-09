@@ -27,7 +27,7 @@ export function DayWeather({ weather, destination, date, loading = false, compac
   const low = Math.min(cast.dayTemp, cast.nightTemp);
   const high = Math.max(cast.dayTemp, cast.nightTemp);
   return <span className={`day-weather inline-flex flex-wrap items-center gap-x-2 gap-y-1 ${text}`}>
-    <span className="text-amber-500/90"><WeatherIcon condition={condition} className={scale} /></span>
+    <span className="text-slate-500"><WeatherIcon condition={condition} className={scale} /></span>
     <span>{condition}</span><span className="font-medium tabular-nums">{low}–{high}℃</span>
   </span>;
 }

@@ -3,7 +3,17 @@ import { buildTripAdvice, type TripAdvice } from '../../lib/tripAdvice';
 import { Button } from '../ui/Button';
 import { DayWeather } from './DayWeather';
 import { EditorIcon } from './EditorIcon';
-import { handwritingFallback } from '../../lib/handwriting';
+
+/** 极简净化地名：剥离冗长的风景区/公园前缀、广告副标及重复分店，避免卡片信息拥挤 */
+export function simplifyPlaceName(name: string): string {
+  let s = name.trim();
+  s = s.replace(/^[^\-—–]+(风景名胜区|风景区|旅游区|度假区|景区|国家公园|名胜区|公园)[\-—–]/, '');
+  s = s.replace(/^[^\-—–]+(风景区|名胜区)[\-—–]/, '');
+  s = s.replace(/^(午餐|晚餐|早餐|下午茶|夜宵)\s*\|\s*/, '$1 · ');
+  s = s.replace(/·(传承|正宗|地道|特色|老字号)[^()（）]+/g, '');
+  s = s.replace(/[\(（][^)）]+[\)）]$/, '');
+  return s.trim();
+}
 
 function AdviceList({ title, items, caution = false }: { title: string; items: TripAdvice[]; caution?: boolean }) {
   return <section aria-label={title}>
@@ -37,20 +47,31 @@ export function TripOverview({ trip, weather, loading, onSelectDay, onAddDay, re
       {trip.days.map(day => {
         const date = dateForDayIndex(trip.startDate, day.dayIndex);
         return <li key={day.id}>
-          <Button variant="plain" className="editor-overview-day group block w-full rounded-2xl border border-slate-200/90 bg-[var(--color-card)] p-4 text-left text-inherit transition-colors hover:border-slate-400 motion-reduce:transition-none" onClick={() => onSelectDay(day.dayIndex)} aria-label={`查看第${day.dayIndex}天：${day.title || '待安排的旅程'}`}>
-            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs text-[var(--editor-muted)]">
-              <span className="flex flex-wrap items-center gap-2">第 {day.dayIndex} 天<span>{date ? date.slice(5).replace('-', '月') + '日' : '日期待定'}</span></span>
+          <Button variant="plain" className="editor-overview-day group block w-full rounded-xl border border-slate-200/80 bg-[var(--color-card)] p-4 text-left text-inherit transition-all hover:border-slate-300 hover:shadow-sm motion-reduce:transition-none" onClick={() => onSelectDay(day.dayIndex)} aria-label={`查看第${day.dayIndex}天：${day.title || '待安排的旅程'}`}>
+            <div className="flex items-center justify-between gap-3 text-xs text-slate-500">
+              <span className="flex items-center gap-1.5 font-medium text-slate-700">
+                第 {day.dayIndex} 天
+                <span className="text-slate-300 font-normal">·</span>
+                <span className="font-normal text-slate-500">{date ? date.slice(5).replace('-', '月') + '日' : '日期待定'}</span>
+              </span>
               <DayWeather weather={weather} destination={trip.destination} date={date} loading={loading} compact />
             </div>
-            <div className="mt-1 flex items-start justify-between gap-3">
-              <h4 className="m-0 break-words [font:400_30px/1.3_'Youran_Handwriting',_serif]" style={handwritingFallback(day.title || '待安排的旅程')}>{day.title || '待安排的旅程'}</h4>
-              <span aria-hidden="true" className="mt-2 shrink-0 text-slate-400 group-hover:text-slate-800 transition-colors"><EditorIcon name="forward" /></span>
+            <div className="mt-1.5 flex items-center justify-between gap-3">
+              <h4 className="m-0 text-base font-semibold tracking-tight text-slate-900 group-hover:text-black transition-colors">{day.title || '待安排的旅程'}</h4>
+              <span aria-hidden="true" className="shrink-0 text-slate-300 transition-transform group-hover:translate-x-0.5 group-hover:text-slate-600"><EditorIcon name="forward" /></span>
             </div>
-            <p className="mb-0 mt-2 flex items-start gap-1.5 text-sm leading-6 text-[var(--editor-muted)]">
-              <span aria-hidden="true" className="mt-[3px] shrink-0 text-slate-500"><EditorIcon name="pin" /></span>
-              <span className="flex min-w-0 flex-wrap items-center gap-x-1.5">
-                {day.activities.map((activity, index) => <span key={activity.id} className="inline-flex items-center gap-1.5">{index > 0 && <span aria-hidden="true" className="text-slate-400">→</span>}{activity.name}</span>)}
-                {day.activities.length === 0 && <span>这一天还没有安排</span>}
+            <p className="mb-0 mt-2 flex items-start gap-1.5 text-xs leading-5 text-slate-500">
+              <span aria-hidden="true" className="mt-[2px] shrink-0 text-slate-400"><EditorIcon name="pin" /></span>
+              <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                {day.activities.map((activity, index) => {
+                  const name = simplifyPlaceName(activity.name);
+                  const isMeal = /^(午餐|晚餐|早餐)/.test(name);
+                  return <span key={activity.id} className="inline-flex items-center gap-1.5">
+                    {index > 0 && <span aria-hidden="true" className="text-slate-300">→</span>}
+                    <span className={isMeal ? 'font-medium text-slate-700' : 'text-slate-600'}>{name}</span>
+                  </span>;
+                })}
+                {day.activities.length === 0 && <span className="text-slate-400">这一天还没有安排</span>}
               </span>
             </p>
           </Button>

@@ -73,7 +73,7 @@ export function parseQWeatherCity(body: Record<string, unknown>): { id: string; 
   const top = matches[0];
   if (!top) return null;
   const sameName = matches.filter(item => item.name === top.name);
-  if (sameName.length <= 1) return top;
+  if (sameName.length <= 1) return { id: top.id, name: top.name };
   const cityOnly = sameName.filter(item => item.type === 'city');
   const pool = cityOnly.length ? cityOnly : sameName;
   const best = pool.reduce((a, b) => (b.rank < a.rank ? b : a));

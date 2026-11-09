@@ -212,4 +212,46 @@ describe('主 Agent 全功能工具', () => {
     assert.equal(delegated, true);
     assert.equal(state.delegatedTask?.id, 'job-init');
   });
+
+  it('get_weather 支持自由指定城市（跨城市/异地查询）且不绑死当前行程', async () => {
+    let queriedWith: { trip?: Trip | null; city?: string } | null = null;
+    const tools = createTripTools({
+      trip, sources: sources(), signal: AbortSignal.timeout(5_000),
+      getWeather: async (opts) => {
+        queriedWith = opts;
+        return { status: 'available', destination: opts.city ?? opts.trip?.destination, forecast: { city: opts.city ?? opts.trip?.destination } };
+      },
+    });
+    const weatherTool = tools.find((item) => item.name === 'get_weather')!;
+
+    // 1. 异地指定城市查询（如当前行程是成都，但查杭州）
+    const hzRes = await run(weatherTool, { city: '杭州' });
+    assert.deepEqual(queriedWith, { city: '杭州' });
+    assert.match(hzRes.output![0]!.text, /杭州/);
+
+    // 2. 缺省 city 时使用当前行程
+    const defaultRes = await run(weatherTool, {});
+    assert.deepEqual(queriedWith, { trip, city: '成都' });
+    assert.match(defaultRes.output![0]!.text, /成都/);
+  });
+
+  it('get_weather 在无行程状态下能够按 city 或 destination 兜底正常查询', async () => {
+    let queriedWith: { trip?: Trip | null; city?: string } | null = null;
+    const tools = createTripTools({
+      trip: null, destination: '北京', sources: sources(), signal: AbortSignal.timeout(5_000),
+      getWeather: async (opts) => {
+        queriedWith = opts;
+        return { status: 'available', destination: opts.city };
+      },
+    });
+    const weatherTool = tools.find((item) => item.name === 'get_weather')!;
+
+    // 1. 无行程但指定城市查西安
+    await run(weatherTool, { city: '西安' });
+    assert.deepEqual(queriedWith, { city: '西安' });
+
+    // 2. 无行程且未传 city 时自动使用 destination 兜底（北京）
+    await run(weatherTool, {});
+    assert.deepEqual(queriedWith, { city: '北京' });
+  });
 });

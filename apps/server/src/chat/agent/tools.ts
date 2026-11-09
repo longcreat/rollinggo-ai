@@ -21,11 +21,16 @@ import { createPlacePointCache, type PlacePointCache } from './placePoints';
 import { createAgentTurnState, mergeBriefPatch, type AgentTurnState } from './turnState';
 import { DEFAULT_DELEGATED_TASK_KIND, isDelegatedTaskKind, type DelegatedTaskKind } from '../../tasks/delegatedTask';
 
+export interface WeatherQueryOptions {
+  trip?: Trip | null;
+  city?: string;
+}
+
 export interface TripToolDeps {
   trip?: Trip | null;
   sources: DetailSources;
   signal: AbortSignal;
-  getWeather?: (trip: Trip) => Promise<unknown>;
+  getWeather?: (options: WeatherQueryOptions) => Promise<unknown>;
   /** 本回合的行程草稿：主 Agent 始终是读写模式，读工具也统一读草稿。无行程时为 undefined/null */
   draft?: TripDraft | null;
   /** 目的地兜底（行前无行程时） */
@@ -342,31 +347,55 @@ export function createTripTools(deps: TripToolDeps): ToolRegistration[] {
 
   const getWeather = defineTool({
     name: 'get_weather',
-    description: '查询行程日期范围内的天气；不在预报窗口内时返回 not_needed，不要编造天气。',
-    parameters: obj({}),
-    execute: async () => {
-      const trip = view();
-      if (!trip) {
-        return { output: text(JSON.stringify({ status: 'not_needed', reason: '尚未生成行程或未确定起止日期' })) };
-      }
+    description: '查询指定城市或当前行程的天气预报（由和风天气官方提供 15 天真实数据）。可自由指定城市（city）；缺省时自动使用当前会话或行程城市。',
+    parameters: obj({
+      city: opt(str({ description: '要查询天气的城市名称（如「成都」「杭州」「北京」），缺省时使用当前会话或行程城市' })),
+    }),
+    execute: async (args) => {
       if (!deps.getWeather) return { output: text('天气服务不可用') };
-      return { output: text(JSON.stringify(await deps.getWeather(trip))) };
+      const trip = view();
+      const requestedCity = args.city?.trim();
+      const targetCity = requestedCity || getCity();
+
+      if (requestedCity || !trip) {
+        if (!targetCity) {
+          return { output: text('请在参数中指定要查询天气的城市名称（city），如「成都」「北京」。') };
+        }
+        const data = await deps.getWeather({ city: targetCity });
+        return { output: text(JSON.stringify(data)) };
+      }
+
+      const data = await deps.getWeather({ trip, city: targetCity ?? undefined });
+      return { output: text(JSON.stringify(data)) };
     },
   });
 
   const searchFoodTool = defineTool({
     name: 'search_food',
-    description: '查找当前行程附近可添加的真实餐厅，返回候选卡片（名称/地址/就近活动/人均等）。用户问美食、餐厅、午餐/晚餐推荐时使用；卡片会显示在回答下方。',
+    description: '查找当前行程附近可添加的真实餐厅，返回候选卡片（名称/地址/就近活动/人均等）。用户问当前行程中的美食、餐厅、午餐/晚餐推荐时使用；卡片会显示在回答下方。若查询其他城市或通用美食，可直接使用 search_places。',
     parameters: obj({
       query: str({ description: '用餐需求，如「川菜」「清淡」「人民公园附近」' }),
+      city: opt(str({ description: '目标城市，若不是当前行程城市，建议直接使用 search_places(category="food") 查找' })),
       dayIndex: opt(str({ description: '限定第几天，缺省用当前对话范围；整趟行程可省略' })),
       meal: opt(str({ description: 'lunch 或 dinner，缺省 lunch' })),
     }),
     execute: async (args) => {
       signal.throwIfAborted();
       const trip = view();
+      const targetCity = args.city?.trim();
+      // 如果明确指定了非当前行程的城市，自动平滑按 search_places 检索并返回真实餐饮 POI
+      if (targetCity && (!trip || trip.destination !== targetCity)) {
+        const hits = await sources.poi.searchPois('food', args.query, targetCity, signal);
+        if (!hits.length) return { output: text(`在${targetCity}未查到「${args.query}」相关餐厅`) };
+        return { output: text(JSON.stringify(searchPlacesPayload(hits))) };
+      }
       if (!trip) {
-        return { output: text('当前会话尚未生成行程，无法按天或当前活动推荐附近餐厅。可使用 search_places 搜索餐饮。') };
+        const fallbackCity = getCity();
+        if (fallbackCity) {
+          const hits = await sources.poi.searchPois('food', args.query, fallbackCity, signal);
+          if (hits.length) return { output: text(JSON.stringify(searchPlacesPayload(hits))) };
+        }
+        return { output: text('当前尚未生成行程；查询特定城市餐饮美食请使用 search_places(category="food", city="城市名")。') };
       }
       const dayIndex = args.dayIndex ? Number.parseInt(args.dayIndex, 10) : undefined;
       if (dayIndex !== undefined && !trip.days.some((day) => day.dayIndex === dayIndex)) {

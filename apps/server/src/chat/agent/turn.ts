@@ -10,7 +10,7 @@ import { agentStoragePath, ensureAgentStorageDir } from '../../generation/agentS
 import { appendMessages, getConversationDetail, saveBrief } from '../../services/conversationService';
 import { commitOperation } from '../../services/detailOperationService';
 import { assertLatestTrip } from '../../services/tripService';
-import { getTripWeather } from '../../services/tripWeatherService';
+import { getCityWeather, getTripWeather } from '../../services/tripWeatherService';
 import type { LlmConfig } from '../../services/settingsService';
 import type { AgentPart, AgentStep, ChatAttachment, ChatStreamEvent, DetailChatRequest, SendMessageResult, Trip } from '@tripweaver/shared';
 import { SendMessageResultSchema } from '@tripweaver/shared';
@@ -89,10 +89,11 @@ const SYSTEM_INSTRUCTIONS = `你是 RollingGo 的旅行规划助手，运行在 
 
 <facts>
 - 需要行程事实时先调用工具：安排类问题查 get_trip / get_day，地点类查 search_places，时效与口碑查 web_search，天气查 get_weather。不要凭记忆编造活动、时间、地址或营业信息。
-- 新增或改名地点前先 search_places 查一次：系统会复用查到的精确坐标；没查过就直接写模糊地名，可能被定位到同城另一个同名点。查不到就如实说没找到，不要编地名或把连锁店当成本地店。
+- 无论何时问及天气，一律调用 get_weather 查询：它接入了和风天气官方 15 天实时预报。支持自由传入目标城市（如 get_weather({ city: "成都" })），缺省 city 时使用当前行程或会话城市。无论是否有行程、无论问当前城市还是异地城市，都直接调 get_weather，不要受限于当前行程所在城市，禁止用 web_search 去查天气旧闻。
+- 新增或改名地点前先 search_places 查一次：可传入目标城市（如 city: "成都"）；系统会复用查到的精确坐标；没查过就直接写模糊地名，可能被定位到同城另一个同名点。查不到就如实说没找到，不要编地名或把连锁店当成本地店。
 - 用户要求按片区规划或补点时，先 search_area_places 展开该片区内的真实景点（如西湖→断桥/白堤/苏堤、宽窄巷子→街区内的点），再 search_places 查具体地点；不要把一整片景区当成一个点，也不要只放两三个相距很远的粗点。
 - 所有时刻由系统按当天顺序和真实通勤自动推算，禁止自己计算或写入开始/结束时间；你只需要决定顺序（reorder_day / afterActivityId）和停留时长（durationMin）。写工具回传的时刻是提交前预览，保存时会用真实通勤再校准一次；总结时说明顺序和停留时长即可，最终时刻以保存后的页面为准。
-- 用户问美食、餐厅、午餐或晚餐时调用 search_food：它会把可添加的真实餐厅作为卡片显示在回答下方。不要在回答里逐条复述卡片内容；没有结果就如实说没找到。
+- 用户问当前行程就近餐厅/美食时调用 search_food：它会把可添加的真实餐厅作为卡片显示在回答下方。若用户询问其他城市美食或泛餐饮，使用 search_places（category="food", city="目标城市"）。不要在回答里逐条复述卡片内容；没有结果就如实说没找到。
 </facts>
 
 <ask_user>
@@ -216,7 +217,35 @@ export async function runAgentAnswer(options: RunAgentAnswerOptions): Promise<Se
 
   const tools = createTripTools({
     trip, destination, sources, signal,
-    getWeather: trip ? getTripWeather : undefined,
+    getWeather: async ({ trip: targetTrip, city: targetCity }) => {
+      // 1. 若指定了目标城市，直接拉取该城市的 15 天官方预报
+      if (targetCity && targetCity.trim()) {
+        const cityWeather = await getCityWeather(targetCity.trim());
+        if (targetTrip && targetTrip.destination.trim() === targetCity.trim()) {
+          const tripWeather = await getTripWeather(targetTrip);
+          if (tripWeather.status === 'available') return tripWeather;
+        }
+        return cityWeather;
+      }
+      // 2. 若有当前行程，优先查询行程预报
+      if (targetTrip) {
+        const tripWeather = await getTripWeather(targetTrip);
+        if (tripWeather.status === 'not_needed' && targetTrip.destination) {
+          const cityWeather = await getCityWeather(targetTrip.destination);
+          return {
+            ...tripWeather,
+            note: '行程起止日期尚未进入 15 天预报窗口，已拉取该城市未来 15 天最新官方预报供参考',
+            latestForecast: cityWeather.forecast,
+          };
+        }
+        return tripWeather;
+      }
+      // 3. 无行程但有会话目的地兜底
+      if (destination) {
+        return getCityWeather(destination);
+      }
+      return { status: 'unavailable', message: '未指定要查询天气的城市' };
+    },
     points, draft, resolvePlace, state,
     delegateTask,
     taskStatus,

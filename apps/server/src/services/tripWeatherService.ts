@@ -17,3 +17,17 @@ export async function getTripWeather(trip: Trip): Promise<TripWeather> {
   const forecast = await lookupQWeather(env.qweatherApiHost, auth, trip.destination);
   return forecast ? { ...base, status: 'available', forecast } : { ...base, status: 'unavailable' };
 }
+
+/** 查询指定城市的 15 天官方天气预报（无行程或跨城市自由查询） */
+export async function getCityWeather(city: string): Promise<TripWeather> {
+  const checkedAt = Date.now();
+  const destination = city.trim();
+  const base = { destination, checkedAt };
+  if (!destination) return { ...base, status: 'unavailable' };
+  const { env, qweatherCredential } = await import('../env');
+  const auth = qweatherCredential();
+  if (!env.qweatherApiHost || !auth) return { ...base, status: 'not_configured' };
+  const forecast = await lookupQWeather(env.qweatherApiHost, auth, destination);
+  return forecast ? { ...base, status: 'available', forecast } : { ...base, status: 'unavailable' };
+}
+

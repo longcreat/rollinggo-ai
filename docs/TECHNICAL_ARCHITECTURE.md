@@ -3,7 +3,7 @@
 - 项目名称：**织程 TripWeaver**（仓库名 `tripweaver`）
 - 文档版本：v0.7
 - 日期：2026-11-07
-- 关联文档：[PRD](./PRD.md) · [开发计划](./DEVELOPMENT_PLAN.md) · [Person Agent 计划](./PERSON_AGENT_PLAN.md) · [行前体检方案](./TRIP_REFINEMENT_PLAN.md)
+- 关联文档：[PRD](./PRD.md)
 
 > **修订记录**
 > - v0.2~v0.6：历史演进（前后端分离 → 三 Agent 流水线 → 小红书语料 RAG → GCJ-02 坐标 → pgvector 检索），细节见 git 历史与本文件旧版。

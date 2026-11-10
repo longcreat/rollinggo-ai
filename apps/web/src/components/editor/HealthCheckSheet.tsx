@@ -1,5 +1,5 @@
 // 行程体检决策卡（行前精细化）：每个 Finding 一张卡，四动作 + 按需实时核验。
-// 交互参考出发鸭 PreparingDecisionsSheet（docs/GODUCK_INTERACTION_RESEARCH.md §四）：
+// 交互参考出发鸭 PreparingDecisionsSheet：
 // 按建议改 / 我自己处理 / 跳过 / 留言；全部处置完提交 → Pass 2 重排 → 新版本。
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';

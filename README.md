@@ -80,8 +80,6 @@ PostgreSQL + pgvector 用 `docker compose up -d db` 起（或指向已有的本�
 ## 文档
 
 - [技术架构](docs/TECHNICAL_ARCHITECTURE.md) — v0.7：Agent harness 中心架构、数据流、配额口径
-- [Person Agent 计划](docs/PERSON_AGENT_PLAN.md) — 详情 Agent 的选型、落地状态与任务清单
-- [行前体检方案](docs/TRIP_REFINEMENT_PLAN.md) · [出发鸭交互调研](docs/GODUCK_INTERACTION_RESEARCH.md) — 产品框架来源
 - [确定性校准层算法](docs/DETERMINISTIC_SCHEDULING.md)（排程引擎历史与现役校准规则）
 - [API 响应与请求约定](docs/API_CONTRACT.md) · [高德预算与日志](docs/AMAP_QUOTAS.md)
 - [AI 行程分享图](docs/AI_SHARE_IMAGES.md) · [评估运行说明](packages/evals/README.md)

@@ -3,7 +3,7 @@
 - 项目名称：**织程 TripWeaver**（仓库名 `tripweaver`）
 - 文档版本：v0.7（全面对齐 Agent Harness、高德单源与行前体检体系）
 - 日期：2026-11-08
-- 关联文档：[技术架构](./TECHNICAL_ARCHITECTURE.md) · [开发计划](./DEVELOPMENT_PLAN.md) · [Person Agent 计划](./PERSON_AGENT_PLAN.md) · [行前体检方案](./TRIP_REFINEMENT_PLAN.md)
+- 关联文档：[技术架构](./TECHNICAL_ARCHITECTURE.md)
 
 ---
 

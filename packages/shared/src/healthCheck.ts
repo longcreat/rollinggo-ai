@@ -1,6 +1,6 @@
 // 行程体检（行前精细化）契约：Finding（发现）→ 决策卡 → Decision（处置）→ 重排。
 //
-// 设计参考出发鸭 Preparing（docs/GODUCK_INTERACTION_RESEARCH.md §四），但规则面收敛在
+// 设计参考出发鸭 Preparing，但规则面收敛在
 // feasibility.ts 已有的 5 类违规 + 远郊混排，不新造规则。Pass 1 是纯确定性（零 LLM），
 // Pass 2 重排同样确定性：每个 accept 动作执行后重验可行性，hard 不递减即回滚该步。
 import { Type, type Static } from '@sinclair/typebox';

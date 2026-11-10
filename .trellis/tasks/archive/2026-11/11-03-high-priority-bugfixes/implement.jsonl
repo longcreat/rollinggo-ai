@@ -1,5 +1,0 @@
-{"file": ".trellis/spec/server/backend/index.md", "reason": "server 后端规范入口,Pre-Development Checklist"}
-{"file": ".trellis/spec/server/backend/generation-guidelines.md", "reason": "改 routeCoherence/orchestrator 属生成流水线层,需遵守既有注释与降级纪律"}
-{"file": ".trellis/spec/server/backend/security.md", "reason": "trustProxy/限流属安全卫生改动"}
-{"file": ".trellis/spec/server/backend/logging.md", "reason": "llm_request_logs 清理属日志治理"}
-{"file": ".trellis/spec/guides/commit-convention.md", "reason": "提交信息格式与三段式节奏"}

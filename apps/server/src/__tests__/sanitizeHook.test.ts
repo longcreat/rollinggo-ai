@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { Message } from '@earendil-works/pi-ai';
+import type { Message, UserMessage, AssistantMessage } from '@earendil-works/pi-ai';
 import { sanitizeRequestMessages } from '../chat/agent/sanitizeHook';
 
 describe('beforeRequest 思考块防伪过滤 (对齐 Pi Durable 规范)', () => {
@@ -8,15 +8,22 @@ describe('beforeRequest 思考块防伪过滤 (对齐 Pi Durable 规范)', () =>
     const input: Message[] = [
       {
         role: 'user',
+        timestamp: Date.now(),
         content: [
           {
             type: 'text',
             text: 'The conversation history before this point was compacted into the following summary:\n\n<summary>...</summary>',
           },
         ],
-      },
+      } as UserMessage,
       {
         role: 'assistant',
+        timestamp: Date.now(),
+        api: 'openai-completions',
+        provider: 'tripweaver',
+        model: 'qwen-plus',
+        usage: { input: 10, output: 20, cacheRead: 0, cacheWrite: 0, totalTokens: 30 },
+        stopReason: 'stop',
         content: [
           {
             type: 'thinking',
@@ -27,15 +34,17 @@ describe('beforeRequest 思考块防伪过滤 (对齐 Pi Durable 规范)', () =>
             text: '这是之前的正文回答',
           },
         ],
-      },
+      } as AssistantMessage,
       {
         role: 'user',
+        timestamp: Date.now(),
         content: '查一下成都天气',
-      },
+      } as UserMessage,
     ];
 
     const result = sanitizeRequestMessages(input);
     const firstAssistant = result[1];
+    assert.ok(firstAssistant);
     assert.equal(firstAssistant.role, 'assistant');
     if (Array.isArray(firstAssistant.content)) {
       const thinkingBlocks = firstAssistant.content.filter((b) => b.type === 'thinking');
@@ -50,10 +59,17 @@ describe('beforeRequest 思考块防伪过滤 (对齐 Pi Durable 规范)', () =>
     const input: Message[] = [
       {
         role: 'user',
+        timestamp: Date.now(),
         content: '你好',
-      },
+      } as UserMessage,
       {
         role: 'assistant',
+        timestamp: Date.now(),
+        api: 'openai-completions',
+        provider: 'tripweaver',
+        model: 'qwen-plus',
+        usage: { input: 10, output: 20, cacheRead: 0, cacheWrite: 0, totalTokens: 30 },
+        stopReason: 'stop',
         content: [
           {
             type: 'thinking',
@@ -65,11 +81,12 @@ describe('beforeRequest 思考块防伪过滤 (对齐 Pi Durable 规范)', () =>
             text: '你好！',
           },
         ],
-      },
+      } as AssistantMessage,
     ];
 
     const result = sanitizeRequestMessages(input);
     const assistant = result[1];
+    assert.ok(assistant);
     if (Array.isArray(assistant.content)) {
       const thinkingBlocks = assistant.content.filter((b) => b.type === 'thinking');
       assert.equal(thinkingBlocks.length, 1, '带有效签名的 thinking 块应当保留');

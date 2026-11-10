@@ -19,10 +19,10 @@ import { ProjectionChannel } from './projectionChannel';
 
 const PHASE_LABEL: Record<string, string> = {
   exploration: '采风灵感',
-  profiling: '甄选核验',
-  climate: '顺应时候',
-  routing: '慢游顺路',
-  inspection: '自省推演',
+  profiling: '甄选避坑',
+  climate: '天候日历',
+  routing: '顺路排程',
+  inspection: '自检推演',
   calibrate: '校准',
   write: '文案',
   gate: '验收',

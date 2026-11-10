@@ -452,7 +452,7 @@ export async function runGeneration(
         emitLive(run, {
           type: 'highlight',
           stage: 'routing',
-          text: '🍲 正在就近寻味：为你甄选紧邻活动路线的地道老饕美味…',
+          text: '🍲 正在就近甄选顺路特色美食…',
           kind: 'food',
         });
         const mealPoi = createTaskPoiSource(poiBase, { stats: poiStats, maxCalls: MEAL_ENRICH_MAX_CALLS }).source;
@@ -470,11 +470,11 @@ export async function runGeneration(
     };
 
     // ---------- 阶段 2：点位画像与口碑避坑 ----------
-    startPhase('profiling', 1, '点位画像与避坑核验');
+    startPhase('profiling', 1, '甄选避坑');
     emitLive(run, {
       type: 'highlight',
       stage: 'profiling',
-      text: '💡 正在核查景点真实口碑、避坑指南与最佳入园时刻…',
+      text: '💡 正在核实真实口碑与排队避坑…',
       kind: 'tip',
     });
     let seeds = plannerSeeds({
@@ -527,17 +527,17 @@ export async function runGeneration(
     endPhase('profiling', 1, `构建片区 ${areas.length} 个｜种子地点 ${seeds.length} 个`);
 
     // ---------- 阶段 3：天候与开放日历感知 ----------
-    startPhase('climate', 1, '天候与开放日历感知');
+    startPhase('climate', 1, '天候日历');
     emitLive(run, {
       type: 'highlight',
       stage: 'climate',
-      text: '☀️ 正在对齐出行天气预测与景区展馆开闭馆时间表…',
+      text: '☀️ 正在校准出行天气与开闭馆…',
       kind: 'tip',
     });
-    endPhase('climate', 1, '天候与开放日历已就绪');
+    endPhase('climate', 1, '天候日历已就绪');
 
     // ---------- 阶段 4：慢游顺路排程与地道美食 ----------
-    startPhase('routing', 1, '慢游顺路动线与美食排程');
+    startPhase('routing', 1, '顺路排程');
     const poiAreaGate = createTaskPoiGate(poiStats);
     const planner = await runSystemTask('routing', 'agent_plan', '规划每日顺路行程', () => runPlannerAgent({
       model,
@@ -587,11 +587,11 @@ export async function runGeneration(
     );
 
     // ---------- 阶段 5：资深规划师自省审查 ----------
-    startPhase('inspection', 1, '资深规划师自省审查');
+    startPhase('inspection', 1, '自检推演');
     emitLive(run, {
       type: 'highlight',
       stage: 'inspection',
-      text: '🔍 资深规划师正在全盘推演动线节奏与体力负荷，确保充实从容…',
+      text: '🔍 规划师正在全盘推演节奏舒缓不赶路…',
       kind: 'tip',
     });
     const review: { submitted: boolean; notes: string[] } = { submitted: false, notes: [] };

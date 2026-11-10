@@ -15,7 +15,7 @@ import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import type { ConversationId, TaskId } from '@earendil-works/pi-durable';
-import { GENERATION_TIMEOUT_MINUTES, GenerateFormSchema, uid } from '@tripweaver/shared';
+import { GENERATION_TIMEOUT_MINUTES, GenerateFormSchema, getPlannerStageDisplay, uid } from '@tripweaver/shared';
 import { requireAuth } from '../auth/guard';
 import { resolveLlmConfig } from '../services/settingsService';
 import { getConversation } from '../services/conversationService';
@@ -300,9 +300,13 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
               : stageIndex === currentIndex
                 ? 'running'
                 : 'pending';
+        const meta = getPlannerStageDisplay(stage);
         agents.push({
           stage,
-          label: AGENT_STAGE_LABEL[stage],
+          label: meta.clientTitle,
+          rawLabel: AGENT_STAGE_LABEL[stage],
+          subtitle: meta.clientSubtitle,
+          highlight: meta.runningHighlight,
           status: stageStatus,
           total: steps.length,
           completed: done,

@@ -7,6 +7,7 @@
 import {
   emptySnapshot,
   emptyTripProjectionState,
+  getPlannerStageDisplay,
   type GenerationEvent,
   type ProjectionTaskNode,
   type TripProjectionDelta,
@@ -153,6 +154,22 @@ export function createGenerationProjection(jobId: string): GenerationProjection 
         publish({
           op: 'state.updated',
           patch: { trip: { ...trip, overview: [...(trip.overview ?? []), event.poi] } },
+        });
+        return;
+      }
+      case 'highlight': {
+        const currentHighlights = channel.snapshot.state.highlights ?? [];
+        const nextHighlight = {
+          id: `hl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          stage: event.stage,
+          text: event.text,
+          kind: event.kind,
+        };
+        publish({
+          op: 'state.updated',
+          patch: {
+            highlights: [...currentHighlights.slice(-5), nextHighlight],
+          },
         });
         return;
       }

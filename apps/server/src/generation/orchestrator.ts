@@ -375,6 +375,12 @@ export async function runGeneration(
       endPhase('research', 1, `候选 ${research.pool.length} 个｜复用上次调研`);
     } else {
       startPhase('research', 1, researchNote(enabledSources));
+      emitLive(run, {
+        type: 'highlight',
+        stage: 'exploration',
+        text: `采风灵感：翻阅 ${form.destination} 当季精华游玩路线与宝藏点位…`,
+        kind: 'tip',
+      });
       // R3（09-25）：未覆盖城市放宽 search_web 上限（2→6），SEARCH_DAILY_BUDGET 日预算闸门不受影响
       const searchWebMax = searchWebMaxFor(await cityCoverage(form.destination));
       const verifiedPlaces = await runSystemTask('research', 'prefetch_verified_places', '筛选行程地点', () =>
@@ -382,6 +388,7 @@ export async function runGeneration(
       assertAlive(signal);
       // 封面来源接线（2026-11-05 收敛）：只用高德 POI 图片 —— search_pois 旁路 → 库内回写 → 实时查询。
       const storedPlaces = createStoredPlaceLookups(form.destination);
+      let candidateHighlightCount = 0;
       const { research: outcome, result: researchRun } = await runResearchPhase({
         form, model, apiKey: cfg.apiKey, signal, verifiedPlaces, searchWebMax,
         runAgent: researchRunner,
@@ -392,7 +399,18 @@ export async function runGeneration(
           void saveAmapPhoto(form.destination, name, url).catch((error: unknown) =>
             console.warn(`[amap-photo] 回写失败（不影响生成）：${error instanceof Error ? error.message : String(error)}`));
         },
-        onCandidate: (candidate) => emitLive(run, { type: 'candidate', poi: candidate }),
+        onCandidate: (candidate) => {
+          emitLive(run, { type: 'candidate', poi: candidate });
+          if (candidateHighlightCount < 5 && candidate.category === 'attraction' && candidate.name) {
+            candidateHighlightCount += 1;
+            emitLive(run, {
+              type: 'highlight',
+              stage: 'exploration',
+              text: `✨ 甄选灵感：${candidate.name}${candidate.intro ? ` · ${candidate.intro.slice(0, 32)}` : ''}`,
+              kind: 'poi',
+            });
+          }
+        },
         sink: sinkFor('research'),
         recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'research', round: 1 }),
       });
@@ -440,6 +458,12 @@ export async function runGeneration(
         // 餐次充实（2026-11-06）：合成锚点 → 真实餐厅。必须在 geocode 之后（邻居坐标可用）、
         // computeLegs 之前（替换带入新坐标，腿按真实餐厅算）。查不到保留锚点，不影响生成。
         // 走独立额度的包装源但并入同一份记账：原先直传 poiBase 会漏计 amapCalls 并绕过任务级上限。
+        emitLive(run, {
+          type: 'highlight',
+          stage: 'routing',
+          text: '🍲 正在就近寻味：为你甄选紧邻活动路线的地道老饕美味…',
+          kind: 'food',
+        });
         const mealPoi = createTaskPoiSource(poiBase, { stats: poiStats, maxCalls: MEAL_ENRICH_MAX_CALLS }).source;
         await runSystemTask('plan', 'meal_enrich', '充实餐次推荐', () => enrichMealAnchors({
           draft, poi: mealPoi, destination: form.destination, startDate: form.startDate, signal,
@@ -457,6 +481,12 @@ export async function runGeneration(
     // ---------- 阶段 2：规划 Agent 选点与分天 ----------
     // 选点/分天/排序/时刻统一由规划 Agent 决定；距离、通勤与时刻仍由工具计算（计划里不出现模型算出来的数）。
     startPhase('plan', 1, 'Agent 规划');
+    emitLive(run, {
+      type: 'highlight',
+      stage: 'profiling',
+      text: '💡 正在核实核心景点开放日历与真实游玩避坑指南…',
+      kind: 'tip',
+    });
     let seeds = plannerSeeds({
       candidates: research.pool,
       pointOf: (name, id) => {
@@ -529,7 +559,16 @@ export async function runGeneration(
         return hits.map((hit) => ({ title: hit.title, url: hit.url, summary: hit.summary }));
       },
       recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'plan', round: 2 }),
-      onDayPlanned: (day) => emitLive(run, { type: 'plan_day', ...day }),
+      onDayPlanned: (day) => {
+        emitLive(run, { type: 'plan_day', ...day });
+        const topStops = day.stops.map((s) => s.name).slice(0, 3).join(' ⭢ ');
+        emitLive(run, {
+          type: 'highlight',
+          stage: 'routing',
+          text: `🗺️ 第 ${day.dayIndex} 天动线已串联：${topStops}，顺路不绕远`,
+          kind: 'route',
+        });
+      },
     }));
     usage.tokensIn += planner.result.tokensIn;
     usage.tokensOut += planner.result.tokensOut;
@@ -548,6 +587,12 @@ export async function runGeneration(
     // 工具面只给 update_titles，成功即结束；改不动活动/顺序/说明。
     // 文案属增强路径：模型没写完也不算失败，草稿里已有候选简介兜底。
     startPhase('review', 1, '撰写说明文案');
+    emitLive(run, {
+      type: 'highlight',
+      stage: 'inspection',
+      text: '🔍 资深规划师正在全盘推演动线节奏与体力负荷，确保充实从容…',
+      kind: 'tip',
+    });
     // 文案阶段的收尾状态：update_titles 成功提交即结束（原 reviewTools 的 ReviewOutcome，内联为本地类型）
     const review: { submitted: boolean; notes: string[] } = { submitted: false, notes: [] };
     const writerOpts = {

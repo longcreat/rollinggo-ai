@@ -12,9 +12,9 @@ test('GenerationPerformance records stable phase and task durations', () => {
   let now = 1_000;
   const timing = new GenerationPerformance(now, () => now);
 
-  assert.equal(timing.startPhase('research', 1), 1_000);
+  assert.equal(timing.startPhase('exploration', 1), 1_000);
   now = 1_250;
-  assert.deepEqual(timing.endPhase('research', 1), { at: 1_250, durationMs: 250 });
+  assert.deepEqual(timing.endPhase('exploration', 1), { at: 1_250, durationMs: 250 });
 
   assert.equal(timing.startTask('tool-1', 'search_web'), 1_250);
   now = 1_400;
@@ -26,7 +26,7 @@ test('GenerationPerformance records stable phase and task durations', () => {
   assert.deepEqual(timing.summary('done'), {
     status: 'done',
     totalMs: 500,
-    phases: { 'research:1': 250 },
+    phases: { 'exploration:1': 250 },
     tasks: { search_web: { count: 2, totalMs: 250, maxMs: 150 } },
     activePhases: {},
     activeTasks: {},
@@ -36,11 +36,11 @@ test('GenerationPerformance records stable phase and task durations', () => {
 test('GenerationPerformance includes active work in terminal diagnostics', () => {
   let now = 2_000;
   const timing = new GenerationPerformance(now, () => now);
-  timing.startPhase('plan', 2);
+  timing.startPhase('routing', 2);
   timing.startTask('tool-running', 'route_estimate');
   now = 2_075;
 
   const summary = timing.summary('cancelled');
-  assert.deepEqual(summary.activePhases, { 'plan:2': 75 });
+  assert.deepEqual(summary.activePhases, { 'routing:2': 75 });
   assert.deepEqual(summary.activeTasks, { route_estimate: 75 });
 });

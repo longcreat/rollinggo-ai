@@ -352,13 +352,11 @@ export async function runGeneration(
         },
       });
     };
-    const researchRunner = phaseRunner('research');
-    const planRunner = phaseRunner('plan');
-    const adviceRunner = phaseRunner('advice');
+    const explorationRunner = phaseRunner('exploration');
+    const routingRunner = phaseRunner('routing');
+    const inspectionRunner = phaseRunner('inspection');
 
-    // ---------- 阶段 1：调研（可 checkpoint） ----------
-    // 调研是最耗时的 LLM 阶段：完成后把候选池/坐标旁路/知识库事实存进 task checkpoint，
-    // 进程崩溃重启后直接复用，跳过这一步。
+    // ---------- 阶段 1：采风灵感调研（可 checkpoint） ----------
     let research: ResearchOutcome;
     let placeFacts: Map<string, PlaceFacts>;
     if (options?.resume) {
@@ -370,11 +368,11 @@ export async function runGeneration(
       placeFacts = new Map(options.resume.placeFacts);
       geo.useResearchPlaces(research.pool, research.locations);
       // 重建直播：job_start 已发出，补发候选与调研阶段边界。
-      startPhase('research', 1, '复用上次调研结果');
+      startPhase('exploration', 1, '复用上次调研结果');
       for (const poi of research.pool) emitLive(run, { type: 'candidate', poi });
-      endPhase('research', 1, `候选 ${research.pool.length} 个｜复用上次调研`);
+      endPhase('exploration', 1, `候选 ${research.pool.length} 个｜复用上次调研`);
     } else {
-      startPhase('research', 1, researchNote(enabledSources));
+      startPhase('exploration', 1, researchNote(enabledSources));
       emitLive(run, {
         type: 'highlight',
         stage: 'exploration',
@@ -383,7 +381,7 @@ export async function runGeneration(
       });
       // R3（09-25）：未覆盖城市放宽 search_web 上限（2→6），SEARCH_DAILY_BUDGET 日预算闸门不受影响
       const searchWebMax = searchWebMaxFor(await cityCoverage(form.destination));
-      const verifiedPlaces = await runSystemTask('research', 'prefetch_verified_places', '筛选行程地点', () =>
+      const verifiedPlaces = await runSystemTask('exploration', 'prefetch_verified_places', '筛选行程地点', () =>
         prepareResearchContext(form, retrieveContext, signal));
       assertAlive(signal);
       // 封面来源接线（2026-11-05 收敛）：只用高德 POI 图片 —— search_pois 旁路 → 库内回写 → 实时查询。
@@ -391,7 +389,7 @@ export async function runGeneration(
       let candidateHighlightCount = 0;
       const { research: outcome, result: researchRun } = await runResearchPhase({
         form, model, apiKey: cfg.apiKey, signal, verifiedPlaces, searchWebMax,
-        runAgent: researchRunner,
+        runAgent: explorationRunner,
         poiSource: poi.source, searchSource: search.source,
         amapPhotos: createAmapPoiPhotoLookup(env.amapKey, env.amapPhotoMaxPerTask),
         storedAmapPhoto: storedPlaces.amapPhotoFor,
@@ -411,16 +409,16 @@ export async function runGeneration(
             });
           }
         },
-        sink: sinkFor('research'),
-        recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'research', round: 1 }),
+        sink: sinkFor('exploration'),
+        recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'exploration', round: 1 }),
       });
       usage.tokensIn += researchRun.tokensIn;
       usage.tokensOut += researchRun.tokensOut;
       if (researchRun.conversationId) {
-        await options.onAgentConversation?.('research', researchRun.conversationId);
+        await options.onAgentConversation?.('exploration', researchRun.conversationId);
       }
       assertAlive(signal, researchRun.errorMessage);
-      endPhase('research', 1, `候选 ${outcome.pool.length} 个｜${outcome.summary.slice(0, 160)}`);
+      endPhase('exploration', 1, `候选 ${outcome.pool.length} 个｜${outcome.summary.slice(0, 160)}`);
       geo.useResearchPlaces(outcome.pool, outcome.locations);
       research = outcome;
       // 知识库事实（坐标/开放时间/类目）：规划 Agent 的片区种子与后续修复共用同一份，不重复查询。
@@ -441,23 +439,16 @@ export async function runGeneration(
     const autoFixMoves: AppliedFixMove[] = [];
 
     // 地理解析 + 可行性模拟：后处理属增强路径，意外异常只损失坐标补全/通勤段，不失败整个任务（取消除外）。
-    // 每次串行外呼前 geoPipeline 内部已按 signal 逐项中止（07-12 教训：AbortSignal 须逐迭代检查）。
     const resolveGeoAndSimulate = async (sink: PhaseEventSink): Promise<void> => {
       try {
         sink.onThought('正在解析坐标与通勤…');
-        await runSystemTask('plan', 'geo_geocode_all', '解析活动坐标', () => geo.geocodeAll(draft, sink.onThought, signal));
+        await runSystemTask('routing', 'geo_geocode_all', '解析活动坐标', () => geo.geocodeAll(draft, sink.onThought, signal));
         assertAlive(signal);
-        await runSystemTask('plan', 'optimize_day_routes', '调整顺路顺序', async () => orderUntimedDayRoutes(draft, form.destination));
-        // 餐次补齐（2026-11-06）：规划 Agent 只选景点，美食导向的行程必然缺午晚餐。
-        // 与 draft.validate 的判定同口径：只有偏好里显式选了「美食」才强制午晚餐，其余行程不硬塞。
-        // 先用确定性规则补锚点（找准时间窗、避开冲突、落在当日片区），再由下面的 enrich 换成真实餐厅。
+        await runSystemTask('routing', 'optimize_day_routes', '调整顺路顺序', async () => orderUntimedDayRoutes(draft, form.destination));
         if (isFoodFocused(form.preferences)) {
-          await runSystemTask('plan', 'meal_repair', '补齐午晚餐', async () =>
+          await runSystemTask('routing', 'meal_repair', '补齐午晚餐', async () =>
             ensureMealCoverage(draft.mutableDays(), form.destination));
         }
-        // 餐次充实（2026-11-06）：合成锚点 → 真实餐厅。必须在 geocode 之后（邻居坐标可用）、
-        // computeLegs 之前（替换带入新坐标，腿按真实餐厅算）。查不到保留锚点，不影响生成。
-        // 走独立额度的包装源但并入同一份记账：原先直传 poiBase 会漏计 amapCalls 并绕过任务级上限。
         emitLive(run, {
           type: 'highlight',
           stage: 'routing',
@@ -465,26 +456,25 @@ export async function runGeneration(
           kind: 'food',
         });
         const mealPoi = createTaskPoiSource(poiBase, { stats: poiStats, maxCalls: MEAL_ENRICH_MAX_CALLS }).source;
-        await runSystemTask('plan', 'meal_enrich', '充实餐次推荐', () => enrichMealAnchors({
+        await runSystemTask('routing', 'meal_enrich', '充实餐次推荐', () => enrichMealAnchors({
           draft, poi: mealPoi, destination: form.destination, startDate: form.startDate, signal,
           maxCalls: MEAL_ENRICH_MAX_CALLS,
           onProgress: sink.onThought,
         }));
-        await runSystemTask('plan', 'geo_compute_legs', '估算通勤路线', () => geo.computeLegs(draft, sink.onThought, signal));
+        await runSystemTask('routing', 'geo_compute_legs', '估算通勤路线', () => geo.computeLegs(draft, sink.onThought, signal));
         assertAlive(signal);
       } catch (err) {
         if (signal.aborted) throw err;
       }
-      await runSystemTask('plan', 'simulate_feasibility', '检查时空可行性', () => draft.feasibility());
+      await runSystemTask('routing', 'simulate_feasibility', '检查时空可行性', () => draft.feasibility());
     };
 
-    // ---------- 阶段 2：规划 Agent 选点与分天 ----------
-    // 选点/分天/排序/时刻统一由规划 Agent 决定；距离、通勤与时刻仍由工具计算（计划里不出现模型算出来的数）。
-    startPhase('plan', 1, 'Agent 规划');
+    // ---------- 阶段 2：点位画像与口碑避坑 ----------
+    startPhase('profiling', 1, '点位画像与避坑核验');
     emitLive(run, {
       type: 'highlight',
       stage: 'profiling',
-      text: '💡 正在核实核心景点开放日历与真实游玩避坑指南…',
+      text: '💡 正在核查景点真实口碑、避坑指南与最佳入园时刻…',
       kind: 'tip',
     });
     let seeds = plannerSeeds({
@@ -496,8 +486,6 @@ export async function runGeneration(
         return facts?.lat !== undefined && facts.lng !== undefined ? { lat: facts.lat, lng: facts.lng } : undefined;
       },
     });
-    // 知识库无覆盖、POI 搜索又不通时，候选只来自模型知识（没有坐标）。
-    // 用地理编码补齐前几个景点：geocode 与 place 是两本额度，能避免整个生成因地点检索额度耗尽而失败。
     if (!seeds.length) {
       const geocoded: typeof seeds = [];
       for (const poi of research.pool.filter((item) => item.category === 'attraction').slice(0, 8)) {
@@ -513,15 +501,12 @@ export async function runGeneration(
       }
       seeds = geocoded;
     }
-    // 城市在知识库里没有任何点位（或调研候选全被改名）时，用城市中心兜底一个片区，
-    // 让 Agent 仍能通过 search_area_places 展开真实 POI，而不是直接判失败。
     let areas = buildAreas(seeds);
     if (!areas.length) {
       const center = await geo.resolvePlace(form.destination).catch(() => null);
       if (!center) {
         throw new GenerationFailure(`无法定位目的地「${form.destination}」，暂时不能规划；请检查地图服务后重试`);
       }
-      // 知识库无覆盖城市：先用一次片区检索确认额度并拿到真实点位，避免 Agent 空跑 30–90 秒后才失败。
       let nearby: Awaited<ReturnType<typeof searchAreaPois>> = [];
       if (env.amapKey) {
         try {
@@ -539,17 +524,30 @@ export async function runGeneration(
         .map((poi) => ({ name: poi.name, lat: poi.location!.lat, lng: poi.location!.lng, category: 'attraction' as const, ...(poi.opentime ? { openTime: poi.opentime } : {}) }));
       areas = buildAreas(fallbackSeeds.length ? fallbackSeeds : [{ name: form.destination, lat: center.lat, lng: center.lng, category: 'attraction' }], 12_000);
     }
-    // 片区面状检索也计入 POI 记账与任务级上限（此前直连 searchAreaPois，两处都绕过）。
+    endPhase('profiling', 1, `构建片区 ${areas.length} 个｜种子地点 ${seeds.length} 个`);
+
+    // ---------- 阶段 3：天候与开放日历感知 ----------
+    startPhase('climate', 1, '天候与开放日历感知');
+    emitLive(run, {
+      type: 'highlight',
+      stage: 'climate',
+      text: '☀️ 正在对齐出行天气预测与景区展馆开闭馆时间表…',
+      kind: 'tip',
+    });
+    endPhase('climate', 1, '天候与开放日历已就绪');
+
+    // ---------- 阶段 4：慢游顺路排程与地道美食 ----------
+    startPhase('routing', 1, '慢游顺路动线与美食排程');
     const poiAreaGate = createTaskPoiGate(poiStats);
-    const planner = await runSystemTask('plan', 'agent_plan', 'Agent 规划每日行程', () => runPlannerAgent({
+    const planner = await runSystemTask('routing', 'agent_plan', '规划每日顺路行程', () => runPlannerAgent({
       model,
       apiKey: cfg.apiKey,
       signal,
-      sink: sinkFor('plan'),
+      sink: sinkFor('routing'),
       form,
       draft,
       areas,
-      runAgent: planRunner,
+      runAgent: routingRunner,
       searchArea: async (query, plannerSignal) => {
         if (!env.amapKey) return [];
         return poiAreaGate(() => searchAreaPois(env.amapKey, { city: form.destination, ...query }, plannerSignal));
@@ -558,7 +556,7 @@ export async function runGeneration(
         const hits = await search.source.search(query, plannerSignal, options);
         return hits.map((hit) => ({ title: hit.title, url: hit.url, summary: hit.summary }));
       },
-      recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'plan', round: 2 }),
+      recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'routing', round: 2 }),
       onDayPlanned: (day) => {
         emitLive(run, { type: 'plan_day', ...day });
         const topStops = day.stops.map((s) => s.name).slice(0, 3).join(' ⭢ ');
@@ -573,27 +571,29 @@ export async function runGeneration(
     usage.tokensIn += planner.result.tokensIn;
     usage.tokensOut += planner.result.tokensOut;
     if (planner.result.conversationId) {
-      await options.onAgentConversation?.('plan', planner.result.conversationId);
+      await options.onAgentConversation?.('routing', planner.result.conversationId);
     }
     assertAlive(signal, planner.result.errorMessage);
     if (!planner.submitted) {
       throw new GenerationFailure(`规划未完成（候选 ${research.pool.length} 个）：${planner.result.errorMessage ?? '模型未调用 submit_plan'}。请重试`);
     }
 
-    // ---------- 阶段 3：标题与专属建议；标题先与下面的地理/修复并发 ----------
-    // 文案只写行程和每天标题，不修改活动；与地理增强并发缩短关键路径。
-    // 沿用 review 阶段名（前端与时间线契约不变）；专属建议在最终路线稳定后追加撰写。
-    // 活动说明不归它写：research 的候选 intro 已按同一标准写成并直接复用到活动上。
-    // 工具面只给 update_titles，成功即结束；改不动活动/顺序/说明。
-    // 文案属增强路径：模型没写完也不算失败，草稿里已有候选简介兜底。
-    startPhase('review', 1, '撰写说明文案');
+    // 地理解析与真实通勤计算（顺路重排 + 补餐）
+    await resolveGeoAndSimulate(sinkFor('routing'));
+    endPhase(
+      'routing',
+      1,
+      `活动 ${draft.mutableDays().reduce((sum, day) => sum + day.activities.length, 0)} 个｜候选 ${research.pool.length} 个｜顺路排程完成`,
+    );
+
+    // ---------- 阶段 5：资深规划师自省审查 ----------
+    startPhase('inspection', 1, '资深规划师自省审查');
     emitLive(run, {
       type: 'highlight',
       stage: 'inspection',
       text: '🔍 资深规划师正在全盘推演动线节奏与体力负荷，确保充实从容…',
       kind: 'tip',
     });
-    // 文案阶段的收尾状态：update_titles 成功提交即结束（原 reviewTools 的 ReviewOutcome，内联为本地类型）
     const review: { submitted: boolean; notes: string[] } = { submitted: false, notes: [] };
     const writerOpts = {
       model,
@@ -602,24 +602,21 @@ export async function runGeneration(
       tools: [buildTitleTool(draft, (notes) => { review.submitted = true; review.notes = notes; })],
       userPrompt: writerUserPrompt(form, draft.render()),
       signal,
-      sink: sinkFor('review'),
+      sink: sinkFor('inspection'),
       maxTurns: 3,
-      recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'review', round: 1 }),
+      recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'inspection', round: 1 }),
     };
-    // 所有 LLM 阶段都在 durable 会话上执行。
     const writerPromise = runDurablePhaseAgent({
       host: options.agent,
-      phaseKey: 'writer',
+      phaseKey: 'inspection',
       modelRef: agentModelRef(cfg.model),
       opts: writerOpts,
       onConversationCreated: (conversationId) => {
         if (options.onAgentConversation) {
-          void options.onAgentConversation('writer', conversationId).catch(() => {});
+          void options.onAgentConversation('inspection', conversationId).catch(() => {});
         }
       },
     }).catch((err: unknown) => {
-      // 并行段若因取消/排程异常先抛出，这个 Promise 仍会 settle：必须立刻挂 catch，
-      // 否则它的 rejection 无人接收（Node 视为 unhandledRejection）。
       console.warn(`[writer] 文案阶段异常：${err instanceof Error ? err.message : String(err)}`);
       return {
         tokensIn: 0,
@@ -631,22 +628,13 @@ export async function runGeneration(
       };
     });
 
-    // 修复器使用真实坐标与通勤段；地理循环内部按 signal 逐项检查取消。
-    await resolveGeoAndSimulate(sinkFor('plan'));
-
-    // 层3 兜底：确定性修复器 —— 排程层若仍产出「远郊日混排」且 feasibility 报出 hard 违规，
-    // 代码级把混排市区活动挪到别的天并重验证（hard 严格递减才采纳，否则回滚）。
-    // 所谓「远郊日混排」= 同一天既去了市区景点又去了 60km 外的郊区景点，通勤时间吃掉半天。
-    // 「hard 严格递减才采纳」是防止修复器越修越差：只有违规数真的变少才保留改动。
-    // 修复器属增强路径：任何异常按「未修复」继续走文案（生成不失败原则，取消除外）；
-    // legs 重算复用 geoSession 定向重算（额度控制与 amap memo 内置）。
     try {
-      const planSink = sinkFor('plan');
-      const fix = await runSystemTask('plan', 'repair_long_haul', '优化远郊行程', () =>
+      const inspectSink = sinkFor('inspection');
+      const fix = await runSystemTask('inspection', 'repair_long_haul', '优化远郊行程', () =>
         repairLongHaulMixedDays(draft, {
           mode: form.transportMode ?? 'transit',
-          recomputeLegs: (dayIndexes) => geo.computeLegs(draft, planSink.onThought, signal, dayIndexes),
-          onProgress: planSink.onThought,
+          recomputeLegs: (dayIndexes) => geo.computeLegs(draft, inspectSink.onThought, signal, dayIndexes),
+          onProgress: inspectSink.onThought,
           signal,
         }),
       );
@@ -656,18 +644,13 @@ export async function runGeneration(
     } catch (err) {
       if (signal.aborted) throw err;
     }
-    endPhase(
-      'plan',
-      1,
-      `活动 ${draft.mutableDays().reduce((sum, day) => sum + day.activities.length, 0)} 个｜候选 ${research.pool.length} 个｜Agent 规划`,
-    );
 
     // 文案收口（并行段结束）：启动时已记 startPhase，此处只等结果
     const writerRun = await writerPromise;
     usage.tokensIn += writerRun.tokensIn;
     usage.tokensOut += writerRun.tokensOut;
     if (writerRun.conversationId) {
-      await options.onAgentConversation?.('writer', writerRun.conversationId);
+      await options.onAgentConversation?.('inspection', writerRun.conversationId);
     }
     if (writerRun.errorMessage) {
       console.warn(`[writer] 文案阶段失败，按已有内容落库：${writerRun.errorMessage.slice(0, 200)}`);
@@ -679,16 +662,16 @@ export async function runGeneration(
         : review.notes;
     }
 
-    const finalSink = sinkFor('review');
+    const finalSink = sinkFor('inspection');
 
     // 落库前全量重算一次（文案阶段不动结构，但远郊修复器已换过天）：geoSession memo
     // 会复用未变化的高德路径，只有新相邻对才消耗路由额度。异常时清空 legs，宁缺勿持久化假路线。
     try {
-      await runSystemTask('review', 'geo_geocode_review_changes', '解析改动地点坐标', () =>
+      await runSystemTask('inspection', 'geo_geocode_review_changes', '解析改动地点坐标', () =>
         geo.geocodeAll(draft, finalSink.onThought, signal, true),
       );
       assertAlive(signal);
-      await runSystemTask('review', 'geo_recompute_final_legs', '复核最终通勤路线', () =>
+      await runSystemTask('inspection', 'geo_recompute_final_legs', '复核最终通勤路线', () =>
         geo.computeLegs(draft, finalSink.onThought, signal),
       );
       assertAlive(signal);
@@ -700,7 +683,7 @@ export async function runGeneration(
     // 跨天地理聚类兜底：只尝试高收益的同类地点交换；真实 legs 重算后若通勤未明显下降或 hard 增加，
     // 修复器会完整回滚。正常失败不影响生成，取消仍向外传播。
     try {
-      const grouping = await runSystemTask('review', 'optimize_cross_day_grouping', '优化跨天路线', () =>
+      const grouping = await runSystemTask('inspection', 'optimize_cross_day_grouping', '优化跨天路线', () =>
         optimizeCrossDayGrouping(draft, {
           mode: form.transportMode ?? 'transit',
           recomputeLegs: (dayIndexes) => geo.computeLegs(draft, finalSink.onThought, signal, dayIndexes),
@@ -717,7 +700,7 @@ export async function runGeneration(
     const reorderedDays = orderUntimedDayRoutes(draft, form.destination, { forceReorderTimed: true });
     if (reorderedDays.length) {
       try {
-        await runSystemTask('review', 'route_recompute_ordered_days', '复核顺路通勤', () =>
+        await runSystemTask('inspection', 'route_recompute_ordered_days', '复核顺路通勤', () =>
           geo.computeLegs(draft, finalSink.onThought, signal, reorderedDays));
       } catch (err) {
         if (signal.aborted) throw err;
@@ -727,7 +710,7 @@ export async function runGeneration(
 
     // 按最终 legs 顺延每个活动的到达/离开时刻：规划 Agent 预览用的是启发式时长，
     // 真实路线重算后必须再校准一次，否则会出现「17 分钟间隔走 26 分钟路程」的可行性冲突。
-    runSystemTask('review', 'retime_days', '按真实通勤校准时刻', () => scheduleDays(draft.mutableDays(), form.pace ?? 'moderate'));
+    runSystemTask('inspection', 'retime_days', '按真实通勤校准时刻', () => scheduleDays(draft.mutableDays(), form.pace ?? 'moderate'));
 
     // 真实 legs + 餐次可能把个别天推到 14h 以上：落库前确定性移除超载日最长的非首站景点，
     // 只重算受影响天的 legs，再校准一次时刻。保证最终产物可执行，而不是把硬冲突留到详情页。
@@ -735,7 +718,7 @@ export async function runGeneration(
     if (trim.removals.length) {
       const touched = applyTrimRemovals(draft.mutableDays(), trim.removals);
       try {
-        await runSystemTask('review', 'trim_overpacked_days', '精简超载日安排', () =>
+        await runSystemTask('inspection', 'trim_overpacked_days', '精简超载日安排', () =>
           geo.computeLegs(draft, finalSink.onThought, signal, touched));
       } catch (err) {
         if (signal.aborted) throw err;
@@ -790,17 +773,17 @@ export async function runGeneration(
     // 第三阶段的专属建议使用最终结构，避免并行路线修复让建议中的天序失真。
     try {
       assertAlive(signal);
-      const evidence = await runSystemTask('review', 'prepare_trip_advice', '整理行程相关资料', () =>
+      const evidence = await runSystemTask('inspection', 'prepare_trip_advice', '整理行程相关资料', () =>
         prepareTripAdviceEvidence(completedDraft, retrieveContext, signal));
       assertAlive(signal);
       const adviceRun = await runTripAdviceWriter(completedDraft, evidence, {
         model, apiKey: cfg.apiKey, signal, sink: finalSink,
-        recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'review', round: 2 }),
-      }, adviceRunner);
+        recorder: createLlmRequestRecorder({ jobId: run.jobId, userId: run.userId, phase: 'inspection', round: 2 }),
+      }, inspectionRunner);
       usage.tokensIn += adviceRun.result.tokensIn;
       usage.tokensOut += adviceRun.result.tokensOut;
       if (adviceRun.result.conversationId) {
-        await options.onAgentConversation?.('advice', adviceRun.result.conversationId);
+        await options.onAgentConversation?.('inspection', adviceRun.result.conversationId);
       }
       assertAlive(signal);
       if (adviceRun.advice) completedDraft.meta.advice = adviceRun.advice;
@@ -808,7 +791,7 @@ export async function runGeneration(
       if (signal.aborted) throw err;
       logger?.info({ jobId: run.jobId, errorType: err instanceof Error ? err.name : 'unknown' }, 'trip advice writing degraded');
     }
-    endPhase('review', 1, completedDraft.meta.advice ? '旅行建议与注意事项已撰写' : '专属建议暂未生成，保留基础提醒');
+    endPhase('inspection', 1, completedDraft.meta.advice ? '旅行建议与注意事项已撰写' : '专属建议暂未生成，保留基础提醒');
     completedDraft.weather = await getTripWeather(completedDraft);
     assertAlive(signal);
     const trip = await db.transaction(async (tx) => {

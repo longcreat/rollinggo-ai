@@ -36,14 +36,14 @@ describe('生成投影适配器', () => {
   it('phase / tool 进度进入 taskGraph，状态按结束更新', () => {
     const projection = createGenerationProjection('job-1');
     projection.consume(ev({ type: 'job_start', destination: '成都', days: 1, startDate: '', xhsEnabled: false, dataSources: [] }));
-    projection.consume(ev({ type: 'phase_start', phase: 'plan', round: 1 }));
-    projection.consume(ev({ type: 'tool_start', phase: 'plan', toolCallId: 'c1', tool: 'plan_day', label: '规划第 1 天', args: '{}' }));
-    projection.consume(ev({ type: 'tool_end', phase: 'plan', toolCallId: 'c1', tool: 'plan_day', label: '规划第 1 天', summary: 'ok', isError: false, durationMs: 12 }));
-    projection.consume(ev({ type: 'phase_end', phase: 'plan', round: 1, summary: '活动 11 个', durationMs: 99 }));
+    projection.consume(ev({ type: 'phase_start', phase: 'routing', round: 1 }));
+    projection.consume(ev({ type: 'tool_start', phase: 'routing', toolCallId: 'c1', tool: 'plan_day', label: '规划第 1 天', args: '{}' }));
+    projection.consume(ev({ type: 'tool_end', phase: 'routing', toolCallId: 'c1', tool: 'plan_day', label: '规划第 1 天', summary: 'ok', isError: false, durationMs: 12 }));
+    projection.consume(ev({ type: 'phase_end', phase: 'routing', round: 1, summary: '活动 11 个', durationMs: 99 }));
     const nodes = projection.channel.snapshot.state.taskGraph;
-    assert.equal(projection.channel.snapshot.state.control.phase, 'plan');
+    assert.equal(projection.channel.snapshot.state.control.phase, 'routing');
     assert.equal(nodes.find((node) => node.id === 'c1')?.status, 'done');
-    const phase = nodes.find((node) => node.id === 'phase:plan:1');
+    const phase = nodes.find((node) => node.id === 'phase:routing:1');
     assert.equal(phase?.status, 'done');
     assert.equal(phase?.summary, '活动 11 个');
     assert.equal(phase?.durationMs, 99);
@@ -52,11 +52,11 @@ describe('生成投影适配器', () => {
   it('停止/失败后仍在运行的阶段与工具收口，不保留转圈状态', () => {
     const projection = createGenerationProjection('job-1');
     projection.consume(ev({ type: 'job_start', destination: '成都', days: 1, startDate: '', xhsEnabled: false, dataSources: [] }));
-    projection.consume(ev({ type: 'phase_start', phase: 'plan', round: 1 }));
-    projection.consume(ev({ type: 'tool_start', phase: 'plan', toolCallId: 'c1', tool: 'plan_day', label: '规划第 1 天', args: '{}' }));
+    projection.consume(ev({ type: 'phase_start', phase: 'routing', round: 1 }));
+    projection.consume(ev({ type: 'tool_start', phase: 'routing', toolCallId: 'c1', tool: 'plan_day', label: '规划第 1 天', args: '{}' }));
     projection.consume(ev({ type: 'job_cancelled', reason: 'user' }));
     const nodes = projection.channel.snapshot.state.taskGraph;
-    assert.equal(nodes.find((node) => node.id === 'phase:plan:1')?.status, 'error');
+    assert.equal(nodes.find((node) => node.id === 'phase:routing:1')?.status, 'error');
     assert.equal(nodes.find((node) => node.id === 'c1')?.status, 'error');
     assert.equal(projection.channel.snapshot.state.control.status, 'cancelled');
   });

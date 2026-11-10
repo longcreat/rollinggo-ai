@@ -69,7 +69,7 @@ describe('进程重启后的直播层重建', () => {
     emitLive(run, { type: 'job_done', tripId: 'saved', usedXhs: false, dataSources: [], reviewNotes: [] });
     const seqAtDone = run.projection.channel.snapshot.seq;
     emitLive(run, { type: 'job_error', message: 'late error' });
-    emitLive(run, { type: 'thought', phase: 'review', text: 'late writer' });
+    emitLive(run, { type: 'thought', phase: 'inspection', text: 'late writer' });
     assert.equal(run.status, 'done');
     assert.equal(run.tripId, 'saved');
     assert.equal(run.projection.channel.snapshot.seq, seqAtDone, '终态之后的事件不再进投影');

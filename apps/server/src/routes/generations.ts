@@ -15,7 +15,14 @@ import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import type { ConversationId, TaskId } from '@earendil-works/pi-durable';
-import { GENERATION_TIMEOUT_MINUTES, GenerateFormSchema, getPlannerStageDisplay, uid } from '@tripweaver/shared';
+import {
+  GENERATION_TIMEOUT_MINUTES,
+  GenerateFormSchema,
+  getPlannerStageDisplay,
+  PLANNER_STAGE_KEYS,
+  type PlannerStageKey,
+  uid,
+} from '@tripweaver/shared';
 import { requireAuth } from '../auth/guard';
 import { resolveLlmConfig } from '../services/settingsService';
 import { getConversation } from '../services/conversationService';
@@ -43,31 +50,27 @@ import {
   markGenerationTaskFailed,
   type GenerationTaskView,
 } from '../generation/taskStore';
-import type { GenerationTaskRef } from '../generation/provenance';
+import type { GenerationAgentKey, GenerationTaskRef } from '../generation/provenance';
 import { normalizeAgentTranscript } from '../generation/agentTranscript';
 
-const AGENT_STAGES = {
-  research: ['research'],
-  plan: ['plan'],
-  review: ['writer', 'advice'],
-} as const;
-type AgentStage = keyof typeof AGENT_STAGES;
-
-const AGENT_STAGE_LABEL: Record<AgentStage, string> = {
-  research: '查找地点与资料',
-  plan: '规划每日行程',
-  review: '整理文案与建议',
+const AGENT_STAGES: Record<PlannerStageKey, readonly string[]> = {
+  exploration: ['exploration', 'research'],
+  profiling: ['profiling'],
+  climate: ['climate'],
+  routing: ['routing', 'plan'],
+  inspection: ['inspection', 'review', 'writer', 'advice'],
 };
 
-/** 读取一个阶段（review 合并 writer+advice）的工具步骤；只读 durable conversation。 */
+/** 读取一个阶段的工具步骤；只读 durable conversation。 */
 async function readAgentSteps(
   runtime: Awaited<ReturnType<typeof getAgentRuntime>>,
   task: GenerationTaskView,
-  stage: AgentStage,
+  stage: PlannerStageKey,
 ) {
   const steps = [];
-  for (const key of AGENT_STAGES[stage]) {
-    const conversationId = task.agentConversations?.[key];
+  const keys = AGENT_STAGES[stage] ?? [];
+  for (const key of keys) {
+    const conversationId = task.agentConversations?.[key as unknown as GenerationAgentKey];
     if (!conversationId) continue;
     const conversation = await runtime.harness.conversation(
       conversationId as unknown as ConversationId,
@@ -250,13 +253,15 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
   app.get('/:jobId/agents/:stage', async (request, reply) => {
     const { jobId, stage } = request.params as { jobId: string; stage: string };
     const userId = request.user!.id;
-    if (!(stage in AGENT_STAGES)) return reply.code(404).send({ error: '子 Agent 不存在' });
+    if (!PLANNER_STAGE_KEYS.includes(stage as PlannerStageKey)) {
+      return reply.code(404).send({ error: '子 Agent 不存在' });
+    }
     const task = await getGenerationTask(userId, jobId);
     if (!task) return reply.code(404).send({ error: '任务不存在或已过期' });
     try {
       await ensureAgentStorageDir();
       const runtime = await getAgentRuntime(agentStoragePath(userId));
-      const steps = await readAgentSteps(runtime, task, stage as AgentStage);
+      const steps = await readAgentSteps(runtime, task, stage as PlannerStageKey);
       return { stage, steps, running: task.status === 'running' };
     } catch (error) {
       request.log.error(error, 'generation agent transcript read failed');
@@ -265,7 +270,7 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
   });
 
   /**
-   * 主 Agent 对话里的子 Agent 节点列表：只返回已有 durable 会话的阶段。
+   * 主 Agent 对话里的子 Agent 节点列表：严格按照五阶规划流水线展示。
    * 状态/耗时用于时间线展示，详情仍由 /agents/:stage 懒加载。
    */
   app.get('/:jobId/agents', async (request, reply) => {
@@ -273,20 +278,24 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
     const userId = request.user!.id;
     const task = await getGenerationTask(userId, jobId);
     if (!task) return reply.code(404).send({ error: '任务不存在或已过期' });
-    const stages: AgentStage[] = ['research', 'plan', 'review'];
-    const currentStage: AgentStage = task.status !== 'running'
-      ? 'review'
-      : task.agentConversations?.['writer'] || task.agentConversations?.['advice']
-        ? 'review'
-        : task.agentConversations?.['plan']
-          ? 'plan'
-          : 'research';
+    const stages = PLANNER_STAGE_KEYS;
+    const currentStage: PlannerStageKey = task.status !== 'running'
+      ? 'inspection'
+      : (task.agentConversations?.['inspection'] || task.agentConversations?.['writer'] || task.agentConversations?.['advice'])
+        ? 'inspection'
+        : (task.agentConversations?.['routing'] || task.agentConversations?.['plan'])
+          ? 'routing'
+          : task.agentConversations?.['climate']
+            ? 'climate'
+            : task.agentConversations?.['profiling']
+              ? 'profiling'
+              : 'exploration';
     try {
       await ensureAgentStorageDir();
       const runtime = await getAgentRuntime(agentStoragePath(userId));
       const agents = [];
       for (const stage of stages) {
-        const hasConv = AGENT_STAGES[stage].some((key) => task.agentConversations?.[key]);
+        const hasConv = (AGENT_STAGES[stage] ?? []).some((key) => task.agentConversations?.[key as unknown as GenerationAgentKey]);
         const steps = hasConv ? await readAgentSteps(runtime, task, stage) : [];
         const done = steps.filter((step) => step.status === 'done').length;
         const stageIndex = stages.indexOf(stage);
@@ -304,7 +313,6 @@ export const generationRoutes: FastifyPluginAsyncTypebox = async (app) => {
         agents.push({
           stage,
           label: meta.clientTitle,
-          rawLabel: AGENT_STAGE_LABEL[stage],
           subtitle: meta.clientSubtitle,
           highlight: meta.runningHighlight,
           status: stageStatus,

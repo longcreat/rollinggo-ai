@@ -3,6 +3,11 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/shared/package.json packages/shared/
+COPY packages/core/package.json packages/core/
+COPY packages/integrations/package.json packages/integrations/
+COPY packages/services/package.json packages/services/
+COPY packages/agent/package.json packages/agent/
+COPY packages/evals/package.json packages/evals/
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
 RUN npm ci

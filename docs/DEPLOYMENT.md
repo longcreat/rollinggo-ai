@@ -98,7 +98,7 @@ PostgreSQL + pgvector 用 `docker compose up -d db` 起（或指向已有的本�
 
 1. **高德 Web 服务**：地点文本/周边/多边形检索（`v5/place/text|around|polygon`）、地理编码（v3）、路径规划（v5）。个人认证无流量包时基础 LBS 15 万次/月、搜索 5000 次/月，详见[高德限额与日志](AMAP_QUOTAS.md)
 2. **Web 搜索 API**：玩法、避雷与「是否需要预约」等攻略信息，带来源链接。用户可保存个人 API Key 与 Base URL（Key 以 AES-256-GCM 加密、仅显示尾号），个人配置优先，清除后回退站点配置，两者都不可用时 Null 降级
-3. **预约种子表**：仓库内置约 50 条全国热门「需预约」景点（故宫/国博/莫高窟/陕历博等），命中即直接标注预约方式与官方链接，离线可用（`apps/server/src/data/reservationSeeds.json`）
+3. **预约种子表**：仓库内置约 50 条全国热门「需预约」景点（故宫/国博/莫高窟/陕历博等），命中即直接标注预约方式与官方链接，离线可用（`packages/core/src/data/reservationSeeds.json`）
 4. **和风天气**：15 天逐日预报；配置方式见 `.env.example` 的 `QWEATHER_*` 段（推荐 Ed25519 JWT 现签）
 
 前端底图**默认走 Leaflet + 高德栅格瓦片**；配了高德 **JS API** 凭据后自动切成高德 JS API 渲染 —— 这样才能隐藏未编入行程的 POI 文字（栅格瓦片把文字烘焙进图片，关不掉）。Key 缺失、接口未取到、或 SDK 加载失败/超时都**静默降级**回 Leaflet，编辑器不会出现没有地图的情况。

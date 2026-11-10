@@ -5,8 +5,14 @@
     "moduleResolution": "bundler",
     "types": ["node"],
     "paths": {
-      "@tripweaver/shared": ["../../packages/shared/src/index.ts"]
+      "@tripweaver/shared": ["../../packages/shared/src/index.ts"],
+      "@tripweaver/shared/*": ["../../packages/shared/src/*"],
+      "@tripweaver/core/*": ["../../packages/core/src/*"],
+      "@tripweaver/integrations/*": ["../../packages/integrations/src/*"],
+      "@tripweaver/services/*": ["../../packages/services/src/*"],
+      "@tripweaver/agent/*": ["../../packages/agent/src/*"],
+      "@tripweaver/evals/*": ["../../packages/evals/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "test", "scripts"]
 }

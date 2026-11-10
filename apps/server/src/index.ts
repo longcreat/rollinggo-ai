@@ -6,13 +6,13 @@ import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
-import { env } from './env';
-import { dataStore, mediaObjectKey } from './lib/dataStore';
-import { mediaCacheControl, mediaContentType } from './lib/mediaStore';
-import { setAmapLogger } from './integrations/amap/request';
-import { setQWeatherLogger } from './integrations/qweather/client';
-import './lib/proxy';                        // 需在任何出站 fetch 之前接管代理
-import './db/client';                       // 触发建库与迁移
+import { env } from '@tripweaver/core/env';
+import { dataStore, mediaObjectKey } from '@tripweaver/core/lib/dataStore';
+import { mediaCacheControl, mediaContentType } from '@tripweaver/core/lib/mediaStore';
+import { setAmapLogger } from '@tripweaver/integrations/amap/request';
+import { setQWeatherLogger } from '@tripweaver/integrations/qweather/client';
+import '@tripweaver/core/lib/proxy';                        // 需在任何出站 fetch 之前接管代理
+import '@tripweaver/core/db/client';                       // 触发建库与迁移
 import { installApiResponses } from './http/apiResponse';
 import { authRoutes } from './routes/auth';
 import { conversationRoutes } from './routes/conversations';
@@ -23,7 +23,7 @@ import { destinationRoutes } from './routes/destinations';
 import { generationRoutes } from './routes/generations';
 import { notificationRoutes } from './routes/notifications';
 import { promptParseRoutes } from './routes/promptParse';
-import { expireOrphanQuestions } from './chat/agent/questionStore';
+import { expireOrphanQuestions } from '@tripweaver/agent/chat/agent/questionStore';
 
 /**
  * TripWeaver 服务端进程入口。

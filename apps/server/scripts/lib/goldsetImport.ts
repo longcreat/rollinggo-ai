@@ -4,9 +4,9 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { Type } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
-import { env } from '../../src/env';
-import { runMigrations } from '../../src/db/migrate';
-import { importGoldsetCity, type GoldsetActivity, type GoldsetInput } from '../../src/services/goldsetPlaceImport';
+import { env } from '@tripweaver/core/env';
+import { runMigrations } from '@tripweaver/core/db/migrate';
+import { importGoldsetCity, type GoldsetActivity, type GoldsetInput } from '@tripweaver/services/goldsetPlaceImport';
 
 const ActivitySchema=Type.Object({name:Type.String({minLength:1}),category:Type.Optional(Type.String()),
   lat:Type.Number({minimum:-90,maximum:90}),lng:Type.Number({minimum:-180,maximum:180}),coordSource:Type.Literal('geocoded')});
@@ -16,7 +16,7 @@ export async function runGoldsetImport(mode:'seed'|'restore') {
   const snapshotIndex=process.argv.indexOf('--snapshot-dir');
   const supplied=snapshotIndex>=0?process.argv[snapshotIndex+1]:undefined;
   if(snapshotIndex>=0&&(!supplied||supplied.startsWith('--'))) throw new Error('--snapshot-dir 需要目录');
-  const folder=supplied?path.resolve(supplied):fileURLToPath(new URL('../../../../eval/snapshots/',import.meta.url));
+  const folder=supplied?path.resolve(supplied):fileURLToPath(new URL('../../../../packages/evals/snapshots/',import.meta.url));
   const dryRun=process.argv.includes('--dry-run');
   const byCity=new Map<string,GoldsetInput[]>();
   for(const file of fs.readdirSync(folder).filter(file=>file.endsWith('.json')).sort()) {

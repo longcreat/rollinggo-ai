@@ -53,7 +53,7 @@ const trip = await api.get<Trip>(`/api/trips/${id}`, { signal });
 
 ## 回归
 
-- `node --import tsx --test apps/server/src/__tests__/apiResponse.test.ts apps/web/tests/apiClient.test.ts apps/web/tests/detail-chat.test.ts`（设置测试 `MASTER_KEY`）。
+- `node --import tsx --test apps/server/test/apiResponse.test.ts apps/web/tests/apiClient.test.ts apps/web/tests/detail-chat.test.ts`（设置测试 `MASTER_KEY`）。
 - `npm run typecheck`、`npm run build`。
 - `node --import tsx scripts/verify-api-contract-browser.mts`：生产前端 + 正式响应边界 + 内存会话夹具，不访问数据库或外部供应商。
 - `node apps/web/tests/generation-recovery-browser.mjs`（Vite 18811）：真实 EventSource 重连、去重和会话失效。

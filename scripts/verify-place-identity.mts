@@ -8,7 +8,7 @@ const databaseName = `place_identity_test_${Date.now()}`;
 const adminUrl = process.env.VERIFY_IDENTITY_ADMIN_URL ?? 'postgres://postgres:postgres@127.0.0.1:5432/postgres';
 const files = ['placeIdentityAudit.test.ts', 'placeImportIdentity.test.ts', 'goldsetIdentityImport.test.ts',
   'placeRelationIdentity.test.ts', 'placeRecommendationIdentity.test.ts', 'placeImagePolicy.test.ts', 'imageGallery.test.ts']
-  .map((name) => `apps/server/src/__tests__/${name}`);
+  .map((name) => `apps/server/test/${name}`);
 const admin = new Client({ connectionString: adminUrl, connectionTimeoutMillis: 5000 });
 await admin.connect();
 let created = false;

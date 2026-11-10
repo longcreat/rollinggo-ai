@@ -3,11 +3,11 @@
 ## Stack and Startup
 
 The server uses PostgreSQL (Neon) with Drizzle ORM (`drizzle-orm/pg-core`; migrated 09-18,
-superseding the old better-sqlite3 stack). `apps/server/src/db/client.ts` resolves
+superseding the old better-sqlite3 stack). `packages/core/src/db/client.ts` resolves
 `env.databaseUrl`, creates the pg Pool, runs migrations, and exports the Drizzle client.
 Importing the client during bootstrap performs this setup.
 
-Migrations are idempotent startup SQL in `apps/server/src/db/migrate.ts`
+Migrations are idempotent startup SQL in `packages/core/src/db/migrate.ts`
 (`CREATE TABLE IF NOT EXISTS` + `ADD COLUMN IF NOT EXISTS`), executed in one transaction.
 The pgvector extension is optional: when unavailable, embedding columns are skipped and
 vector search degrades to null. Keep database work async; the pg driver is asynchronous.
@@ -16,8 +16,8 @@ vector search degrades to null. Keep database work async; the pg driver is async
 
 Every database shape change must update both files in the same change:
 
-1. `apps/server/src/db/schema.ts` defines the typed Drizzle model used by application code.
-2. `apps/server/src/db/migrate.ts` defines idempotent startup SQL for fresh databases and
+1. `packages/core/src/db/schema.ts` defines the typed Drizzle model used by application code.
+2. `packages/core/src/db/migrate.ts` defines idempotent startup SQL for fresh databases and
    `ensureColumn`/index operations for existing databases.
 
 This project intentionally does not use a drizzle-kit migration history. A change only in
@@ -41,8 +41,8 @@ an empty table and would therefore hide a broken backfill.
 - `trips.data` is the full JSON `Trip` source of truth; list columns are derived indexes and
   must be recomputed from the document on writes.
 
-Representative paths: `apps/server/src/db/schema.ts`,
-`apps/server/src/services/tripService.ts`, `packages/shared/src/schemas.ts`.
+Representative paths: `packages/core/src/db/schema.ts`,
+`packages/services/src/tripService.ts`, `packages/shared/src/schemas.ts`.
 
 ## Query and Ownership Patterns
 
@@ -51,8 +51,8 @@ Representative paths: `apps/server/src/db/schema.ts`,
 - Use Drizzle query helpers rather than SQL string concatenation.
 - Migration batches run inside a single PG transaction (BEGIN/COMMIT in `runMigrations`).
 
-Representative paths: `apps/server/src/services/tripService.ts`,
-`apps/server/src/services/quotaService.ts`, `apps/server/src/generation/liveRun.ts`.
+Representative paths: `packages/services/src/tripService.ts`,
+`packages/core/src/quotaService.ts`, `packages/agent/src/generation/liveRun.ts`.
 
 ### Generation transaction writer
 

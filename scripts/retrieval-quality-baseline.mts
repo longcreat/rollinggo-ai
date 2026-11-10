@@ -5,11 +5,11 @@ import { config } from 'dotenv';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { Pool, type QueryResultRow } from 'pg';
-import { createPlaceRetriever, type RetrievalDiagnostics } from '../apps/server/src/generation/placeRetrieval';
-import { canonicalPlaceId } from '../apps/server/src/lib/placeIdentity';
+import { createPlaceRetriever, type RetrievalDiagnostics } from '@tripweaver/agent/generation/placeRetrieval';
+import { canonicalPlaceId } from '@tripweaver/core/lib/placeIdentity';
 import { configFingerprint, literalCoverage, parseVariantSpecs, realAliases, recallMetrics,
   renderRetrievalQuality, renderVariantComparison, retrievalQualityReport,
-  type ChannelStats, type PlaceCoverageRow, type RecallCase, type RecallMetrics, type VariantSpec, type VectorMode } from '../eval/retrievalQuality';
+  type ChannelStats, type PlaceCoverageRow, type RecallCase, type RecallMetrics, type VariantSpec, type VectorMode } from '@tripweaver/evals/retrievalQuality';
 
 config({ path: 'apps/server/.env', quiet: true });
 const connectionString = process.env.DATABASE_URL;
@@ -44,7 +44,7 @@ let siteEmbed: ((text: string, signal?: AbortSignal) => Promise<number[] | null>
 async function embedFor(mode: VectorMode): Promise<(text: string, signal?: AbortSignal) => Promise<number[] | null>> {
   if (mode === 'off') return nullEmbed;
   if (!siteEmbed) {
-    const module = await import('../apps/server/src/integrations/embedding');
+    const module = await import('@tripweaver/integrations/embedding');
     siteEmbed = module.embedQuery;
   }
   return siteEmbed;

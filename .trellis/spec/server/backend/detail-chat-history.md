@@ -237,7 +237,7 @@
 
 ## 6. Tests Required
 
-- `node --import tsx --test apps/web/tests/detail-chat.test.ts apps/web/tests/editorStore.test.ts apps/server/src/__tests__/chatEditOps.test.ts`：
+- `node --import tsx --test apps/web/tests/detail-chat.test.ts apps/web/tests/editorStore.test.ts apps/server/test/chatEditOps.test.ts`：
   UTF-8 分块/去重/缺终态、只读 store、回执保留草稿、餐次/营业时间/重复 POI、局部编辑。
 - `detailKnowledge.test.ts`：独立语义输入、实体融合、向量降级、按需联网、禁用联网、引用协议、去重和计费。
   `detailSourceCancellation.test.ts`：真实适配器 HTTP 取消传递及缓存不受取消污染。

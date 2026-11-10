@@ -25,4 +25,4 @@ python scripts/generate-title-font-coverage.py
 python scripts/generate-title-font-coverage.py --check
 ```
 
-生成的字体 CSS 在 `apps/web/src/styles/tailwind.css`；服务端与前端共用 `packages/shared/src/handwriting.generated.ts` 的实际 cmap 数据，服务端分片校验清单在 `apps/server/src/generation/titleFont.generated.ts`。
+生成的字体 CSS 在 `apps/web/src/styles/tailwind.css`；服务端与前端共用 `packages/shared/src/handwriting.generated.ts` 的实际 cmap 数据，服务端分片校验清单在 `packages/agent/src/generation/titleFont.generated.ts`。

@@ -16,7 +16,7 @@ Fastify route schemas such as those used by `apps/server/src/routes/auth.ts`, `a
 
 ## JSON and Event Caveats
 
-TypeScript annotations disappear at runtime. `JSON.parse(message) as GenerationEvent` and `response.json() as SomeType` are assertions, not checks. Browser and server consumers must explicitly validate data when it is untrusted or when accepting malformed data would be unsafe. Representative boundaries include `apps/web/src/pages/PlannerPage.tsx`, `apps/web/src/lib/export.ts`, and `apps/server/src/integrations/websearch/searchSource.ts`.
+TypeScript annotations disappear at runtime. `JSON.parse(message) as GenerationEvent` and `response.json() as SomeType` are assertions, not checks. Browser and server consumers must explicitly validate data when it is untrusted or when accepting malformed data would be unsafe. Representative boundaries include `apps/web/src/pages/PlannerPage.tsx`, `apps/web/src/lib/export.ts`, and `packages/integrations/src/websearch/searchSource.ts`.
 
 ## Shared Utility Failures
 

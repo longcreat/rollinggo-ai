@@ -1,6 +1,6 @@
 // 验证小红书社区库（PG）查询逻辑：名称匹配 / 城市过滤 / 语料读取 / 分类检索
 // 用法：cd apps/server && npx tsx scripts/verify-xhs-service.ts
-import { findXhsEvidence, findXhsPlace, findXhsPlacesByCategory, xhsPlaceStats } from '../src/services/xhsPlaceService';
+import { findXhsEvidence, findXhsPlace, findXhsPlacesByCategory, xhsPlaceStats } from '@tripweaver/services/xhsPlaceService';
 
 async function main(): Promise<void> {
   const stats = await xhsPlaceStats();

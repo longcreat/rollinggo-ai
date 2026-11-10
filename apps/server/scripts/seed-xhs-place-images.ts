@@ -15,11 +15,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import pg from 'pg';
-import { env } from '../src/env';
+import { env } from '@tripweaver/core/env';
 import { IMPORT_DIR, latestExports, readExport, scanExports, type ExportFile } from './lib/exportFiles';
-import { imageGroups } from '../src/lib/imageGallery';
-import { resolveImageIdentities } from '../src/services/placeImageIdentity';
-import type { IdentityPlace } from '../src/lib/placeIdentity';
+import { imageGroups } from '@tripweaver/core/lib/imageGallery';
+import { resolveImageIdentities } from '@tripweaver/services/placeImageIdentity';
+import type { IdentityPlace } from '@tripweaver/core/lib/placeIdentity';
 
 const IMPORT_SOURCE = 'xhs_place_images';
 const BATCH_SIZE = 200;
@@ -121,7 +121,7 @@ async function main(): Promise<void> {
   console.log(`${LOG} 待导入 ${targets.length} 份导出：${targets.map((t) => `${t.city}(${t.generatedAt})`).join('、')}`);
 
   const pool = new pg.Pool({ connectionString: env.databaseUrl });
-  const { runMigrations } = await import('../src/db/migrate');
+  const { runMigrations } = await import('@tripweaver/core/db/migrate');
   await runMigrations(pool);
   const client = await pool.connect();
 

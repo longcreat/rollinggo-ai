@@ -28,7 +28,7 @@
   so chatting while a run is in flight cannot retroactively change that run.
 
 Representative paths: `apps/server/src/routes/conversations.ts`,
-`apps/server/src/chat/understanding.ts`, `apps/server/src/chat/brief.ts`,
+`packages/agent/src/chat/understanding.ts`, `packages/services/src/brief.ts`,
 `apps/web/src/pages/ChatPage.tsx`.
 
 ## Scenario: Dialogue intent, Brief readiness, and revision
@@ -41,11 +41,11 @@ the chat quota, or the conversation-to-generation link.
 ### 2. Signatures
 
 - `CHAT_INTENTS` — the single source of truth for the intent whitelist
-  (`packages/shared/src/constants.ts`). `apps/server/src/chat/models.ts` re-exports it as
+  (`packages/shared/src/constants.ts`). `packages/agent/src/chat/models.ts` re-exports it as
   `DIALOGUE_INTENTS`; never write a second local list.
 - `requiredBriefFields(data): BriefMissingField[]` and `briefIntake(missing)` — pure, in
   `packages/shared/src/chat.ts`; used by the server (gate), the web (card state) and the prompt.
-- `applyDialogueDecision(current, raw: unknown, evidenceSequence)` in `apps/server/src/chat/brief.ts`
+- `applyDialogueDecision(current, raw: unknown, evidenceSequence)` in `packages/services/src/brief.ts`
   — pure, defensive, accepts the model's raw output.
 - `briefToGenerateForm(data, { appendNotes })` — pure, in shared; the single Brief → form mapping.
 - `chatTurnsToday(userId)` / `chatHasQuota(userId)` in `services/chatQuotaService.ts`.
@@ -97,7 +97,7 @@ the chat quota, or the conversation-to-generation link.
   (replace / delete / add activity — the only three supported operations) against the current trip
   rendered into the prompt with activity ids (`renderCurrentTrip`). The route normalises them
   (`normalizeEditOps`), geocodes new activities through the same chain as generation, applies them
-  deterministically (`applyItineraryEdits` in `apps/server/src/chat/editOps.ts`), and persists the
+  deterministically (`applyItineraryEdits` in `packages/agent/src/chat/editOps.ts`), and persists the
   result as the next version via `createTrip(userId, trip, revisionOf)`. No generation row is
   written and no generation quota is consumed. Cross-day moves / lodging stay out of the
   chat channel (editor-only). Budget has been removed from the product. The legacy `kind='revision'` generation path still exists for API
@@ -133,13 +133,13 @@ the chat quota, or the conversation-to-generation link.
 
 ### 6. Tests Required
 
-- `apps/server/src/__tests__/chatBrief.test.ts` — readiness rules, intake construction, constraint
+- `apps/server/test/chatBrief.test.ts` — readiness rules, intake construction, constraint
   normalisation, `emit date > days` precedence.
-- `apps/server/src/__tests__/chatBriefApply.test.ts` — defensive `applyDialogueDecision` and
+- `apps/server/test/chatBriefApply.test.ts` — defensive `applyDialogueDecision` and
   `briefToGenerateForm` (including notice-able truncation).
-- `apps/server/src/__tests__/chatEditOps.test.ts` — edit-op normalisation and application:
+- `apps/server/test/chatEditOps.test.ts` — edit-op normalisation and application:
   in-place replace, leg pruning, append/position clamp, per-op rejection isolation, idempotence.
-- `apps/server/src/__tests__/chatDerive.test.ts` — web-side pure derivations (intake liveness, polarity
+- `apps/server/test/chatDerive.test.ts` — web-side pure derivations (intake liveness, polarity
   copy, conversation summary).
 - `node scripts/verify-c2.mjs` — chat CRUD, quota separation, ownership 404s, confirm auto-start,
   targeted-edit revision chain (`rootId`/`version`/`parentId`), edit anchoring across turns,
@@ -161,11 +161,11 @@ export const DIALOGUE_INTENTS = CHAT_INTENTS;
 
 ### Two TypeBox packages coexist and are not runtime-compatible
 
-`apps/server/src/generation/tools/*` and `apps/server/src/chat/*` must use `typebox` (v1, the
+`packages/agent/src/generation/tools/*` and `packages/agent/src/chat/*` must use `typebox` (v1, the
 pi-agent-core ecosystem). `packages/shared` and Fastify route schemas use `@sinclair/typebox` (v0.34).
 v1 emits JSON Schema (`anyOf` / `const`); `@sinclair/typebox/value`'s `Value.Check` throws
 `Unknown type` on it. `typebox` v1 also has no `Static`, which is why
-`apps/server/src/chat/models.ts` does not mirror the decision schema with a hand-written interface —
+`packages/agent/src/chat/models.ts` does not mirror the decision schema with a hand-written interface —
 model output is read as `unknown` and normalised field by field instead. Verify with
 `node -e "const {Type}=require('typebox'); ..."` before assuming the two interoperate.
 

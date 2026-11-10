@@ -241,7 +241,7 @@ when changing the meaning of `source` / `verified` for those tables.
   the last backfill.
 - `npx tsx apps/server/scripts/check-data-freshness.ts` after every import: must print
   “全部与磁盘最新导出一致” and exit 0. Before importing, it must report the pending cities.
-- `apps/server/src/__tests__/exportFiles.test.ts` — recognises only the two export kinds, keeps
+- `apps/server/test/exportFiles.test.ts` — recognises only the two export kinds, keeps
   exactly one entry per `(source, city)` at the newest `generatedAt`, empty input → empty output.
 - `npx tsx apps/server/scripts/verify-xhs-service.ts` exercises the read helpers
   (`findXhsPlace` / `findXhsEvidence` / `findXhsPlacesByCategory` / `xhsPlaceStats`) against the
@@ -352,12 +352,12 @@ Apply when changing how the community pipeline's derived data is consumed: `payl
 
 ### 6. Tests Required
 
-- `apps/server/src/__tests__/placeRelations.test.ts` — bidirectional key registration, candidate
+- `apps/server/test/placeRelations.test.ts` — bidirectional key registration, candidate
   cross-match against alias forms, single-sided pairs dropped, empty pool, empty city.
-- `apps/server/src/__tests__/placeFacts.test.ts` — `renderOpenHours` output and all `undefined`
+- `apps/server/test/placeFacts.test.ts` — `renderOpenHours` output and all `undefined`
   cases; `payload.aliases` reaching a row the primary key cannot match (双清别墅 → 香山双清别墅);
   `openHours` landing in `facts.openTime`.
-- `apps/server/src/__tests__/scheduling.test.ts` — a `relatedPairs` hit pulls two points into the
+- `apps/server/test/scheduling.test.ts` — a `relatedPairs` hit pulls two points into the
   same day; absent/empty `relatedPairs` reproduces the baseline chain exactly.
 - Assertion points: `buildSchedule(...).days[i].stops` names and day assignment — not internals.
 - Local DB integration tests skip (not fail) when the enrichment data was never imported.
@@ -374,9 +374,9 @@ relatedPairs: resolveRelatedPairs(relations, input.pool.map((p) => p.name)),
 // … buildChain compares distanceKm × RELATED_DISCOUNT for pairs in that set.
 ```
 
-Representative paths: `apps/server/src/generation/scheduling/placeRelations.ts`,
-`apps/server/src/generation/scheduling/placeFacts.ts`,
-`apps/server/src/generation/scheduling/buildDraft.ts`, `apps/server/src/db/migrate.ts`,
+Representative paths: `packages/agent/src/generation/scheduling/placeRelations.ts`,
+`packages/agent/src/generation/scheduling/placeFacts.ts`,
+`packages/agent/src/generation/scheduling/buildDraft.ts`, `packages/core/src/db/migrate.ts`,
 `apps/server/scripts/seed-xhs-relations.ts`.
 
 ### Opening-fact attribution and repair previews (2026-10-05)
@@ -511,18 +511,18 @@ wiki lookup (overseas/proxied environments only).
 
 ### 6. Tests Required
 
-- `apps/server/src/__tests__/storedCover.test.ts` — key→URL joining for `/media`, absolute CDN base,
+- `apps/server/test/storedCover.test.ts` — key→URL joining for `/media`, absolute CDN base,
   trailing slash, leading slash on the key, empty key → `null`, empty city → `null` without a query.
   Also cover multiple sequential/concurrent names after a first miss, shared loading across the
   three readers, aliases, city isolation, and real database full-index/subset boundaries.
-- `apps/server/src/__tests__/imageImport.test.ts` — real seed scripts in a disposable database:
+- `apps/server/test/imageImport.test.ts` — real seed scripts in a disposable database:
   retain both image fields through place re-import, refresh other payload fields, first-image
   selection and idempotence. Never run against application data.
-- `apps/server/src/__tests__/exportFiles.test.ts` — `xhs-place-images-*.json` is recognized as its own
+- `apps/server/test/exportFiles.test.ts` — `xhs-place-images-*.json` is recognized as its own
   source with `rowCount` from `images`, and is NOT swallowed by the `xhs-places*` pattern.
-- `apps/server/src/__tests__/placeLookup.test.ts` — a stored `/media/...` value is accepted and no
+- `apps/server/test/placeLookup.test.ts` — a stored `/media/...` value is accepted and no
   wiki request is made.
-- `apps/server/src/__tests__/placeFacts.test.ts` — `mergeFacts` picks up `coverImage` from any member;
+- `apps/server/test/placeFacts.test.ts` — `mergeFacts` picks up `coverImage` from any member;
   the value stays a relative key. DB-backed assertions skip when no covers were imported.
 - Assertion points: the resolved `poi.coverUrl` string and the recorded wiki-query list.
 
@@ -546,10 +546,10 @@ if (stored && isHttpUrl(stored)) return stored;
 if (stored && isUsableCoverUrl(stored)) return stored.slice(0, 300);
 ```
 
-Representative paths: `apps/server/src/generation/storedCover.ts`,
-`apps/server/src/generation/tools/researchTools.ts`, `apps/server/scripts/seed-xhs-place-images.ts`,
+Representative paths: `packages/agent/src/generation/storedCover.ts`,
+`packages/agent/src/generation/tools/researchTools.ts`, `apps/server/scripts/seed-xhs-place-images.ts`,
 `apps/server/scripts/lib/exportFiles.ts`, `apps/server/src/index.ts`, `docker-compose.yml`,
-`apps/server/src/integrations/pexels/cover.ts`, `apps/server/src/lib/placeKey.ts`,
+`packages/integrations/src/pexels/cover.ts`, `packages/core/src/lib/placeKey.ts`,
 `xhs-travel-pipeline/scripts/export_place_images.py`.
 
 ## Upstream content and entity repair (2026-10-02)
@@ -656,7 +656,7 @@ payload = { ...incoming, coverImage: old.coverImage, imageGallery: old.imageGall
 
 ### 1. Scope / Trigger
 
-Apply when changing the literal-layer quality probe (`eval/retrievalQuality.ts`,
+Apply when changing the literal-layer quality probe (`packages/evals/retrievalQuality.ts`,
 `scripts/retrieval-quality-baseline.mts`) or the metrics it reports. Motivation: retrieval quality
 was unmeasurable — `RetrieveOptions.onDiagnostics` was collected but had no consumer, and neither an
 annotation set nor a single assertion existed.
@@ -693,7 +693,7 @@ annotation set nor a single assertion existed.
 - **Hit test uses `canonicalPlaceId`**, never member row ids — see Wrong vs Correct.
 - Reports are deterministic: no timestamp or duration is written, so `report.json` is byte-identical
   across runs on the same knowledge base.
-- Boundary: this is NOT part of the `eval/` harness, gates nothing, and its default mode runs with
+- Boundary: this is NOT part of the `packages/evals/` harness, gates nothing, and its default mode runs with
   vectors off. It measures the literal layer only and does not prove semantic recall.
 - **`--variants` is the only mode that makes external calls.** A non-`off` variant really calls the
   site `embedQuery`; the default path imports no embedding client at all. Variant definitions are
@@ -738,16 +738,16 @@ annotation set nor a single assertion existed.
 
 ### 6. Tests Required
 
-`eval/tests/retrievalQuality.test.ts` (inside `npm run eval:test`): an `aliases` array holding only the
+`packages/evals/tests/retrievalQuality.test.ts` (inside `npm run eval:test`): an `aliases` array holding only the
 main name yields no real alias; whitespace and non-string entries are dropped; coverage separates
 real-alias from field-fill and groups by city and same-city duplicate name; recall ranks by canonical
 id sets and honours `depth`; **the denominator is the executed query count, not the sampled row
 count**; `renderRetrievalQuality` shows coverage, recall and the miss list.
-`apps/server/src/__tests__/placeVectorRanking.test.ts`: literal-empty results rank by vector
+`apps/server/test/placeVectorRanking.test.ts`: literal-empty results rank by vector
 `distance` (not by heat score or the `detail` penalty); literal hits keep their rule-score order
 with vectors appended; `auto` with a full keyword page reports `skipped:filled` and makes no
 embedding call; `vectorHits` may exceed `vectorSelected` when `limit` truncates.
-`eval/tests/retrievalQuality.test.ts` also covers `parseVariantSpecs` rejecting unknown keys /
+`packages/evals/tests/retrievalQuality.test.ts` also covers `parseVariantSpecs` rejecting unknown keys /
 duplicate labels / bad values, `configFingerprint` ignoring key order, and the per-subset delta plus
 channel-stat lines in `renderVariantComparison`.
 
@@ -826,7 +826,7 @@ discarding its output.
 
 ### 6. Tests Required
 
-`apps/server/src/__tests__/placeVectorRanking.test.ts` pins all four: distance ordering when literal
+`apps/server/test/placeVectorRanking.test.ts` pins all four: distance ordering when literal
 is empty, rule ordering preserved when it is not, `skipped:filled` without an embedding call, and
 `vectorHits > vectorSelected` under a tight `limit`. Assertion points are the returned id order and
 the recorded `RetrievalDiagnostics`.
@@ -964,9 +964,9 @@ review pipeline, or the `MEDIA_STORE` / `MEDIA_S3_*` / `MEDIA_BASE_URL` env pair
 
 ### 6. Tests Required
 
-- `apps/server/src/__tests__/mediaStore.test.ts` — key normalization, atomic overwrite, concurrent
+- `apps/server/test/mediaStore.test.ts` — key normalization, atomic overwrite, concurrent
   writes, traversal rejection, local store roundtrip.
-- `apps/server/src/__tests__/s3MediaStore.test.ts` — SigV4 request shape (`AWS4-HMAC-SHA256`,
+- `apps/server/test/s3MediaStore.test.ts` — SigV4 request shape (`AWS4-HMAC-SHA256`,
   `auto/s3/aws4_request`), single percent-encoding of a Chinese key, 404 → null, 5xx → throw,
   `list` pagination plus ETag parsing, `mediaObjectKey` normalization. Stub `globalThis.fetch`;
   never call a real bucket.

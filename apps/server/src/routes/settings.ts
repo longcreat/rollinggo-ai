@@ -7,13 +7,13 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Value } from '@sinclair/typebox/value';
 import { SettingsPutSchema, TravelPreferencesSchema } from '@tripweaver/shared';
-import { getTravelPreferences, saveTravelPreferences } from '../services/travelPreferencesService';
+import { getTravelPreferences, saveTravelPreferences } from '@tripweaver/services/travelPreferencesService';
 import { requireAuth } from '../auth/guard';
-import { getSettingsView, upsertSettings } from '../services/settingsService';
-import { resolveGeoProvider, resolvePoiSourceForUser } from '../integrations/geoProvider';
-import { resolveSearchSourceForUser } from '../integrations/websearch/searchSource';
-import { env, type MapProvider } from '../env';
-import type { SourceStatus } from '../integrations/sourceStatus';
+import { getSettingsView, upsertSettings } from '@tripweaver/core/settingsService';
+import { resolveGeoProvider, resolvePoiSourceForUser } from '@tripweaver/integrations/geoProvider';
+import { resolveSearchSourceForUser } from '@tripweaver/integrations/websearch/searchSource';
+import { env, type MapProvider } from '@tripweaver/core/env';
+import type { SourceStatus } from '@tripweaver/integrations/sourceStatus';
 
 // 自检结果 60s 记忆化：按用户与凭据 revision 隔离，缓存中不保存凭据或数据源实例。
 const STATUS_TTL_MS = 60_000;

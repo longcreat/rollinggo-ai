@@ -17,8 +17,8 @@ Object.assign(process.env, {
   SITE_LLM_API_KEY: '', SITE_LLM_BASE_URL: '', SITE_LLM_MODEL: '',
   GITHUB_CLIENT_ID: '', GITHUB_CLIENT_SECRET: '',
 });
-const { pool } = await import('../apps/server/src/db/client');
-const { runMigrations } = await import('../apps/server/src/db/migrate');
+const { pool } = await import('@tripweaver/core/db/client');
+const { runMigrations } = await import('@tripweaver/core/db/migrate');
 const { settingsRoutes } = await import('../apps/server/src/routes/settings');
 const { installApiResponses } = await import('../apps/server/src/http/apiResponse');
 const { createSession } = await import('../apps/server/src/auth/session');

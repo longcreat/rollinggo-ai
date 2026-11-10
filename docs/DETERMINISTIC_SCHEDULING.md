@@ -5,7 +5,7 @@
 > 本文仍是**校准层的事实来源**：选点打分公式（`scheduling/score.ts`）、闭馆检测（`openHours` + 节假日豁免）、停留分量、路线顺序约束（routeOrderSeeds）都在现役代码中使用。
 >
 > 行程的**结构**（入选哪些点、每个点属于哪一天、当天内什么顺序）由纯代码算出，不经过 LLM。
-> 文案（标题、活动说明）才走模型。本文描述 `apps/server/src/generation/scheduling/` 的实现契约。
+> 文案（标题、活动说明）才走模型。本文描述 `packages/agent/src/generation/scheduling/` 的实现契约。
 >
 > 代码是权威，本文是导读。任何公式/阈值改动的权威位置在文末「相关文件」。
 
@@ -261,13 +261,13 @@ openTime 或日期缺失/非法 → false（无数据不校验，绝不错误拦
 
 | 职责 | 文件 |
 |---|---|
-| 排程核心（纯函数、零 IO） | `apps/server/src/generation/scheduling/schedule.ts` |
-| 事实补全 | `apps/server/src/generation/scheduling/placeFacts.ts` |
-| 关联对加载与候选交叉 | `apps/server/src/generation/scheduling/placeRelations.ts` |
-| 选点权重 / 停留分量 | `apps/server/src/generation/scheduling/score.ts`、`visitWeight.ts` |
-| 排程入参组装与写草稿 | `apps/server/src/generation/scheduling/buildDraft.ts` |
-| 编排调用点 | `apps/server/src/generation/orchestrator.ts`（阶段 2「确定性排程」） |
-| 顺序种子表 | `apps/server/src/data/routeOrderSeeds.json` + `.ts` |
+| 排程核心（纯函数、零 IO） | `packages/agent/src/generation/scheduling/schedule.ts` |
+| 事实补全 | `packages/agent/src/generation/scheduling/placeFacts.ts` |
+| 关联对加载与候选交叉 | `packages/agent/src/generation/scheduling/placeRelations.ts` |
+| 选点权重 / 停留分量 | `packages/agent/src/generation/scheduling/score.ts`、`visitWeight.ts` |
+| 排程入参组装与写草稿 | `packages/agent/src/generation/scheduling/buildDraft.ts` |
+| 编排调用点 | `packages/agent/src/generation/orchestrator.ts`（阶段 2「确定性排程」） |
+| 顺序种子表 | `packages/core/src/data/routeOrderSeeds.json` + `.ts` |
 | 闭馆判定 / 节假日 | `packages/shared/src/openHours.ts`、`holidays.ts` |
 | 可行性引擎（下游校验） | `packages/shared/src/feasibility.ts` |
-| 单测 | `apps/server/src/__tests__/scheduling.test.ts`、`holidays.test.ts`、`placeFacts.test.ts`、`placeRelations.test.ts` |
+| 单测 | `apps/server/test/scheduling.test.ts`、`holidays.test.ts`、`placeFacts.test.ts`、`placeRelations.test.ts` |

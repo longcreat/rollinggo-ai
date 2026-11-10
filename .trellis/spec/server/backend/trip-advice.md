@@ -39,7 +39,7 @@
 - Bad：模型读取并行修复之前的第1天安排，保存“第1天故宫”到最终行程；或把城楼政策泛化到整个广场。
 
 ## 6. 验证
-- `apps/server/src/__tests__/tripAdvice.test.ts`：分批检索、城市/名称隔离、证据强弱、危险链接、失败/取消、原子校验与 JSON 往返。
+- `apps/server/test/tripAdvice.test.ts`：分批检索、城市/名称隔离、证据强弱、危险链接、失败/取消、原子校验与 JSON 往返。
 - `apps/web/tests/tripAdvice.test.ts`：专属内容优先、天气追加、编辑过期与无关变化不误报。
 - `scripts/verify-generation-flow.mts`：隔离 PostgreSQL + 本地模型，真实 SQL 证据进入最终 advice 和来源；模型失败仍交付。
 - `apps/web/tests/trip-weather-browser.mjs`：桌面/手机专属建议、来源链接、待更新、旧天气状态和零浏览写入。

@@ -29,7 +29,7 @@
 
 - **Agent harness 全程编排**：详情对话运行在 pi-durable harness 上——每人一份 SQLite durable 会话（崩溃可恢复、上下文自动压缩），只读子代理并行查证、结构化回传，ask_user 在工具内阻塞等真人作答后同回合继续。写操作走「回合内存草稿 → 提交钩子」：一回合一个版本，乐观锁保护，绝不半成品落库
 - **模型决策，代码校准**：模型不自己算距离和时刻——顺路排序、时距推演、真实路线、可行性引擎（超载/折返/闭馆/换乘）、远郊修复全部是 Agent 手上的工具或事后校准层；「上午故宫下午八达岭」这类幻觉被结构性排除
-- **可复现的评测**：`eval/` 离线快照回归 + live 评估 + 版本比较 + 显式基线接纳；`eval/agent` 覆盖 Agent 工具策略/并发/快照/只读边界；规划质量指标（段距 p50/p90、重复坐标）与线上 `validate_plan` 同源
+- **可复现的评测**：`packages/evals/` 离线快照回归 + live 评估 + 版本比较 + 显式基线接纳；`packages/evals/agent` 覆盖 Agent 工具策略/并发/快照/只读边界；规划质量指标（段距 p50/p90、重复坐标）与线上 `validate_plan` 同源
 
 ## 架构
 
@@ -84,7 +84,7 @@ PostgreSQL + pgvector 用 `docker compose up -d db` 起（或指向已有的本�
 - [行前体检方案](docs/TRIP_REFINEMENT_PLAN.md) · [出发鸭交互调研](docs/GODUCK_INTERACTION_RESEARCH.md) — 产品框架来源
 - [确定性校准层算法](docs/DETERMINISTIC_SCHEDULING.md)（排程引擎历史与现役校准规则）
 - [API 响应与请求约定](docs/API_CONTRACT.md) · [高德预算与日志](docs/AMAP_QUOTAS.md)
-- [AI 行程分享图](docs/AI_SHARE_IMAGES.md) · [评估运行说明](eval/README.md)
+- [AI 行程分享图](docs/AI_SHARE_IMAGES.md) · [评估运行说明](packages/evals/README.md)
 
 ## 路线图
 

@@ -3,11 +3,11 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { PlanningTurnRequestSchema, type ChatStreamEvent } from '@tripweaver/shared';
-import { hasSiteLlm } from '../env';
-import { prepareDetailChat, runDetailChat } from '../services/detailChatService';
-import { startDetailTurn } from '../services/detailOperationService';
-import { resolveLlmConfig } from '../services/settingsService';
-import { streamErrorPayload } from '../chat/streamError';
+import { hasSiteLlm } from '@tripweaver/core/env';
+import { prepareDetailChat, runDetailChat } from '@tripweaver/agent/detailChatService';
+import { startDetailTurn } from '@tripweaver/services/detailOperationService';
+import { resolveLlmConfig } from '@tripweaver/core/settingsService';
+import { streamErrorPayload } from '@tripweaver/agent/chat/streamError';
 import { requireAuth } from '../auth/guard';
 
 const Id = Type.Object({ id: Type.String({ maxLength: 100 }) });

@@ -35,8 +35,8 @@ Services return `null`/`false` for expected absence and may throw an `Error` wit
 `statusCode` for reusable domain rejection. The generation orchestrator owns job failure
 conversion and records/emits `done`, `error`, or `cancelled`.
 
-Representative paths: `apps/server/src/services/tripService.ts`,
-`apps/server/src/services/settingsService.ts`, `apps/server/src/generation/orchestrator.ts`.
+Representative paths: `packages/services/src/tripService.ts`,
+`packages/core/src/settingsService.ts`, `packages/agent/src/generation/orchestrator.ts`.
 
 ## External Integration Failures
 
@@ -48,9 +48,9 @@ Do not extend this tolerance to database corruption, programming errors, or inva
 failures. Current call statistics count accepted non-Null wrapper attempts, including cache
 hits and attempts that later degrade; they are not confirmed successful network requests.
 
-Representative paths: `apps/server/src/integrations/amap/poiSource.ts`,
-`apps/server/src/integrations/websearch/searchSource.ts`,
-`apps/server/src/integrations/sourceStatus.ts`.
+Representative paths: `packages/integrations/src/amap/poiSource.ts`,
+`packages/integrations/src/websearch/searchSource.ts`,
+`packages/integrations/src/sourceStatus.ts`.
 
 ## Error Classes
 
@@ -58,8 +58,8 @@ Use a named error class when callers need reliable classification or a stable co
 `SsrfError` and `GithubOauthError`. Use a local workflow error such as `GenerationFailure`
 when the type should not escape its module. Avoid large generic error hierarchies.
 
-Representative paths: `apps/server/src/integrations/ssrfGuard.ts`,
-`apps/server/src/auth/github.ts`, `apps/server/src/generation/orchestrator.ts`.
+Representative paths: `packages/core/src/ssrfGuard.ts`,
+`apps/server/src/auth/github.ts`, `packages/agent/src/generation/orchestrator.ts`.
 
 ## Common Mistakes
 

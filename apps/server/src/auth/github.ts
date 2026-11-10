@@ -1,6 +1,6 @@
 // GitHub OAuth（web application flow，手写最小实现）：
 // access token 仅用于拉取一次身份，用完即弃不落库；账号关联只信 primary && verified 邮箱
-import { env } from '../env';
+import { env } from '@tripweaver/core/env';
 
 const AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
 const TOKEN_URL = 'https://github.com/login/oauth/access_token';

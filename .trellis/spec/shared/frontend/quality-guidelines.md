@@ -10,14 +10,14 @@ Code in `@tripweaver/shared` must remain usable by both `apps/web` and `apps/ser
 - Derive matching types with `Static<typeof Schema>` in `packages/shared/src/types.ts`.
 - Define closed values as readonly `as const` arrays in `packages/shared/src/constants.ts` and derive unions from those arrays.
 - Re-export every supported public symbol from `packages/shared/src/index.ts`.
-- Import only from `@tripweaver/shared` in applications. Examples include `apps/web/src/store/editorStore.ts`, `apps/web/src/components/editor/BudgetPanel.tsx`, and `apps/server/src/services/quotaService.ts`.
+- Import only from `@tripweaver/shared` in applications. Examples include `apps/web/src/store/editorStore.ts`, `apps/web/src/components/editor/BudgetPanel.tsx`, and `packages/core/src/quotaService.ts`.
 - Prefer pure, explicit domain utilities that can be exercised without application setup.
 
 ## Assertions and Validation
 
 Use type assertions only when a library boundary has a real invariant that TypeScript cannot express. The TypeBox union helper in `packages/shared/src/schemas.ts` is the current justified example. Keep such assertions narrow and local.
 
-Do not treat casts at JSON, DOM, form, database, SSE, or third-party boundaries as validation. Existing assertions in `apps/web/src/pages/PlannerPage.tsx` and `apps/server/src/integrations/amap/poiSource.ts` illustrate boundaries that require deliberate trust or checks.
+Do not treat casts at JSON, DOM, form, database, SSE, or third-party boundaries as validation. Existing assertions in `apps/web/src/pages/PlannerPage.tsx` and `packages/integrations/src/amap/poiSource.ts` illustrate boundaries that require deliberate trust or checks.
 
 ## Testing
 

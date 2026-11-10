@@ -48,7 +48,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: eval-reports
-          path: eval/runs/
+          path: packages/evals/runs/
           if-no-files-found: warn
           retention-days: 14
   check:

@@ -10,7 +10,7 @@ Do not create a parallel interface that can drift from an existing schema. Inter
 
 Closed domain values belong in readonly `as const` arrays in `packages/shared/src/constants.ts`. Derive unions with `(typeof VALUES)[number]` in `packages/shared/src/types.ts`, and reuse the same values when constructing schemas in `packages/shared/src/schemas.ts`. Examples include activity categories, budget levels, coordinate sources, POI categories, reservation statuses, and data source kinds.
 
-Do not duplicate string unions, option arrays, or validators in consumers such as `apps/server/src/generation/draft.ts` or `apps/web/src/components/editor/ActivityCard.tsx`.
+Do not duplicate string unions, option arrays, or validators in consumers such as `packages/agent/src/generation/draft.ts` or `apps/web/src/components/editor/ActivityCard.tsx`.
 
 ## Framework Independence and Purity
 
@@ -21,13 +21,13 @@ Do not duplicate string unions, option arrays, or validators in consumers such a
 
 ## Public Imports
 
-`packages/shared/package.json` exports only the package root, and `packages/shared/src/index.ts` is the public barrel. Export new supported symbols there. Server and web consumers must import from `@tripweaver/shared`, as shown by `apps/server/src/services/quotaService.ts`, `apps/server/src/generation/orchestrator.ts`, and `apps/web/src/store/editorStore.ts`. Deep imports are unsupported.
+`packages/shared/package.json` exports only the package root, and `packages/shared/src/index.ts` is the public barrel. Export new supported symbols there. Server and web consumers must import from `@tripweaver/shared`, as shown by `packages/core/src/quotaService.ts`, `packages/agent/src/generation/orchestrator.ts`, and `apps/web/src/store/editorStore.ts`. Deep imports are unsupported.
 
 ## Controlled Assertions
 
 Avoid assertions in ordinary domain logic. A narrow assertion is acceptable at a library typing boundary when runtime construction already establishes the invariant and TypeScript cannot express it. The generic TypeBox string-enum helper in `packages/shared/src/schemas.ts` uses `as unknown as TUnion<...>` for that reason.
 
-Assertions at JSON, form, database, or third-party boundaries do not validate data. Prefer an actual validator or a checked narrowing before converting unknown input. Existing consumer assertions in `apps/web/src/pages/PlannerPage.tsx`, `apps/server/src/integrations/amap/poiSource.ts`, and `apps/server/src/integrations/websearch/searchSource.ts` should be treated as boundary caveats, not patterns to spread.
+Assertions at JSON, form, database, or third-party boundaries do not validate data. Prefer an actual validator or a checked narrowing before converting unknown input. Existing consumer assertions in `apps/web/src/pages/PlannerPage.tsx`, `packages/integrations/src/amap/poiSource.ts`, and `packages/integrations/src/websearch/searchSource.ts` should be treated as boundary caveats, not patterns to spread.
 
 ## Testing and Verification
 

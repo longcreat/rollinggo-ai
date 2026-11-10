@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { parse } from 'dotenv';
 import pg from 'pg';
-import { normalizePlaceKey } from '../src/lib/placeKey';
+import { normalizePlaceKey } from '@tripweaver/core/lib/placeKey';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const { values } = parseArgs({ options: {

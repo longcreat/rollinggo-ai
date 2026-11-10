@@ -319,7 +319,7 @@ CLI为`node --import tsx scripts/govern-independent-photos.mts --decisions <json
 ## 20. 金集导入与来源恢复
 
 - `scripts/seed-canonical-places.ts`和`scripts/restore-goldset.ts`共用`services/goldsetPlaceImport.ts:importGoldsetCity(client,city,items,mode)`。调用方必须开启事务；每城持身份advisory锁，锁定现有地点行后捕获审计快照，避免与不持城市锁的图片回写相互覆盖。
-- CLI默认读取`eval/snapshots`，支持`--snapshot-dir <目录>`和`--dry-run`；只接纳名称非空、坐标在有效范围内的geocoded活动。dry-run回滚地点和审计，启动schema迁移仍按原有机制执行。
+- CLI默认读取`packages/evals/snapshots`，支持`--snapshot-dir <目录>`和`--dry-run`；只接纳名称非空、坐标在有效范围内的geocoded活动。dry-run回滚地点和审计，启动schema迁移仍按原有机制执行。
 - seed按完整城市目录使用统一身份索引。ID已存在、已由entityId/memberIds/重定向目标声明，或名称已确认/歧义/撤回，均不创建旧行；未知独立地点仍可新增。相似名称只是审阅候选，不据此自动合并或丢弃独立金集地点。
 - restore仅对按原城市+活动名派生ID存在且source不是goldset的行恢复来源及caseId/activity溯源。合并保留当前payload全部其他字段，包括身份、撤回、别名、图库和提及策略；已有治理声明的类别不被旧活动覆盖。未治理行类别变化导致嵌入文本变化时清空embedding及embeddedText；先检查可选向量列是否存在，未安装pgvector仍能恢复来源和回滚审计。
 - 有变化才记录一次城市`place_identity_imports`前后快照；幂等重跑无新增审计。关系快照、独立图片绑定、语料以及用户历史行程不随金集来源恢复改变。

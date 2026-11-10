@@ -2,7 +2,7 @@ node_modules/
 dist/
 data/
 # 例外：预约种子表是随仓库维护的源码资产（勿被运行时 data/ 规则误伤）
-!apps/server/src/data/
+!packages/core/src/data/
 *.db
 *.db-journal
 .env
@@ -11,10 +11,10 @@ data/
 .DS_Store
 verify-shots/
 geo-test.temp.*
-eval/reports/
-eval/runs/
-eval/knowledge-snapshots/
-eval/data/
+packages/evals/reports/
+packages/evals/runs/
+packages/evals/knowledge-snapshots/
+packages/evals/data/
 .env.tmp
 
 # 小红书地点库导入中间文件（由 xhs-travel-pipeline 的 export_to_tripweaver.py 生成）

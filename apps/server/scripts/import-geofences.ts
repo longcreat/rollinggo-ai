@@ -6,11 +6,11 @@
 //
 // 只写 source='amap-area' 的行；已有金集/社区行不会被覆盖。
 // 入库后记得跑 embed-backfill（同 seed-xhs-places 的约定）。
-import { pool } from '../src/db/client';
-import { env } from '../src/env';
-import { searchAreaPois } from '../src/integrations/amap/placeArea';
-import { buildSubPoiRows, type SubPoiRow } from '../src/services/geofenceImport';
-import type { SourcedPoi } from '../src/integrations/geoContracts';
+import { pool } from '@tripweaver/core/db/client';
+import { env } from '@tripweaver/core/env';
+import { searchAreaPois } from '@tripweaver/integrations/amap/placeArea';
+import { buildSubPoiRows, type SubPoiRow } from '@tripweaver/services/geofenceImport';
+import type { SourcedPoi } from '@tripweaver/integrations/geoContracts';
 
 function arg(name: string): string | undefined {
   const index = process.argv.indexOf(`--${name}`);

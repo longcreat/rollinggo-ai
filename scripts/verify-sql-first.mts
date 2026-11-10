@@ -14,7 +14,7 @@ let created = false;
 try {
   await admin.query(`CREATE DATABASE "${databaseName}"`);
   created = true;
-  const folder = 'apps/server/src/__tests__';
+  const folder = 'apps/server/test';
   // 所有测试都应自带夹具，能在隔离空库里成立（placeLookup.test.ts 的库内身份样本已改为显式注入）。
   const files = process.argv.includes('--full')
     ? (await readdir(folder)).filter((name) => name.endsWith('.test.ts')).sort()

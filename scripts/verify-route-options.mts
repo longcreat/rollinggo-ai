@@ -23,13 +23,13 @@ process.env.GITHUB_CLIENT_SECRET = '';
 process.env.REGISTRATION_MODE = 'open';
 // 在服务构造并捕获 Date.now 前设置时钟，避免 admission 与请求侧看到不同日期。
 mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-29T04:00:00Z') });
-const { db, pool } = await import('../apps/server/src/db/client');
-const { runMigrations } = await import('../apps/server/src/db/migrate');
-const { users } = await import('../apps/server/src/db/schema');
+const { db, pool } = await import('@tripweaver/core/db/client');
+const { runMigrations } = await import('@tripweaver/core/db/migrate');
+const { users } = await import('@tripweaver/core/db/schema');
 const { createSession } = await import('../apps/server/src/auth/session');
-const { createTrip } = await import('../apps/server/src/services/tripService');
+const { createTrip } = await import('@tripweaver/services/tripService');
 const { tripRoutes } = await import('../apps/server/src/routes/trips');
-const { amapBudgetRemaining } = await import('../apps/server/src/services/quotaService');
+const { amapBudgetRemaining } = await import('@tripweaver/core/quotaService');
 const { installApiResponses } = await import('../apps/server/src/http/apiResponse');
 const app = Fastify();
 installApiResponses(app);
@@ -80,7 +80,7 @@ try {
   assert.equal(externalCalls, callsBefore);
   await runMigrations(pool);
   assert.equal(await amapBudgetRemaining(), 240 - externalCalls, 'migration preserves usage');
-  const { upsertSettings } = await import('../apps/server/src/services/settingsService');
+  const { upsertSettings } = await import('@tripweaver/core/settingsService');
   await upsertSettings('owner', { amapApiKey: 'changed-fixture' });
   assert.equal((await request(ownerCookie, { ...body, mode: 'drive' })).statusCode, 200);
   assert.equal(await amapBudgetRemaining(), 240 - externalCalls, 'credential changes do not charge adapter cache hits');
@@ -91,8 +91,8 @@ try {
   mock.timers.setTime(Date.now() + 301_000);
   assert.equal((await request(ownerCookie, shifted)).statusCode, 200);
   assert.equal(externalCalls, beforeExpiry + 1, 'expired route/result cache queries provider again');
-  const { createAmapQuotaLedger } = await import('../apps/server/src/lib/amapQuotaLedger');
-  const { AMAP_SERVICES, amapDay } = await import('../apps/server/src/integrations/amap/services');
+  const { createAmapQuotaLedger } = await import('@tripweaver/core/lib/amapQuotaLedger');
+  const { AMAP_SERVICES, amapDay } = await import('@tripweaver/core/amapServices');
   const limits = Object.fromEntries(AMAP_SERVICES.map(service => [service, 5])) as Record<typeof AMAP_SERVICES[number], number>;
   limits.place = 0;
   let quotaNow = Date.parse('2026-10-01T15:59:59Z');

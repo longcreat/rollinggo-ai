@@ -90,11 +90,11 @@ const llm = createServer(async (req, res) => {
   res.end('data: [DONE]\n\n');
 });
 llm.listen(18828, '127.0.0.1'); await once(llm, 'listening');
-const { db, pool } = await import('../apps/server/src/db/client');
-const { createTrip, updateTrip, listTripVersions, getTrip } = await import('../apps/server/src/services/tripService');
+const { db, pool } = await import('@tripweaver/core/db/client');
+const { createTrip, updateTrip, listTripVersions, getTrip } = await import('@tripweaver/services/tripService');
 const { createSession } = await import('../apps/server/src/auth/session');
-const { ensureTripConversation, restoreTrip, repairChangedRoutes } = await import('../apps/server/src/services/tripHistoryService');
-const { appendMessages } = await import('../apps/server/src/services/conversationService');
+const { ensureTripConversation, restoreTrip, repairChangedRoutes } = await import('@tripweaver/services/tripHistoryService');
+const { appendMessages } = await import('@tripweaver/services/conversationService');
 const { conversationRoutes } = await import('../apps/server/src/routes/conversations');
 const { tripRoutes } = await import('../apps/server/src/routes/trips');
 const { authRoutes } = await import('../apps/server/src/routes/auth');
@@ -145,7 +145,7 @@ try {
   delete source.lodging;
   const initial = await createTrip('detail-user', source);
   await pool.query('ALTER TABLE trips DROP COLUMN change_summary; ALTER TABLE chat_messages DROP COLUMN attachment');
-  const { runMigrations } = await import('../apps/server/src/db/migrate');
+  const { runMigrations } = await import('@tripweaver/core/db/migrate');
   await runMigrations(pool); await runMigrations(pool);
   assert.equal((await getTrip('detail-user', initial.id))!.title, initial.title);
   const { conversationId } = await ensureTripConversation('detail-user', initial.id);
@@ -285,7 +285,7 @@ try {
   const regenerateFrames = (await regenerated.text()).split('\n\n').filter((f) => f.startsWith('data:')).map((f) => JSON.parse(f.slice(5)));
   const regenerateResult = regenerateFrames.at(-1).result;
   assert.ok(regenerateResult?.startedGenerationJobId, JSON.stringify(regenerateFrames));
-  const { getLiveRun, cancelLiveRun } = await import('../apps/server/src/generation/liveRun');
+  const { getLiveRun, cancelLiveRun } = await import('@tripweaver/agent/generation/liveRun');
   const run = getLiveRun(regenerateResult.startedGenerationJobId, 'detail-user');
   run?.abort.abort();
   cancelLiveRun(regenerateResult.startedGenerationJobId, 'detail-user');

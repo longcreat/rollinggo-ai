@@ -10,24 +10,24 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { RenameTripSchema, RouteOptionsRequestSchema, RouteOptionsResponseSchema, TripExportSchema, TripSchema, TRIP_LIST_PAGE_SIZE, TRIP_LIST_PAGE_SIZE_MAX } from '@tripweaver/shared';
-import { getRouteOptions } from '../services/routeOptionsService';
+import { getRouteOptions } from '@tripweaver/services/routeOptionsService';
 import { TripShareImageRequestSchema, TripShareImageQuerySchema, TripShareImageResponseSchema, TripShareImageGeneratedResponseSchema } from '@tripweaver/shared';
-import { recordShareImageNotification } from '../services/notificationService';
-import { createTripShareImageService } from '../services/tripShareImageService';
-import { sharePosterStore } from '../services/sharePosterStore';
+import { recordShareImageNotification } from '@tripweaver/services/notificationService';
+import { createTripShareImageService } from '@tripweaver/services/tripShareImageService';
+import { sharePosterStore } from '@tripweaver/services/sharePosterStore';
 import { requireAuth } from '../auth/guard';
-import { createTrip, deleteTrip, getTrip, listTripsPage, listTripVersions, renameTrip, updateTrip } from '../services/tripService';
-import { findConversationForTrip } from '../services/conversationService';
+import { createTrip, deleteTrip, getTrip, listTripsPage, listTripVersions, renameTrip, updateTrip } from '@tripweaver/services/tripService';
+import { findConversationForTrip } from '@tripweaver/services/conversationService';
 import { TripOperationRequestSchema, TripRewindRequestSchema } from '@tripweaver/shared';
-import { enrichTripPhotos } from '../services/tripPhotoService';
-import { createStoredAmapPhotoLookup } from '../generation/storedPlaceLookups';
-import { ensureTripConversation, restoreTrip, rewindTrip } from '../services/tripHistoryService';
+import { enrichTripPhotos } from '@tripweaver/services/tripPhotoService';
+import { createStoredAmapPhotoLookup } from '@tripweaver/agent/generation/storedPlaceLookups';
+import { ensureTripConversation, restoreTrip, rewindTrip } from '@tripweaver/services/tripHistoryService';
 import { TripWeatherSchema } from '@tripweaver/shared';
-import { getTripWeather } from '../services/tripWeatherService';
+import { getTripWeather } from '@tripweaver/services/tripWeatherService';
 import {
   createHealthCheck, getHealthCheck, getTripVersion, latestHealthCheck, resolveHealthCheck,
-} from '../services/healthCheckService';
-import { verifyFinding } from '../services/healthVerifyService';
+} from '@tripweaver/services/healthCheckService';
+import { verifyFinding } from '@tripweaver/services/healthVerifyService';
 import { HealthCheckViewSchema, HealthDecisionsRequestSchema } from '@tripweaver/shared';
 
 const IdParams = Type.Object({ id: Type.String() });
@@ -83,8 +83,8 @@ export const tripRoutes: FastifyPluginAsyncTypebox = async (app) => {
     const verification = await verifyFinding({ userId, trip, finding });
     // 把核验结果写回 findings（落库，刷新不丢）
     const updated = check.findings.map((f) => f.id === finding.id ? { ...f, verification } : f);
-    const { db } = await import('../db/client');
-    const { tripHealthChecks } = await import('../db/schema');
+    const { db } = await import('@tripweaver/core/db/client');
+    const { tripHealthChecks } = await import('@tripweaver/core/db/schema');
     const { eq, and } = await import('drizzle-orm');
     await db.update(tripHealthChecks).set({ findings: updated })
       .where(and(eq(tripHealthChecks.id, check.id), eq(tripHealthChecks.userId, userId)));

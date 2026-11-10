@@ -24,10 +24,10 @@ import {
   uid,
 } from '@tripweaver/shared';
 import { requireAuth } from '../auth/guard';
-import { resolveLlmConfig } from '../services/settingsService';
-import { getConversation } from '../services/conversationService';
-import { getTrip } from '../services/tripService';
-import { hasSiteLlm } from '../env';
+import { resolveLlmConfig } from '@tripweaver/core/settingsService';
+import { getConversation } from '@tripweaver/services/conversationService';
+import { getTrip } from '@tripweaver/services/tripService';
+import { hasSiteLlm } from '@tripweaver/core/env';
 import {
   cancelLiveRun,
   createLiveRun,
@@ -36,12 +36,12 @@ import {
   projectionFromTask,
   subscribeLiveProjection,
   type LiveRun,
-} from '../generation/liveRun';
-import type { GenerationTaskInput } from '../generation/generationTask';
-import { startGenerationTask } from '../generation/startGeneration';
-import { agentStoragePath, ensureAgentStorageDir } from '../generation/agentStorage';
-import { getAgentRuntime } from '../chat/agent/runtime';
-import { getGenerationResult } from '../services/notificationService';
+} from '@tripweaver/agent/generation/liveRun';
+import type { GenerationTaskInput } from '@tripweaver/agent/generation/generationTask';
+import { startGenerationTask } from '@tripweaver/agent/generation/startGeneration';
+import { agentStoragePath, ensureAgentStorageDir } from '@tripweaver/agent/generation/agentStorage';
+import { getAgentRuntime } from '@tripweaver/agent/chat/agent/runtime';
+import { getGenerationResult } from '@tripweaver/services/notificationService';
 import {
   beginGenerationTask,
   finalizeGenerationTask,
@@ -49,9 +49,9 @@ import {
   getGenerationTask,
   markGenerationTaskFailed,
   type GenerationTaskView,
-} from '../generation/taskStore';
-import type { GenerationAgentKey, GenerationTaskRef } from '../generation/provenance';
-import { normalizeAgentTranscript } from '../generation/agentTranscript';
+} from '@tripweaver/agent/generation/taskStore';
+import type { GenerationAgentKey, GenerationTaskRef } from '@tripweaver/agent/generation/provenance';
+import { normalizeAgentTranscript } from '@tripweaver/agent/generation/agentTranscript';
 
 const AGENT_STAGES: Record<PlannerStageKey, readonly string[]> = {
   exploration: ['exploration', 'research'],

@@ -4,15 +4,15 @@
 
 Database implementation is N/A inside `@tripweaver/shared`. This package must not import Drizzle, SQLite, migrations, repositories, or database row types. Those concerns belong to `apps/server`.
 
-Relevant separation is visible between shared domain contracts in `packages/shared/src/schemas.ts` and persistence consumers such as `apps/server/src/db/schema.ts` and `apps/server/src/services/tripService.ts`.
+Relevant separation is visible between shared domain contracts in `packages/shared/src/schemas.ts` and persistence consumers such as `packages/core/src/db/schema.ts` and `packages/services/src/tripService.ts`.
 
 ## Persisted Contract Changes
 
 Shared schemas can describe values that the server persists, so schema changes still require persistence impact analysis:
 
 - Treat `TripSchema` and `TripExportSchema` as domain and interchange contracts, not as database migration definitions.
-- Check existing stored JSON and optional compatibility fields before making a property required or narrowing a value set. Current compatibility examples include optional `overview` and `meta.dataSources` in `packages/shared/src/schemas.ts`, with consumption in `apps/server/src/services/tripService.ts` and `apps/web/src/pages/PlannerPage.tsx`.
-- Keep storage-specific summaries and row shapes explicit when they are true cross-consumer protocol types; `TripListItem` is defined in `packages/shared/src/types.ts` and consumed by `apps/server/src/services/tripService.ts` and web API code.
+- Check existing stored JSON and optional compatibility fields before making a property required or narrowing a value set. Current compatibility examples include optional `overview` and `meta.dataSources` in `packages/shared/src/schemas.ts`, with consumption in `packages/services/src/tripService.ts` and `apps/web/src/pages/PlannerPage.tsx`.
+- Keep storage-specific summaries and row shapes explicit when they are true cross-consumer protocol types; `TripListItem` is defined in `packages/shared/src/types.ts` and consumed by `packages/services/src/tripService.ts` and web API code.
 
 ## Runtime Validation Caveat
 

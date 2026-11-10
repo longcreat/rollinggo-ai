@@ -8,7 +8,7 @@ from fontTools.ttLib import TTFont
 
 ROOT = Path(__file__).resolve().parent.parent
 FONT_DIR = ROOT / "apps/web/public/fonts/handwriting"
-OUTPUT = ROOT / "apps/server/src/generation/titleFont.generated.ts"
+OUTPUT = ROOT / "packages/agent/src/generation/titleFont.generated.ts"
 SHARED_OUTPUT = ROOT / "packages/shared/src/handwriting.generated.ts"
 
 

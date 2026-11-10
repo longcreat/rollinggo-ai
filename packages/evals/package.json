@@ -1,0 +1,15 @@
+{
+  "name": "@tripweaver/evals",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@tripweaver/shared": "*",
+    "@tripweaver/core": "*",
+    "@tripweaver/integrations": "*",
+    "@tripweaver/services": "*",
+    "@tripweaver/agent": "*"
+  },
+  "exports": {
+    "./*": "./*.ts"
+  }
+}

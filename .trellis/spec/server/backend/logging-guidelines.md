@@ -31,7 +31,7 @@ If request serializers or broader object logging are added, configure Pino redac
 at least `req.headers.authorization`, `req.headers.cookie`, and known secret fields.
 
 Representative paths: `apps/server/src/auth/session.ts`,
-`apps/server/src/crypto/secretBox.ts`, `scripts/verify-security.mjs`.
+`packages/core/src/crypto/secretBox.ts`, `scripts/verify-security.mjs`.
 
 ## Useful Context
 

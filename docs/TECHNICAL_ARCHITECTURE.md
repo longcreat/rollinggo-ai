@@ -78,34 +78,38 @@
 
 ## 3. Monorepo 结构（关键部分）
 
+依赖方向：`shared ← core ← integrations ← services ← agent ← apps/server`；跨包引用统一 `@tripweaver/<pkg>/<path>`。
+
 ```
 ├─ package.json                        # workspaces + eval scripts
-├─ packages/shared/src/                # 领域 schema/纯函数（可行性引擎、legs、openHours、chat 契约）
-├─ apps/server/src/
-│  ├─ chat/agent/                      # ★ 详情 Agent harness
-│  │  ├─ runtime.ts                    #   pi-durable Harness 适配（每人一份 SQLite、watch→SSE、resume、并发锁）
-│  │  ├─ turn.ts                       #   回合装配（工具组/事件→steps/parts 映射/提交事务）
-│  │  ├─ tools.ts · writeTools.ts      #   19 工具（读5+片区/美食/HITL/brief/生成 + 9 写）
-│  │  ├─ tripDraft.ts                  #   回合内存草稿（写工具唯一作用域）
-│  │  ├─ subagent.ts · toolPolicy.ts   #   spawn_subagents（只读白名单、深度1、结构化 JSON 产出）
-│  │  ├─ humanInLoop.ts                #   ask_user 阻塞语义（pending Map、120s 超时、answer 回注）
-│  │  ├─ placePoints.ts                #   本回合可信点位/图片缓存（写工具零解析复用）
-│  │  └─ overviewSync.ts · turnState.ts
-│  ├─ generation/
-│  │  ├─ orchestrator.ts               # 生成三阶段编排 + 确定性校准层
-│  │  ├─ planner/                      # ★ 规划 Agent（prompt/tools/validator，6 工具）
-│  │  ├─ scheduling/dayPlanner.ts      #   时距推演引擎（到达/离开时刻、餐次窗、收工线）
-│  │  ├─ mealPlanning.ts · mealEnrichment.ts  # 补餐兜底 + 锚点换真实餐厅
-│  │  ├─ geoPipeline.ts · geoSanity.ts · routeCoherence.ts · longHaulFixer.ts
-│  │  └─ scheduling/schedule.ts        # 旧确定性排程（仅剩「对话加天」消费，待迁移）
-│  ├─ services/
-│  │  ├─ healthCheckService.ts · healthAudit.ts · healthVerifyService.ts · healthRepairService.ts  # ★ 行前体检
-│  │  ├─ geofenceImport.ts             # 景区面状子点导入口径（classifySubPoi 三方共用）
-│  │  └─ tripService.ts · tripHistoryService.ts · detailChatService.ts · quotaService.ts
-│  ├─ integrations/amap/               # poiSource · geocoder · route · poiPhotos · placeArea(周边/多边形)
-│  ├─ integrations/qweather/ · websearch/ · embedding.ts
-│  └─ db/ · auth/ · routes/ · lib/
-└─ apps/web/src/                       # 直播编辑器(/agent/:jobId) · ChatPanel+AgentActivity+QuestionCard
+├─ packages/
+│  ├─ shared/src/                      # 领域 schema/纯函数（可行性引擎、legs、openHours、chat 契约、检索类型）
+│  ├─ core/src/                        # env · db · lib · crypto · data · 凭证/配额 · provider 常量
+│  ├─ integrations/src/                # amap · qweather · websearch · embedding · 生图/发信 · detailSources
+│  ├─ services/src/                    # trip/conversation/health/place/share · brief/parse · itinerary
+│  ├─ agent/src/
+│  │  ├─ chat/agent/                   # ★ 详情 Agent harness
+│  │  │  ├─ runtime.ts                 #   pi-durable Harness 适配（每人一份 SQLite、watch→SSE、resume、并发锁）
+│  │  │  ├─ turn.ts                    #   回合装配（工具组/事件→steps/parts 映射/提交事务）
+│  │  │  ├─ tools.ts · writeTools.ts   #   19 工具（读5+片区/美食/HITL/brief/生成 + 9 写）
+│  │  │  ├─ tripDraft.ts               #   回合内存草稿（写工具唯一作用域）
+│  │  │  ├─ subagent.ts · toolPolicy.ts#   spawn_subagents（只读白名单、深度1、结构化 JSON 产出）
+│  │  │  ├─ humanInLoop.ts             #   ask_user 阻塞语义（pending Map、120s 超时、answer 回注）
+│  │  │  ├─ placePoints.ts             #   本回合可信点位/图片缓存（写工具零解析复用）
+│  │  │  └─ overviewSync.ts · turnState.ts
+│  │  ├─ generation/
+│  │  │  ├─ orchestrator.ts            # 生成三阶段编排 + 确定性校准层
+│  │  │  ├─ planner/                   # ★ 规划 Agent（prompt/tools/validator，6 工具）
+│  │  │  ├─ scheduling/dayPlanner.ts   #   时距推演引擎（到达/离开时刻、餐次窗、收工线）
+│  │  │  ├─ mealPlanning.ts · mealEnrichment.ts  # 补餐兜底 + 锚点换真实餐厅
+│  │  │  ├─ geoPipeline.ts · geoSanity.ts · routeCoherence.ts · longHaulFixer.ts
+│  │  │  └─ scheduling/schedule.ts     # 旧确定性排程（仅剩「对话加天」消费，待迁移）
+│  │  ├─ tasks/ · tools/ · agent/tools/# 委派任务、数据源工具核心
+│  │  └─ detailChatService.ts          # 详情 Agent 入口
+│  └─ evals/                           # 离线快照 + live 评估（原根目录 eval/）
+└─ apps/
+   ├─ server/src/                      # Fastify 入口 · routes · http · auth；test/ 为服务端测试
+   └─ web/src/                         # 直播编辑器(/agent/:jobId) · ChatPanel+AgentActivity+QuestionCard
                                        # · HealthCheckSheet · LiveAgentStream · editorStore
 ```
 

@@ -17,6 +17,7 @@ export * from './openHours';
 export * from './sample';
 export * from './utils';
 export * from './weather';
+export * from './placeTypes';
 export * from './projection';
 export * from './projectionClient';
 export * from './tripProjection';

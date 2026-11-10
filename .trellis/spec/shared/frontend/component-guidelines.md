@@ -11,7 +11,7 @@ This separation is visible between `packages/shared/src/types.ts` and component 
 - Share a type only when it represents a domain or cross-boundary protocol, not merely a local component prop shape.
 - Share closed option values through readonly constants, then derive their union types; editor components read the derived unions from `@tripweaver/shared` rather than redeclaring them.
 - Keep formatting, labels, dialogs, event handlers, accessibility behavior, and fallback UI in the web application.
-- Prefer pure shared calculations when server and UI genuinely need identical results. `computeBudgetSummary` is defined in `packages/shared/src/budget.ts` and consumed by `apps/web/src/components/editor/BudgetPanel.tsx` and `apps/server/src/services/tripService.ts`.
+- Prefer pure shared calculations when server and UI genuinely need identical results. `computeBudgetSummary` is defined in `packages/shared/src/budget.ts` and consumed by `apps/web/src/components/editor/BudgetPanel.tsx` and `packages/services/src/tripService.ts`.
 
 ## Boundary Caveat
 

@@ -14,8 +14,8 @@ import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { ConversationCreateSchema, PlanningBriefPatchSchema } from '@tripweaver/shared';
 import { requireAuth } from '../auth/guard';
-import { applyDialogueDecision, briefStatus } from '../chat/brief';
-import { createConversation, getConversationDetail, saveBrief } from '../services/conversationService';
+import { applyDialogueDecision, briefStatus } from '@tripweaver/services/brief';
+import { createConversation, getConversationDetail, saveBrief } from '@tripweaver/services/conversationService';
 import { detailChatRoutes } from './detailChat';
 import { planningRoutes } from './planning';
 

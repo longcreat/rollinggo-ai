@@ -1,0 +1,18 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["node"],
+    "paths": {
+      "@tripweaver/shared": ["../shared/src/index.ts"],
+      "@tripweaver/shared/*": ["../shared/src/*"],
+      "@tripweaver/core/*": ["../core/src/*"],
+      "@tripweaver/integrations/*": ["../integrations/src/*"],
+      "@tripweaver/services/*": ["../services/src/*"],
+      "@tripweaver/agent/*": ["../agent/src/*"],
+      "@tripweaver/evals/*": ["../evals/*"]
+    }
+  },
+  "include": ["src"]
+}

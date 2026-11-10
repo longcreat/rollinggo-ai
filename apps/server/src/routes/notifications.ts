@@ -7,8 +7,8 @@ import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { NotificationPageSchema, NotificationQuerySchema, NotificationReadAllSchema } from '@tripweaver/shared';
 import { requireAuth } from '../auth/guard';
-import { listNotifications, readAllNotifications, readNotification } from '../services/notificationService';
-import { subscribeNotifications } from '../services/notificationStream';
+import { listNotifications, readAllNotifications, readNotification } from '@tripweaver/services/notificationService';
+import { subscribeNotifications } from '@tripweaver/services/notificationStream';
 
 const HEARTBEAT_MS = 15_000;
 

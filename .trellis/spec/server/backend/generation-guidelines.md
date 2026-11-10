@@ -13,7 +13,7 @@
 7. **Wrong vs correct**: merely telling the model to use common characters is insufficient; parse actual shipped fonts, validate tool arguments, and return actionable missing-character feedback before writing.
 
 `apps/server/src/routes/generations.ts` owns HTTP admission, quota/conflict responses, job
-snapshots, SSE transport, and cancellation requests. `apps/server/src/generation/orchestrator.ts`
+snapshots, SSE transport, and cancellation requests. `packages/agent/src/generation/orchestrator.ts`
 is the single generation entry point and owns the research, planning, review, persistence,
 usage recording, and terminal outcome sequence.
 
@@ -29,7 +29,7 @@ the trip and success audit commit together. Terminal helpers are idempotent, and
 events from parallel enhancement work are discarded.
 
 Representative paths: `apps/server/src/routes/generations.ts`,
-`apps/server/src/generation/orchestrator.ts`, `apps/server/src/generation/liveRun.ts`.
+`packages/agent/src/generation/orchestrator.ts`, `packages/agent/src/generation/liveRun.ts`.
 
 ## Scenario: Research Tool Submission Completion (2026-10-04)
 
@@ -123,8 +123,8 @@ cleanly, and missing `reason` renders as a user cancel on the client. Task truth
 `generations` row, so a cancel after restart goes through `harness.abortTask(durableTaskId)`.
 
 Representative paths: `apps/server/src/routes/generations.ts`,
-`apps/server/src/generation/liveRun.ts`, `apps/server/src/generation/taskStore.ts`,
-`apps/server/src/services/quotaService.ts`.
+`packages/agent/src/generation/liveRun.ts`, `packages/agent/src/generation/taskStore.ts`,
+`packages/core/src/quotaService.ts`.
 
 ## SSE Contract
 
@@ -189,7 +189,7 @@ Changes to initialization, cancellation, `createTrip`, audit writes, or SSE term
 
 ### 6. Tests Required
 
-`apps/server/src/__tests__/generationTask.test.ts` verifies idempotent terminal transitions and
+`apps/server/test/generationTask.test.ts` verifies idempotent terminal transitions and
 late-event suppression in the live layer.
 `scripts/verify-generation-flow.mts` injects setup/audit failures, locks PostgreSQL during saving,
 checks rollback and lineage, and reads actual HTTP SSE streams to EOF. Use a disposable database.
@@ -224,7 +224,7 @@ adoption metrics therefore match by name, extracting meal lookup names
 enter reports as observational fields first and only join the gate after proving stable.
 
 Representative paths: `apps/server/src/routes/generations.ts`,
-`apps/server/src/generation/liveRun.ts`, `packages/shared/src/types.ts`.
+`packages/agent/src/generation/liveRun.ts`, `packages/shared/src/types.ts`.
 
 ## Scenario: Replay-Stable Generation Timing
 
@@ -315,8 +315,8 @@ pairs do not spend the route cap twice. Task-wide geocode/route caps apply acros
 - The pass skips coordinates already resolved from research or the knowledge base
   (`coordSource==='geocoded'`); the title writer does not receive geo tools.
 
-Representative paths: `apps/server/src/generation/geoPipeline.ts`,
-`apps/server/src/generation/orchestrator.ts`.
+Representative paths: `packages/agent/src/generation/geoPipeline.ts`,
+`packages/agent/src/generation/orchestrator.ts`.
 
 ### Feasibility Engine
 
@@ -365,8 +365,8 @@ activities, so notes must use the final draft; otherwise they can describe alrea
 or miss newly introduced ones. The writer only changes titles and cannot repair structure.
 
 Representative paths: `packages/shared/src/feasibility.ts`,
-`apps/server/src/generation/tools/draftTools.ts`, `apps/server/src/generation/prompts.ts`,
-`apps/server/src/generation/orchestrator.ts`, `apps/server/src/__tests__/feasibility.test.ts`.
+`packages/agent/src/generation/tools/draftTools.ts`, `packages/agent/src/generation/prompts.ts`,
+`packages/agent/src/generation/orchestrator.ts`, `apps/server/test/feasibility.test.ts`.
 
 ### Long-Haul Day Discipline (M0-B: prevent + deterministically repair)
 
@@ -377,7 +377,7 @@ insufficient — the planner assigns `dayIndex` before any coordinates exist):
 1. **Pre-planning intel (prevention)** — during research, `search_pois` coordinates are
    captured into task-memory (`ResearchOutcome.locations`; NOT persisted, NOT on
    `ResearchPoi` schema — Amap ToS + schema minimalism). Before the planner phase,
-   `classifyLongHaulPois` (`apps/server/src/generation/longHaul.ts`) computes each candidate's
+   `classifyLongHaulPois` (`packages/agent/src/generation/longHaul.ts`) computes each candidate's
    `estimateTransit` duration to the candidate pool's median center and tiers it against
    `LONG_HAUL_THRESHOLDS` (shared constants: ≥60min long-haul, ≥90min exclusive-day).
    Tiered intel is consumed by CODE, not by a prompt: `classifyLongHaulPois` feeds
@@ -400,9 +400,9 @@ insufficient — the planner assigns `dayIndex` before any coordinates exist):
   `computeLegs(draft, onProgress, signal, onlyDayIndexes)` — the targeted-day variant;
   omitting `onlyDayIndexes` preserves the full recompute.
 
-Representative paths: `apps/server/src/generation/longHaul.ts`,
-`apps/server/src/generation/longHaulFixer.ts`, `apps/server/src/generation/draft.ts`,
-`apps/server/src/generation/prompts.ts`, `packages/shared/src/constants.ts`.
+Representative paths: `packages/agent/src/generation/longHaul.ts`,
+`packages/agent/src/generation/longHaulFixer.ts`, `packages/agent/src/generation/draft.ts`,
+`packages/agent/src/generation/prompts.ts`, `packages/shared/src/constants.ts`.
 
 ### Common Mistake: auto-fix notes surviving rounds they did not survive
 
@@ -421,9 +421,9 @@ is actually on its claimed day. Reversed/deleted/rebuilt-with-new-id moves are d
 under-report before you ever mis-report. Any future "the system did X for you" note must
 follow the same persist-time re-verification pattern.
 
-Representative paths: `apps/server/src/generation/longHaulFixer.ts`,
-`apps/server/src/generation/orchestrator.ts`,
-`apps/server/src/__tests__/longHaulFixer.test.ts`.
+Representative paths: `packages/agent/src/generation/longHaulFixer.ts`,
+`packages/agent/src/generation/orchestrator.ts`,
+`apps/server/test/longHaulFixer.test.ts`.
 
 ### TransitLeg Lodging Sentinel Contract (ST3)
 
@@ -439,7 +439,7 @@ lodging name invalidates its coordinates: clear them and drop the affected days'
 (there is no client re-geocode endpoint yet).
 
 Representative paths: `packages/shared/src/schemas.ts`, `packages/shared/src/legs.ts`,
-`apps/server/src/generation/geoPipeline.ts`, `apps/web/src/store/editorStore.ts`.
+`packages/agent/src/generation/geoPipeline.ts`, `apps/web/src/store/editorStore.ts`.
 
 ## Scenario: Itinerary Time Ownership (2026-11-08)
 
@@ -451,7 +451,7 @@ generation, detail-chat write tools, health repair, or a future editor surface.
 ### 2. Signatures
 
 - `scheduleDay(day, { pace, startAt?, preserveDurations? })` and `scheduleDays(days, pace, …)`
-  in `apps/server/src/itinerary/schedule.ts`.
+  in `packages/services/src/itinerary/schedule.ts`.
 - Detail write tools expose `afterActivityId` (stable insertion anchor) and `durationMin`
   (dwell), never raw `startTime`/`endTime` or zero-based `position`.
 
@@ -671,8 +671,8 @@ const plannerRun = await runDurablePhaseAgent({
 });
 ```
 
-Representative paths: `apps/server/src/generation/scheduling/`,
-`apps/server/src/generation/orchestrator.ts`, `apps/server/src/generation/tools/draftTools.ts`.
+Representative paths: `packages/agent/src/generation/scheduling/`,
+`packages/agent/src/generation/orchestrator.ts`, `packages/agent/src/generation/tools/draftTools.ts`.
 Meal regressions: `mealLocality.test.ts` covers added-distance selection, both distance limits,
 unknown coordinates, retained candidates, closed-day rejection/open-day reuse and actual assigned
 dates after segment swaps; `scheduling.test.ts` covers daily meal capacity.
@@ -1009,8 +1009,8 @@ system prompt, message history, and tool definitions can be inspected after the 
 ### 2. Signatures
 
 - `createLlmRequestRecorder(scope: { jobId, userId, phase, round }): LlmRequestRecorder`
-  in `apps/server/src/generation/llmRequestLog.ts`
-- `RunAgentOptions.recorder?: LlmRequestRecorder` in `apps/server/src/generation/agents/phase.ts`
+  in `packages/agent/src/generation/llmRequestLog.ts`
+- `RunAgentOptions.recorder?: LlmRequestRecorder` in `packages/agent/src/generation/agents/phase.ts`
 - Table `llm_request_logs`: `id, job_id, user_id, phase, round, turn, model, system_prompt,
   messages JSONB, tools JSONB, response JSONB NULL, created_at TIMESTAMPTZ`;
   indexes `(job_id)` and `(user_id, created_at DESC)`.
@@ -1357,10 +1357,10 @@ Apply when changing the segment→day assignment in `generation/scheduling/sched
 
 ### 6. Tests Required
 
-- `apps/server/src/__tests__/holidays.test.ts` — all seven 2026 ranges at both boundaries; dates
+- `apps/server/test/holidays.test.ts` — all seven 2026 ranges at both boundaries; dates
   outside; non-2026 years; malformed input; the 2026-10-05 Monday exemption vs a normal Monday;
   make-up workdays do not alter weekday behavior.
-- `apps/server/src/__tests__/scheduling.test.ts` — whole-segment closure yields a placeholder day +
+- `apps/server/test/scheduling.test.ts` — whole-segment closure yields a placeholder day +
   one `closureConflicts` entry + a `droppedCount` bump; the 八达岭 fixture no longer lands on Monday;
   partial closure still assigns.
 - Assertion points: `result.days[i].stops` names, `result.droppedCount`, `result.closureConflicts`.
@@ -1381,9 +1381,9 @@ const cost = assignmentCost + assign(index + 1, mask | (1 << day));
 // Pick the lowest total cost; after matching, report each fully closed segment's drop.
 ```
 
-Representative paths: `apps/server/src/generation/scheduling/schedule.ts`,
+Representative paths: `packages/agent/src/generation/scheduling/schedule.ts`,
 `packages/shared/src/holidays.ts`, `packages/shared/src/openHours.ts`,
-`apps/server/src/generation/orchestrator.ts`.
+`packages/agent/src/generation/orchestrator.ts`.
 
 ## Lesson: Deterministic consumers must not require artifacts a product decision removed (2026-11-03)
 

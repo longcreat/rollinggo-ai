@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { isApiResponse, type ApiResponse } from '@tripweaver/shared';
-import { SsrfError } from '../integrations/ssrfGuard';
+import { SsrfError } from '@tripweaver/core/ssrfGuard';
 
 /**
  * 统一 API 信封（`{ code, message, data }`）与全局错误处理。

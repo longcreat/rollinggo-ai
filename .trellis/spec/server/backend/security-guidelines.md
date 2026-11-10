@@ -2,7 +2,7 @@
 
 ## Centralized Environment Contract
 
-All runtime environment parsing and validation belongs in `apps/server/src/env.ts`.
+All runtime environment parsing and validation belongs in `packages/core/src/env.ts`.
 Application modules import the typed `env` object or capability helpers such as
 `hasSiteLlm()` and `hasGithubOauth()`; they do not read `process.env` directly.
 
@@ -13,10 +13,10 @@ startup.
 
 Bootstrap adapters must set environment values explicitly. Verification scripts use spawned
 process environments and temporary database paths so local `.env` values cannot silently
-change a scenario. The process bootstrap also imports `apps/server/src/lib/proxy.ts` before
-outbound fetches and `apps/server/src/db/client.ts` to initialize SQLite.
+change a scenario. The process bootstrap also imports `packages/core/src/lib/proxy.ts` before
+outbound fetches and `packages/core/src/db/client.ts` to initialize SQLite.
 
-Representative paths: `apps/server/src/env.ts`, `apps/server/src/index.ts`,
+Representative paths: `packages/core/src/env.ts`, `apps/server/src/index.ts`,
 `scripts/verify-auth-modes.mjs`.
 
 ## Authentication and Ownership
@@ -29,7 +29,7 @@ Authentication is not authorization. Every protected resource lookup and mutatio
 filter by the authenticated `userId`. Return 404 for both missing and non-owned resources.
 
 Representative paths: `apps/server/src/auth/guard.ts`,
-`apps/server/src/routes/trips.ts`, `apps/server/src/services/tripService.ts`.
+`apps/server/src/routes/trips.ts`, `packages/services/src/tripService.ts`.
 
 ## Public Homepage City List
 
@@ -72,8 +72,8 @@ and authentication tag; return only the last four characters in settings views. 
 plaintext, ciphertext, or master-key material. Passwords use the dedicated bcrypt helpers,
 not the secret-box format.
 
-Representative paths: `apps/server/src/crypto/secretBox.ts`,
-`apps/server/src/services/settingsService.ts`, `apps/server/src/auth/password.ts`.
+Representative paths: `packages/core/src/crypto/secretBox.ts`,
+`packages/core/src/settingsService.ts`, `apps/server/src/auth/password.ts`.
 
 ## SSRF Defense
 
@@ -83,5 +83,5 @@ private, link-local, CGNAT, localhost-style names, and IPv4-mapped private addre
 operator-controlled `SSRF_ALLOWLIST` is the only bypass and accepts exact host or hostname
 entries.
 
-Representative paths: `apps/server/src/integrations/ssrfGuard.ts`,
-`apps/server/src/services/settingsService.ts`, `apps/server/src/generation/model.ts`.
+Representative paths: `packages/core/src/ssrfGuard.ts`,
+`packages/core/src/settingsService.ts`, `packages/agent/src/generation/model.ts`.

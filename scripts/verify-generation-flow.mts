@@ -27,20 +27,20 @@ Object.assign(process.env, {
   EVAL_VERIFY_GEO: 'fixture',
 });
 const llm = await startMockLlm(18808, { delayMs: 1 });
-const { db, pool } = await import('../apps/server/src/db/client');
-const { getAgentRuntime, closeAgentRuntime } = await import('../apps/server/src/chat/agent/runtime');
-const { buildAgentModels } = await import('../apps/server/src/chat/agent/models');
-const { agentStoragePath, ensureAgentStorageDir } = await import('../apps/server/src/generation/agentStorage');
+const { db, pool } = await import('@tripweaver/core/db/client');
+const { getAgentRuntime, closeAgentRuntime } = await import('@tripweaver/agent/chat/agent/runtime');
+const { buildAgentModels } = await import('@tripweaver/agent/chat/agent/models');
+const { agentStoragePath, ensureAgentStorageDir } = await import('@tripweaver/agent/generation/agentStorage');
 const { BACKGROUND_CONTEXT } = await import('@earendil-works/chord/context');
-const { runGeneration } = await import('../apps/server/src/generation/orchestrator');
-const { createLiveRun, emitLive } = await import('../apps/server/src/generation/liveRun');
-const { beginGenerationTask, finalizeGenerationTask, getRunningGenerationTask } = await import('../apps/server/src/generation/taskStore');
-const { loadPlaceFacts } = await import('../apps/server/src/generation/scheduling/placeFacts');
-const { poiScore, scoreMaxima } = await import('../apps/server/src/generation/scheduling/score');
+const { runGeneration } = await import('@tripweaver/agent/generation/orchestrator');
+const { createLiveRun, emitLive } = await import('@tripweaver/agent/generation/liveRun');
+const { beginGenerationTask, finalizeGenerationTask, getRunningGenerationTask } = await import('@tripweaver/agent/generation/taskStore');
+const { loadPlaceFacts } = await import('@tripweaver/agent/generation/scheduling/placeFacts');
+const { poiScore, scoreMaxima } = await import('@tripweaver/agent/generation/scheduling/score');
 const { createSession } = await import('../apps/server/src/auth/session');
 const { generationRoutes } = await import('../apps/server/src/routes/generations');
 const { notificationRoutes } = await import('../apps/server/src/routes/notifications');
-const { recordGenerationNotification, listNotifications } = await import('../apps/server/src/services/notificationService');
+const { recordGenerationNotification, listNotifications } = await import('@tripweaver/services/notificationService');
 const form = { destination: '北京', days: 3, startDate: '', budgetLevel: '经济' as const,
   partySize: 1, preferences: ['美食'] as ['美食'], totalBudget: 0, extraNotes: '', pace: 'tight' as const };
 const cfg = { baseUrl: 'http://127.0.0.1:18808/v1', apiKey: 'mock', model: 'mock-chat', byok: false };

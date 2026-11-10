@@ -1,7 +1,7 @@
 // 首页自然语言意图理解路由：从自然语言描述中极速提炼出行意图并生成顾问回复
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
-import { env, hasSiteLlm } from '../env';
+import { env, hasSiteLlm } from '@tripweaver/core/env';
 import { PREFERENCE_OPTIONS, PACE_OPTIONS } from '@tripweaver/shared';
 
 const PromptParseRequestSchema = Type.Object({

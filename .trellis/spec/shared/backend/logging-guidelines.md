@@ -13,7 +13,7 @@ This boundary is consistent with the side-effect-light modules `packages/shared/
 - Return values or throw framework-neutral errors and let the consumer add operational context.
 - Never place secrets, request bodies, API keys, session data, or user-specific diagnostics in shared constants or sample data.
 
-Server consumers can log around shared calls where request and job context exists, for example in `apps/server/src/services/tripService.ts`, `apps/server/src/generation/orchestrator.ts`, or `apps/server/src/integrations/websearch/searchSource.ts`.
+Server consumers can log around shared calls where request and job context exists, for example in `packages/services/src/tripService.ts`, `packages/agent/src/generation/orchestrator.ts`, or `packages/integrations/src/websearch/searchSource.ts`.
 
 ## Anti-Patterns
 

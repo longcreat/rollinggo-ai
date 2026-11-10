@@ -185,9 +185,9 @@ Factory functions return a stable site-level provider or its Null equivalent. Th
 orchestrator can also force a Null provider when the site's remaining daily budget is below
 the per-task reservation.
 
-Representative paths: `apps/server/src/integrations/amap/poiSource.ts`,
-`apps/server/src/integrations/websearch/searchSource.ts`,
-`apps/server/src/generation/orchestrator.ts`.
+Representative paths: `packages/integrations/src/amap/poiSource.ts`,
+`packages/integrations/src/websearch/searchSource.ts`,
+`packages/agent/src/generation/orchestrator.ts`.
 
 ## Timeouts, Queueing, and Cache
 
@@ -201,8 +201,8 @@ Representative paths: `apps/server/src/integrations/amap/poiSource.ts`,
   cleared on restart.
 - Metered health checks are memoized at the route boundary for 60 seconds.
 
-Representative paths: `apps/server/src/lib/serialQueue.ts`,
-`apps/server/src/lib/ttlCache.ts`, `apps/server/src/routes/settings.ts`.
+Representative paths: `packages/core/src/lib/serialQueue.ts`,
+`packages/core/src/lib/ttlCache.ts`, `apps/server/src/routes/settings.ts`.
 
 ## Per-Task and Site Limits
 
@@ -216,9 +216,9 @@ Search and Tianditu retain their 60-second aggregate cache and running-job appro
 Tianditu checks geocode + route task caps before enabling its pipeline. Amap never disables
 the whole pipeline based on aggregate remaining budget: each service decides before fetch.
 
-Representative paths: `apps/server/src/services/quotaService.ts`,
-`apps/server/src/generation/orchestrator.ts`, `apps/server/src/generation/geoPipeline.ts`,
-`apps/server/src/db/schema.ts`.
+Representative paths: `packages/core/src/quotaService.ts`,
+`packages/agent/src/generation/orchestrator.ts`, `packages/agent/src/generation/geoPipeline.ts`,
+`packages/core/src/db/schema.ts`.
 
 ## Tiered Estimators with Truthful Source Labeling
 
@@ -238,9 +238,9 @@ monotonic across the breakpoint (unit-tested). Calibrate any retune against the 
 an intercity segment like 市区→八达岭 (~85km detour) must land in 120-200min, and urban
 segments (≤20km) must not change at all — urban drift regresses every city case at once.
 
-Representative paths: `apps/server/src/generation/legEstimator.ts`,
-`apps/server/src/integrations/amap/route.ts`, `apps/server/src/integrations/amap/geocoder.ts`,
-`apps/server/src/integrations/tianditu/route.ts`, `apps/server/src/integrations/tianditu/geo.ts`,
+Representative paths: `packages/agent/src/generation/legEstimator.ts`,
+`packages/integrations/src/amap/route.ts`, `packages/integrations/src/amap/geocoder.ts`,
+`packages/integrations/src/tianditu/route.ts`, `packages/integrations/src/tianditu/geo.ts`,
 `packages/shared/src/legs.ts`, `packages/shared/src/constants.ts`.
 
 ## Task-Level Circuit Breaker for Cascading Provider Failure
@@ -249,7 +249,7 @@ Representative paths: `apps/server/src/generation/legEstimator.ts`,
 up to 30 calls × 10s timeout each) where sustained failure would burn the whole-job time
 budget (10min) on doomed retries.
 
-**Contract** (`createRouteBreaker` in `apps/server/src/integrations/amap/route.ts`,
+**Contract** (`createRouteBreaker` in `packages/integrations/src/amap/route.ts`,
 `ROUTE_BREAKER_THRESHOLD = 5`):
 
 - Consecutive *real-attempt* failures (timeout / network / HTTP !ok / status!=1 / no plan)
@@ -274,7 +274,7 @@ when the provider is healthy.
 for a day; revision rounds can never recover real routes). **Correct**: no negative cache +
 task-level breaker (fast-fail during sustained outage, full retry freedom across tasks).
 
-**Tests** (`apps/server/src/__tests__/amapRoute.test.ts`): threshold trip stops real requests
+**Tests** (`apps/server/test/amapRoute.test.ts`): threshold trip stops real requests
 and spends no quota with exactly one warn; mid-streak success resets the counter; budget-
 rejected and missing-adcode paths count as neither failure nor attempt.
 
@@ -287,7 +287,7 @@ missing only lowers `located` (geo gate catches it); wrong coordinates fabricate
 resolved 372-1962km away produced a 2246min leg). Nominatim's global fuzzy matching on short
 Chinese POI names is the dominant source of these mismatches when AMAP is degraded.
 
-**Contract** (`apps/server/src/generation/geoSanity.ts`, wired at the single exit of
+**Contract** (`packages/agent/src/generation/geoSanity.ts`, wired at the single exit of
 `geocodeAll` in `geoPipeline.ts` — results are STAGED, validated, then adopted):
 
 - Task-local research POI coordinates follow this same exit, including their adcodes. A
@@ -316,7 +316,7 @@ Chinese POI names is the dominant source of these mismatches when AMAP is degrad
 **Wrong**: adopting whatever the provider chain returns because "geocode succeeded".
 **Correct**: staged adoption behind distance sanity against a self-validated reference point.
 
-**Tests** (`apps/server/src/__tests__/geoSanity.test.ts`): cross-province mismatch rejected /
+**Tests** (`apps/server/test/geoSanity.test.ts`): cross-province mismatch rejected /
 far-suburb anchor passes / lodging 108km rejected while same-distance activity passes /
 reference conflict → median takeover un-rejects a correct downtown lodging / <3 located
 points skips validation.
@@ -339,9 +339,9 @@ Persist and describe these fields as source call attempts unless the implementat
 redesigned to expose separate cache-hit and network-attempt counters. Do not repeat the old,
 inaccurate claim that cache hits are free in current accounting.
 
-Representative paths: `apps/server/src/integrations/amap/poiSource.ts`,
-`apps/server/src/integrations/websearch/searchSource.ts`,
-`apps/server/src/generation/orchestrator.ts`.
+Representative paths: `packages/integrations/src/amap/poiSource.ts`,
+`packages/integrations/src/websearch/searchSource.ts`,
+`packages/agent/src/generation/orchestrator.ts`.
 
 ## Failure and Result Semantics
 
@@ -365,12 +365,12 @@ than throw through the settings route.
 
 ### 2. Signatures
 
-- Env (`apps/server/src/env.ts`): `AMAP_KEY`, `TIANDITU_KEY`, `TIANDITU_DAILY_BUDGET` (default 150),
+- Env (`packages/core/src/env.ts`): `AMAP_KEY`, `TIANDITU_KEY`, `TIANDITU_DAILY_BUDGET` (default 150),
   `AMAP_DAILY_BUDGET`. **`MAP_PROVIDER` no longer exists** — do not reintroduce a site-level
   either/or switch; the capabilities are complementary and each key independently enables its chain.
   Both keys are expected to be configured. Missing `AMAP_KEY` → route/geocode fall to Tianditu;
   missing `TIANDITU_KEY` → POI search returns empty (no Amap fallback).
-- Facade (`apps/server/src/integrations/geoProvider.ts`) — the ONLY module upper layers may import:
+- Facade (`packages/integrations/src/geoProvider.ts`) — the ONLY module upper layers may import:
   ```ts
   resolveGeoProvider(userId: string): Promise<GeoProvider>   // route + geocoding chain
   resolvePoiSourceForUser(): ResolvedPoiSource                // POI search, ALWAYS Tianditu
@@ -388,7 +388,7 @@ than throw through the settings route.
   `createPoiSource` is NOT on `GeoProvider` — POI search is not part of this chain.
   `GeoSession.providerKind()` reports which vendor the route/geocode chain actually used, so the
   usage columns can be attributed per chain instead of guessed from one switch.
-- Shared contracts (`apps/server/src/integrations/geoContracts.ts`): `GeoPoint`, `GeocodedPoint`,
+- Shared contracts (`packages/integrations/src/geoContracts.ts`): `GeoPoint`, `GeocodedPoint`,
   `GeocodedPlace`, `GeocodeOrigin` (`'amap-poi' | 'amap-geocode' | 'tianditu' | 'nominatim'`),
   `RouteEstimate`, `RouteOpts`, `RouteBreaker`, `SourcedPoi`, `PoiKind`, `PoiSource`.
 - DB: `generations.tianditu_calls INTEGER NOT NULL DEFAULT 0` — must exist in BOTH
@@ -508,9 +508,9 @@ than throw through the settings route.
 
 ### 6. Tests Required
 
-- `apps/server/src/__tests__/geo.test.ts`: `gcj02ToWgs84` inverse — known vector within 1e-5 and
+- `apps/server/test/geo.test.ts`: `gcj02ToWgs84` inverse — known vector within 1e-5 and
   forward/inverse round-trip within 1e-6 across five cities; out-of-China passthrough.
-- `apps/server/src/__tests__/tianditu.test.ts` (all mock-fetch, no real `tk`): WGS→GCJ inbound
+- `apps/server/test/tianditu.test.ts` (all mock-fetch, no real `tk`): WGS→GCJ inbound
   conversion; `ds` is a JSON string with the city prefix; geocoder failure → Nominatim; null key and
   refused `tryAcquire` skip the vendor; drive km/s → m/min with per-point polyline conversion;
   `transit` maps to `/transit?type=busline` with `startposition`/`endposition`/`linetype`, picks a
@@ -522,7 +522,7 @@ than throw through the settings route.
   POI field gaps left empty, `mapBound` present and centred on the geocoded region, region resolution
   failure → `[]` with no search request, `infocode` failure → `[]` + `ok:false`, missing `pois` → ok,
   HTTP failure message carries the vendor body, `resolveTiandituPoiSource(null).kind === 'null'`.
-- `apps/server/src/__tests__/amapRoute.test.ts`: the same breaker contract via
+- `apps/server/test/amapRoute.test.ts`: the same breaker contract via
   `createAmapRouteBreaker(apiKey)` — threshold trip, mid-streak success reset, skip paths.
 - `scripts/verify-c2.mjs`: the migration assertion must list `tianditu_calls`, and the Null-source
   row must still record zero calls in BOTH provider columns.
@@ -555,9 +555,9 @@ reachable from mainland China and tied to the exact place. All non-Amap adapters
 queue, the curated/selected libraries and their scripts/tests were deleted in 11-05. Do not
 reintroduce them without a new spec.
 
-**Contract** (`resolveCover` in `apps/server/src/generation/tools/researchTools.ts`,
-`createAmapPoiPhotoLookup` in `apps/server/src/integrations/amap/poiPhotos.ts`,
-`createStoredPlaceLookups` in `apps/server/src/generation/storedPlaceLookups.ts`, wired in
+**Contract** (`resolveCover` in `packages/agent/src/generation/tools/researchTools.ts`,
+`createAmapPoiPhotoLookup` in `packages/integrations/src/amap/poiPhotos.ts`,
+`createStoredPlaceLookups` in `packages/agent/src/generation/storedPlaceLookups.ts`, wired in
 `generation/orchestrator.ts`):
 
 - Order, cheapest first: (1) **`search_pois` bypass** — photos already returned by the same Amap

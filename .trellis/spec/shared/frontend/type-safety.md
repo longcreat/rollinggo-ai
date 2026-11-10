@@ -31,13 +31,13 @@ The repository follows this pattern for categories, budget levels, coordinate so
 - Fastify validates only the request or response locations whose schemas are actually registered.
 - `JSON.parse(...) as GenerationEvent` is not event validation (`apps/web/src/pages/PlannerPage.tsx`).
 - A typed API client result is not proof of server conformance (`apps/web/src/api/client.ts`).
-- Imported or persisted JSON must be validated where trust is required (`apps/web/src/lib/export.ts`, `apps/server/src/services/tripService.ts`).
+- Imported or persisted JSON must be validated where trust is required (`apps/web/src/lib/export.ts`, `packages/services/src/tripService.ts`).
 
 ## Controlled Type Assertions
 
 Assertions are permitted only at narrow library boundaries after the runtime invariant is established. The `StringEnum` helper in `packages/shared/src/schemas.ts` constructs a union from every member of a readonly tuple and uses a localized double assertion because TypeBox and TypeScript cannot preserve the mapped tuple type automatically.
 
-Do not copy that pattern into normal domain code. For unknown input, validate or narrow first. Select values and third-party JSON in `apps/server/src/integrations/amap/poiSource.ts` and `apps/server/src/integrations/websearch/searchSource.ts` are boundary cases, not permission for unchecked assertions.
+Do not copy that pattern into normal domain code. For unknown input, validate or narrow first. Select values and third-party JSON in `packages/integrations/src/amap/poiSource.ts` and `packages/integrations/src/websearch/searchSource.ts` are boundary cases, not permission for unchecked assertions.
 
 ## Import Safety
 

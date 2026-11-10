@@ -20,7 +20,7 @@ These files describe the backend-facing contract of `@tripweaver/shared`. They d
 - [ ] Read [Quality Guidelines](./quality-guidelines.md) before changing schemas, constants, types, or utilities.
 - [ ] Read [Error Handling](./error-handling.md) when data crosses an HTTP, JSON, storage, or third-party boundary.
 - [ ] Read [Database Guidelines](./database-guidelines.md) if a contract change affects persisted trip data.
-- [ ] Search server and web consumers before changing an exported name or value. Representative consumers include `apps/server/src/routes/trips.ts`, `apps/server/src/services/tripService.ts`, and `apps/web/src/pages/PlannerPage.tsx`.
+- [ ] Search server and web consumers before changing an exported name or value. Representative consumers include `packages/services/src/tripService.ts`, `apps/server/src/routes/trips.ts`, and `apps/web/src/pages/PlannerPage.tsx`.
 - [ ] Import from `@tripweaver/shared`, not a package-internal path. The public surface is defined by `packages/shared/package.json` and `packages/shared/src/index.ts`.
 
 ## Quality Check

@@ -9,15 +9,15 @@
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
 import { DetailChatRequestSchema, AddFoodRequestSchema, AgentQuestionAnswersRequestSchema, type ChatStreamEvent } from '@tripweaver/shared';
-import { hasSiteLlm } from '../env';
-import { getConversation } from '../services/conversationService';
-import { prepareDetailChat, runDetailChat } from '../services/detailChatService';
-import { readOperation, startDetailTurn, stopDetailTurn } from '../services/detailOperationService';
-import { resolveLlmConfig } from '../services/settingsService';
-import { streamErrorPayload } from '../chat/streamError';
-import { addFood } from '../services/tripHistoryService';
-import { answerPendingQuestion, cancelPendingQuestions, hasPendingQuestion, pendingQuestion, startHardTimeout } from '../chat/agent/humanInLoop';
-import { expireConversationQuestions, getQuestion, markQuestionAnswered, markQuestionExpired } from '../chat/agent/questionStore';
+import { hasSiteLlm } from '@tripweaver/core/env';
+import { getConversation } from '@tripweaver/services/conversationService';
+import { prepareDetailChat, runDetailChat } from '@tripweaver/agent/detailChatService';
+import { readOperation, startDetailTurn, stopDetailTurn } from '@tripweaver/services/detailOperationService';
+import { resolveLlmConfig } from '@tripweaver/core/settingsService';
+import { streamErrorPayload } from '@tripweaver/agent/chat/streamError';
+import { addFood } from '@tripweaver/services/tripHistoryService';
+import { answerPendingQuestion, cancelPendingQuestions, hasPendingQuestion, pendingQuestion, startHardTimeout } from '@tripweaver/agent/chat/agent/humanInLoop';
+import { expireConversationQuestions, getQuestion, markQuestionAnswered, markQuestionExpired } from '@tripweaver/agent/chat/agent/questionStore';
 
 const Id = Type.Object({ id: Type.String({ maxLength: 100 }) });
 const Operation = Type.Object({ id: Type.String({ maxLength: 100 }), operationId: Type.String({ maxLength: 100 }) });

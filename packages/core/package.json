@@ -1,0 +1,21 @@
+{
+  "name": "@tripweaver/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@tripweaver/shared": "*",
+    "@earendil-works/pi-ai": "^1.5.0",
+    "@sinclair/typebox": "^0.34.49",
+    "aws4fetch": "^1.0.20",
+    "dotenv": "^17.4.2",
+    "drizzle-orm": "^0.45.2",
+    "pg": "^8.13.1",
+    "qrcode": "^1.5.4",
+    "sharp": "^0.35.5",
+    "undici": "^7.28.0"
+  }
+}

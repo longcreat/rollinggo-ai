@@ -2,7 +2,7 @@
 
 ## 1. Scope / Trigger
 
-Applies to `eval/`, its npm commands and `.github/workflows/{ci,eval-live}.yml`.
+Applies to `packages/evals/`, its npm commands and `.github/workflows/{ci,eval-live}.yml`.
 This is the operational harness; offline final-Trip replay does not execute the current generator.
 
 ## 2. Signatures
@@ -27,9 +27,9 @@ This is the operational harness; offline final-Trip replay does not execute the 
 - `fixtures/places.json` is fixed historical goldset data, not proof of current opening/reservation facts. `golden`, `empty` and `frozen` are explicit, separately hashed conditions. Frozen knowledge broadens candidate data; it does not expand the fixed evaluation requests. No user-data copy or automatic production export.
 - Frozen exports use a raw `pg.Client` with startup read-only mode and a single `REPEATABLE READ READ ONLY` transaction. Never import application `db/client` or migrate the source. Source URL is explicitly `EVAL_SOURCE_DATABASE_URL` or application `DATABASE_URL`; shell overrides server dotenv then root dotenv. It is separate from the target admin URL.
 - Export only canonical places, linked evidence (plus selected-city unlinked evidence), and place relations. Preserve stable IDs, timestamps, verification/redirect state, required payload fields and optional vectors. `KNOWLEDGE_PAYLOAD_KEYS` is the allowlist; no user tables, raw author/note payloads or media assets. Sort rows by ID and normalize timestamps. Store source fingerprint only, never source credentials.
-- `frozenKnowledge.ts` owns the TypeBox file contract, content hash, ID/reference/city/payload/date/vector checks and gzip size limits. Same-name versions never overwrite. Frozen data is local/ignored under `eval/knowledge-snapshots`; each run copies its compressed input and summary into `knowledge/`.
+- `frozenKnowledge.ts` owns the TypeBox file contract, content hash, ID/reference/city/payload/date/vector checks and gzip size limits. Same-name versions never overwrite. Frozen data is local/ignored under `packages/evals/knowledge-snapshots`; each run copies its compressed input and summary into `knowledge/`.
 - Frozen imports require a random eval database name and empty knowledge tables, and use one atomic parameterized transaction. Existing vectors require matching target pgvector dimensions. Explicit `--skip-vectors` drops vectors on import, disables live query embedding, and changes the effective knowledge hash; never silently downgrade. Check configured query model against the recorded snapshot model when enabled. Validate selected case cities before generation.
-- Each run writes only its new `eval/runs/<id>/`: manifest, snapshots, per-case status, JSON/Markdown report, safe live event summaries. Never overwrite `eval/snapshots` or accepted baselines during evaluation.
+- Each run writes only its new `packages/evals/runs/<id>/`: manifest, snapshots, per-case status, JSON/Markdown report, safe live event summaries. Never overwrite `packages/evals/snapshots` or accepted baselines during evaluation.
 - Live collects cumulative usage (last event), phase durations keyed `phase#round`, candidate events and terminal duration. Research must be nonempty and three phases plus token/provider counts and `execution` present. Errors retain partial event summaries. Provider counts mean accepted wrapper attempts, not bills/confirmed network requests.
 - Live event artifacts retain tool names/error flags/durations and LLM phase/turn/stopReason/error-presence/HTTP-status metadata; never copy their raw args, prompts, response text or error body. Error/cancel terminal durations are retained too. Eval timeout sets cancelReason=timeout and reports the configured case limit.
 - Runtime/prompt/check/dataset/knowledge hashes and HEAD/dirty identify provenance. Model settings summaries contain no credentials. Do not persist raw model requests or provider error bodies. Photos/weather are disabled and recorded as such for this suite.
@@ -42,7 +42,7 @@ This is the operational harness; offline final-Trip replay does not execute the 
 - Markdown identifies actual selected case count within smoke/full and mode-specific execution. Offline reports load saved Trips only; timing/token values come from those snapshots and knowledge rows=0 must not be displayed as evidence of an empty source knowledge base. PASS means current decidable gates only. Adoption ratio means scheduled names matching the candidate pool, not candidate utilization or location accuracy.
 - Accept only explicitly reviewed passing runs: validate report set, recheck current snapshots and hashes, refuse overwriting existing baseline names. Frozen runs must contain a valid matching knowledge file; check both snapshot and effective vector-condition hashes, then copy it into the baseline for independent retention. Baseline selection and Git acceptance are separate; never auto-accept/commit.
 - Per-run PostgreSQL counters reset on new runs; EVAL_* budgets do not enforce a shared cross-run daily cap. Live has local file mutual exclusion and bounded per-case time. CI live is workflow_dispatch only and currently offers golden/empty; frozen live is a local CLI path. CI frozen verification uses synthetic isolated data only.
-- Literal-layer retrieval quality is measured by `npm run eval:retrieval`, **not** by this harness: it reads the application database read-only, gates nothing, and its report is not an `eval/runs` report — `eval:diff` cannot consume it. Its name shares the `eval:` prefix but not the harness contract. Its `--variants <path.json>` mode runs an ablation matrix over `off` / `auto` / `force` and is the only mode that calls the site embedding client; the default mode stays zero-call. Variant definitions and CLI flags reject unknown keys, mirroring this harness's「未知参数不得静默忽略」rule.
+- Literal-layer retrieval quality is measured by `npm run eval:retrieval`, **not** by this harness: it reads the application database read-only, gates nothing, and its report is not an `packages/evals/runs` report — `eval:diff` cannot consume it. Its name shares the `eval:` prefix but not the harness contract. Its `--variants <path.json>` mode runs an ablation matrix over `off` / `auto` / `force` and is the only mode that calls the site embedding client; the default mode stays zero-call. Variant definitions and CLI flags reject unknown keys, mirroring this harness's「未知参数不得静默忽略」rule.
 
 ## 4. Validation & Error Matrix
 
@@ -72,20 +72,20 @@ Bad: old snapshots pass and are described as current model quality; setting only
 
 ## 6. Required Tests
 
-`eval/tests/operational.test.ts`: failure continuation, input mismatch, hard violation, legacy vs live observability, malformed JSON preservation, CLI exit codes, comparison missing/incompatible data, baseline hash/refusal, connection preflight and redaction.
+`packages/evals/tests/operational.test.ts`: failure continuation, input mismatch, hard violation, legacy vs live observability, malformed JSON preservation, CLI exit codes, comparison missing/incompatible data, baseline hash/refusal, connection preflight and redaction.
 
-`eval/verify-live.mjs`: real local PostgreSQL with local mock model and controlled geocoding; preload denies application DB connections and public fetch; assert usage/phases/candidates, database/lock cleanup and no credential leakage. CI runs it independently of business verification.
+`packages/evals/verify-live.mjs`: real local PostgreSQL with local mock model and controlled geocoding; preload denies application DB connections and public fetch; assert usage/phases/candidates, database/lock cleanup and no credential leakage. CI runs it independently of business verification.
 `--research-response text-first` requires recovery through the real submission tool after one prose response; `text-only` requires explicit research failure before planning, no saved placeholder trip and exactly two research requests. Both check safe diagnostic events and database cleanup.
 
-`eval/tests/frozenKnowledge.test.ts`: gzip roundtrip/no overwrite, checksum and payload privacy boundary, ID/reference/city validation, malformed vectors/timestamps, skip hash distinction and frozen baseline retention/rejection.
+`packages/evals/tests/frozenKnowledge.test.ts`: gzip roundtrip/no overwrite, checksum and payload privacy boundary, ID/reference/city validation, malformed vectors/timestamps, skip hash distinction and frozen baseline retention/rejection.
 
-`eval/tests/coverage.test.ts`: expected blank clocks, optional date/lodging, single-stop null travel, separate lodging legs, area meals, no budget dimensions, live/offline text, selected suite scope and legacy compatibility.
+`packages/evals/tests/coverage.test.ts`: expected blank clocks, optional date/lodging, single-stop null travel, separate lodging legs, area meals, no budget dimensions, live/offline text, selected suite scope and legacy compatibility.
 
-`eval/tests/currentFlow.test.ts`: missing execution vs legacy replay, preserved inputs, preference-driven meals, no invented lodging, core failure vs optional degradation, restored tool success, stale/duplicate leg rejection, audit failure and legacy budget input invariance. `eval:verify` also asserts real saved audit/overview consistency and zero model planning responses.
+`packages/evals/tests/currentFlow.test.ts`: missing execution vs legacy replay, preserved inputs, preference-driven meals, no invented lodging, core failure vs optional degradation, restored tool success, stale/duplicate leg rejection, audit failure and legacy budget input invariance. `eval:verify` also asserts real saved audit/overview consistency and zero model planning responses.
 
-CI runs full `eval:flow`, including Playwright with a production build. [Current feature coverage](../../../../eval/current-function-coverage.md) is the maintained map from current behavior to executable checks. A script referencing removed UI, in-place saves or old API error shapes must be updated to current contracts rather than weakening assertions or skipping it.
+CI runs full `eval:flow`, including Playwright with a production build. [Current feature coverage](../../../../packages/evals/current-function-coverage.md) is the maintained map from current behavior to executable checks. A script referencing removed UI, in-place saves or old API error shapes must be updated to current contracts rather than weakening assertions or skipping it.
 
-`eval/verify-knowledge.ts --self-test`: isolated synthetic source with private sentinels; export whitelist/city filtering/stable hash/unverified and redirect retention, nonempty target refusal, missing vector-column rejection before writes and explicit skip. `--snapshot dir`: import/re-export all row hashes, per-city retrieval, vector query, always close/drop the owned database. It uses pure migrations and explicit Pool dependencies, never application db/client.
+`packages/evals/verify-knowledge.ts --self-test`: isolated synthetic source with private sentinels; export whitelist/city filtering/stable hash/unverified and redirect retention, nonempty target refusal, missing vector-column rejection before writes and explicit skip. `--snapshot dir`: import/re-export all row hashes, per-city retrieval, vector query, always close/drop the owned database. It uses pure migrations and explicit Pool dependencies, never application db/client.
 
 Run `npm run typecheck`, `npm run eval:test`, `npm run eval`, and mock verification after harness/bootstrap changes. Run knowledge verification after export/import changes. Real provider invocation requires task authorization; mock evidence is not real-provider evidence.
 
@@ -95,11 +95,11 @@ Wrong: load app `.env`, set `DATABASE_PATH=eval.db`, import orchestrator.
 
 Correct: validate explicit local admin URL, create owned PostgreSQL DB, override `DATABASE_URL` and dotenv reload before imports, seed fixed fixtures, always close/drop the owned DB.
 
-Wrong: live writes `eval/snapshots/<case>.json` and silently replaces the baseline.
+Wrong: live writes `packages/evals/snapshots/<case>.json` and silently replaces the baseline.
 
-Correct: write `eval/runs/<runId>/snapshots`; compare independent runs; accept only after explicit review with a new baseline name.
+Correct: write `packages/evals/runs/<runId>/snapshots`; compare independent runs; accept only after explicit review with a new baseline name.
 
-Operator commands and limits: [eval/README.md](../../../../eval/README.md).
+Operator commands and limits: [packages/evals/README.md](../../../../packages/evals/README.md).
 
 ## Real city/preference/notes campaigns (2026-10-05)
 

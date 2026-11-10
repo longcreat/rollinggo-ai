@@ -97,4 +97,14 @@ packages:
     path: apps/server
   web:
     path: apps/web
-default_package: @tripweaver/shared
+  core:
+    path: packages/core
+  integrations:
+    path: packages/integrations
+  services:
+    path: packages/services
+  agent:
+    path: packages/agent
+  evals:
+    path: packages/evals
+default_package: shared

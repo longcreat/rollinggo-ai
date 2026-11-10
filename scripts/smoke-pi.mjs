@@ -9,7 +9,7 @@ import { Agent } from '@mariozechner/pi-agent-core';
 import { Type } from 'typebox';
 import { EnvHttpProxyAgent, setGlobalDispatcher } from 'undici';
 
-// 系统代理环境下 Node fetch 需显式接管（与 apps/server/src/lib/proxy.ts 一致）
+// 系统代理环境下 Node fetch 需显式接管（与 packages/core/src/lib/proxy.ts 一致）
 if (process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.https_proxy || process.env.http_proxy) {
   setGlobalDispatcher(new EnvHttpProxyAgent({ noProxy: process.env.NO_PROXY ?? 'localhost,127.0.0.1,::1' }));
 }

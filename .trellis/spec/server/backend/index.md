@@ -1,8 +1,8 @@
 # Server Backend Guidelines
 
-These guidelines describe the code that actually exists in `apps/server`. They are the
-entry point for server work and override generic inherited placeholders where the server
-has a more specific convention.
+These guidelines describe the code that actually exists across the server workspace
+packages and `apps/server`. They are the entry point for server work and override generic
+inherited placeholders where the project has a more specific convention.
 
 ## Guides
 
@@ -29,11 +29,11 @@ has a more specific convention.
 
 - 地点实体、别名、导入或去重变更先读 [地点稳定身份与治理](./place-identity.md)。
 
-- Identify the owning module under `apps/server/src` and reuse its existing route, service, integration, or generation boundary.
+- Identify the owning package under `packages/` (or `apps/server/src` for routes and app composition) and reuse its existing route, service, integration, or agent boundary.
 - Read the relevant contracts in `packages/shared/src/schemas.ts` and `packages/shared/src/types.ts` before changing an API payload.
 - For protected data, plan both `requireAuth` and a `userId` ownership predicate; authentication alone is not authorization.
 - For every request input, plan a TypeBox schema for `body`, `params`, and/or `querystring` rather than relying on casts.
-- For database shape changes, plan matching edits to both `apps/server/src/db/schema.ts` and `apps/server/src/db/migrate.ts`.
+- For database shape changes, plan matching edits to both `packages/core/src/db/schema.ts` and `packages/core/src/db/migrate.ts`.
 - For outbound calls, identify timeout, SSRF, Null fallback, cache, serialization, task limit, and quota/accounting behavior.
 - For retrieval, prompt-injection, or knowledge-table work, read [RAG retrieval guidelines](./rag-guidelines.md); retrieval stays optional enrichment that degrades to an empty result.
 - For community enrichment fields (`payload.openHours` / `payload.aliases` / `place_relation`) or the scheduling inputs that consume them, read [RAG retrieval guidelines](./rag-guidelines.md) — association pairs are UNDIRECTED and serve same-day clustering only, never ordering.
@@ -42,7 +42,7 @@ has a more specific convention.
 
 ## Quality Check Checklist
 
-- Run `npm run typecheck` from the repository root for shared, server, and web TypeScript checking.
+- Run `npm run typecheck` from the repository root for every workspace package and app.
 - Run the smallest relevant verification script from [Quality guidelines](./quality-guidelines.md).
 - Confirm protected reads and writes are filtered by the authenticated `userId` and return non-enumerating failures such as 404 where appropriate.
 - Confirm request schemas cover every changed input surface and response bodies do not expose secrets.

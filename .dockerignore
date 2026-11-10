@@ -12,10 +12,13 @@ node_modules
 .cursor
 .ccg
 
-# 评估、本地数据与截图产物
-eval
-data
+# 本地数据与截图产物（仅根目录运行时数据；packages/core/src/data 是源码资产）
+/data
 verify-shots
+packages/evals/runs
+packages/evals/data
+packages/evals/reports
+packages/evals/knowledge-snapshots
 import
 
 # 密钥：绝不进镜像

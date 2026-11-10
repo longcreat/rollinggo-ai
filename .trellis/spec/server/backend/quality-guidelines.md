@@ -32,7 +32,7 @@ There is no standalone server `typecheck`, `test`, or `lint` script in
 | Change area | Command | Notes |
 | --- | --- | --- |
 | Any TypeScript contract/server change | `npm run typecheck` | Checks shared, server, and web. |
-| Generation logic, prompts, geocoding, and feasibility | `node --import tsx --test apps/server/src/__tests__/*.test.ts` | Includes isolated mock-provider and draft-revision regressions. Requires `MASTER_KEY` (see below). |
+| Generation logic, prompts, geocoding, and feasibility | `node --import tsx --test apps/server/test/*.test.ts` | Includes isolated mock-provider and draft-revision regressions. Requires `MASTER_KEY` (see below). |
 | RAG retrieval / place identity SQL, aliases, vector fallback | `node --import tsx scripts/verify-sql-first.mts [--flow\|--full]` | Disposable PostgreSQL; `--flow` adds chat/geo/scheduling/export suites. `--full` excludes `independentPhotoIdentity.test.ts` — it asserts its own `place_identity_test_<ts>` DB contract and runs via `node --import tsx scripts/verify-place-identity.mts`. |
 | Web production bundle/static serving | `npm run build` | Builds `apps/web/dist`. |
 | Authentication modes/OAuth bootstrap | `node scripts/verify-auth-modes.mjs` | Isolated server scenarios. |
@@ -44,7 +44,7 @@ There is no standalone server `typecheck`, `test`, or `lint` script in
 | Core browser trip flow | `node scripts/verify-m1.mjs` | Expects a suitable app at `BASE`. |
 | Export/import production flow | `node scripts/verify-d1.mjs` | Requires `npm run build` first. |
 | Golden-set eval (offline snapshot replay) | `npm run eval` | Deterministic checks; gate = zero hard violations. |
-| Golden-set eval (live generation) | `npm run eval:live` | Explicit local `EVAL_PG_ADMIN_URL` + `SITE_LLM_*`; isolated DB, writes new `eval/runs/<id>/`. |
+| Golden-set eval (live generation) | `npm run eval:live` | Explicit local `EVAL_PG_ADMIN_URL` + `SITE_LLM_*`; isolated DB, writes new `packages/evals/runs/<id>/`. |
 | Eval harness/checker tests | `npm run eval:test` | Offline failure/status/baseline/comparison regressions; no credentials. |
 | Current supported product journey | `EVAL_PG_ADMIN_URL=... npm run eval:flow` | Owned PG databases + mocks; current input/research/schedule/geo/persistence, preferences, routes/weather, homepage/recovery and detail/history browsers. Individual logs; all stages required for complete PASS. |
 | Eval live isolation and collection | `npm run eval:verify` | Explicit local `EVAL_PG_ADMIN_URL`; mock model/geography, checks collection and DB cleanup. |
@@ -56,13 +56,13 @@ Run the smallest relevant script. Do not run credential-bearing real-provider ch
 explicit approval. Verification scripts should inject environment values rather than depend
 on `apps/server/.env`.
 
-**Unit-test prerequisite**: `apps/server/src/env.ts` validates `MASTER_KEY` at import time, so
+**Unit-test prerequisite**: `packages/core/src/env.ts` validates `MASTER_KEY` at import time, so
 any suite that transitively imports it (e.g. `placeLookup.test.ts`) aborts the whole run with
 `[env] MASTER_KEY 缺失或格式错误` when the variable is absent. Set it to any 32-byte hex value
 before running the suite — the value is never used by these tests, it only has to parse:
 
 ```bash
-MASTER_KEY=$(printf 'a%.0s' {1..64}) node --import tsx --test apps/server/src/__tests__/*.test.ts
+MASTER_KEY=$(printf 'a%.0s' {1..64}) node --import tsx --test apps/server/test/*.test.ts
 ```
 
 Without it the suite reports one "failing test" that is an environment problem, not a code

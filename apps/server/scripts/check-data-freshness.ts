@@ -7,7 +7,7 @@
 //   tsx apps/server/scripts/check-data-freshness.ts
 // 退出码：存在待导入项 → 1；全部一致 → 0（可直接进 CI / 一键脚本）。
 import pg from 'pg';
-import { env } from '../src/env';
+import { env } from '@tripweaver/core/env';
 import { IMPORT_DIR, latestExports, scanExports, type ExportSource } from './lib/exportFiles';
 
 interface ImportRow {
@@ -29,7 +29,7 @@ async function main(): Promise<void> {
   }
 
   const pool = new pg.Pool({ connectionString: env.databaseUrl });
-  const { runMigrations } = await import('../src/db/migrate');
+  const { runMigrations } = await import('@tripweaver/core/db/migrate');
   await runMigrations(pool);
   const { rows } = await pool.query<ImportRow>(
     `SELECT source, city, content_hash, file_path, row_count, imported_at FROM data_import`,

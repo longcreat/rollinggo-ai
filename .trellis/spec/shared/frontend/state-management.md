@@ -10,12 +10,12 @@ Examples of the boundary are `packages/shared/src/types.ts`, `packages/shared/sr
 
 - Use TypeBox schemas for state shapes that cross runtime or persistence boundaries, then derive types with `Static<typeof Schema>`.
 - Use readonly `as const` values for closed domain options, with unions derived in `packages/shared/src/types.ts`.
-- Keep derived state as a pure calculation when both runtimes need it. `BudgetSummary` and `computeBudgetSummary` are defined in `packages/shared/src/types.ts` and `packages/shared/src/budget.ts`, then consumed by `apps/web/src/components/editor/BudgetPanel.tsx` and `apps/server/src/services/tripService.ts`.
+- Keep derived state as a pure calculation when both runtimes need it. `BudgetSummary` and `computeBudgetSummary` are defined in `packages/shared/src/types.ts` and `packages/shared/src/budget.ts`, then consumed by `apps/web/src/components/editor/BudgetPanel.tsx` and `packages/services/src/tripService.ts`.
 - Do not put store instances, subscriptions, persistence adapters, or UI actions in shared.
 
 ## Mutation and Ownership
 
-Shared functions should not mutate caller-owned domain objects unless mutation is the explicit, documented API. Prefer returning new values or summaries. State ownership and update strategy remain with the consumer; for example, editor mutations belong in `apps/web/src/store/editorStore.ts`, while server persistence belongs in `apps/server/src/services/tripService.ts`.
+Shared functions should not mutate caller-owned domain objects unless mutation is the explicit, documented API. Prefer returning new values or summaries. State ownership and update strategy remain with the consumer; for example, editor mutations belong in `apps/web/src/store/editorStore.ts`, while server persistence belongs in `packages/services/src/tripService.ts`.
 
 ## Runtime Validation
 

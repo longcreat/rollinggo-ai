@@ -19,7 +19,7 @@ These files describe the frontend-facing contract of `@tripweaver/shared`. They 
 - [ ] Read [Directory Structure](./directory-structure.md) before adding or exporting a module.
 - [ ] Read [State Management](./state-management.md) before adding a domain transformation or value used by the editor store.
 - [ ] Confirm the concern belongs in cross-runtime shared code rather than a React component, hook, store, API client, or server module.
-- [ ] Search representative web and server consumers, including `apps/web/src/store/editorStore.ts`, `apps/web/src/pages/PlannerPage.tsx`, and `apps/server/src/services/tripService.ts`.
+- [ ] Search representative web and server consumers, including `apps/web/src/store/editorStore.ts`, `apps/web/src/pages/PlannerPage.tsx`, and `packages/services/src/tripService.ts`.
 - [ ] Plan root-barrel exports and use `@tripweaver/shared`; `packages/shared/package.json` does not expose deep import paths.
 
 ## Quality Check

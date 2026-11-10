@@ -14,7 +14,7 @@ When code appears reusable from a hook, separate only the pure domain portion:
 2. Return a deterministic domain result without React state, effects, query clients, or notifications.
 3. Keep loading, retry, cancellation, caching, and effect behavior in the web hook.
 
-`computeBudgetSummary` is the model: the calculation lives in `packages/shared/src/budget.ts`, while components decide when to call it in `apps/web/src/components/editor/BudgetPanel.tsx`; the server can reuse the same function in `apps/server/src/services/tripService.ts`.
+`computeBudgetSummary` is the model: the calculation lives in `packages/shared/src/budget.ts`, while components decide when to call it in `apps/web/src/components/editor/BudgetPanel.tsx`; the server can reuse the same function in `packages/services/src/tripService.ts`.
 
 ## Anti-Patterns
 

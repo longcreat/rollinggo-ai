@@ -7,9 +7,9 @@
 // 每次重导都要重算。所以语料向量目前是纯支出，等真接入「问题→语料」召回再补不迟。
 // EMBEDDING_* 未配置时打印提示并退出 0（降级哲学，不视为错误）
 import pg from 'pg';
-import { env, hasEmbedding } from '../src/env';
-import { embedTexts } from '../src/integrations/embedding';
-import { placeEmbeddingText } from '../src/lib/placeEmbeddingText';
+import { env, hasEmbedding } from '@tripweaver/core/env';
+import { embedTexts } from '@tripweaver/integrations/embedding';
+import { placeEmbeddingText } from '@tripweaver/core/lib/placeEmbeddingText';
 
 const BATCH_SIZE = 32;
 

@@ -6,10 +6,10 @@
 //   · 频控三道：同邮箱 60 秒重发间隔、同邮箱每小时 5 次、路由层再叠 IP 限流
 import { randomInt } from 'node:crypto';
 import { and, desc, eq, gte, isNull } from 'drizzle-orm';import { uid } from '@tripweaver/shared';
-import { db } from '../db/client';
-import { emailVerificationCodes } from '../db/schema';
+import { db } from '@tripweaver/core/db/client';
+import { emailVerificationCodes } from '@tripweaver/core/db/schema';
 import { hashPassword, verifyPassword } from './password';
-import { sendVerificationEmail } from '../integrations/resend';
+import { sendVerificationEmail } from '@tripweaver/integrations/resend';
 
 export type EmailCodePurpose = 'register' | 'reset';
 

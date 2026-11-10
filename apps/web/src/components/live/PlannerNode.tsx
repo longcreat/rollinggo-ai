@@ -84,22 +84,22 @@ export function PlannerNode({
           bare ? 'rounded-md px-0 py-1 hover:text-slate-900' : 'rounded-xl p-1.5 hover:bg-slate-100/70'
         }`}
       >
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center mt-0.5">
+        <div className="flex h-5 w-5 shrink-0 items-center justify-center">
           {status === 'running' ? (
-            <SoftRadar size={16} className="text-slate-900" />
+            <SoftRadar size={15} className="text-slate-900" />
           ) : (
             <span className="flex h-4 w-4 items-center justify-center rounded-full bg-slate-100 text-slate-700">
               <Sparkles className="h-2.5 w-2.5" />
             </span>
           )}
-        </span>
+        </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex h-5 items-center gap-2">
             <span className={`truncate text-xs ${bare ? 'font-medium' : 'font-semibold text-slate-900'}`}>
               旅行规划助手 · TripPlannerAgent
             </span>
-            <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.2 text-[10px] font-mono text-slate-500">
+            <span className="shrink-0 rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-mono text-slate-500">
               {status === 'running' ? '深度推演中' : status === 'done' ? '行程已成案' : STATUS_LABEL[status]}
             </span>
           </div>
@@ -115,15 +115,17 @@ export function PlannerNode({
           )}
         </div>
 
-        <ChevronDown
-          className={`ml-auto mt-1 h-3.5 w-3.5 shrink-0 text-slate-400 transition-transform duration-200 group-hover:text-slate-600 ${
-            open ? '' : '-rotate-90'
-          }`}
-          aria-hidden="true"
-        />
+        <div className="flex h-5 shrink-0 items-center">
+          <ChevronDown
+            className={`h-3.5 w-3.5 text-slate-400 transition-transform duration-200 group-hover:text-slate-600 ${
+              open ? '' : '-rotate-90'
+            }`}
+            aria-hidden="true"
+          />
+        </div>
       </button>
 
-      {/* 展开内容：五阶推演时间线与亮点卡片 */}
+      {/* 展开内容：五阶推演时间线 */}
       {open && (
         <div className={bare ? 'mt-2 ml-5 border-l border-slate-200/80 pl-3' : 'mt-2.5 border-t border-slate-100/90 pt-2.5'}>
           {stages.length === 0 && (
@@ -141,56 +143,40 @@ export function PlannerNode({
                   <Link
                     to={stage.href}
                     state={from ? { from } : undefined}
-                    className={`group/item relative flex min-w-0 items-start gap-2.5 rounded-xl p-2 text-[11px] no-underline transition-all ${
+                    className={`group/item relative flex min-w-0 flex-col rounded-xl p-2 text-[11px] no-underline transition-all ${
                       isRunning
                         ? 'bg-white shadow-xs border border-slate-200/80 text-slate-900'
                         : 'text-slate-600 hover:bg-white/80'
                     }`}
                   >
-                    <span className="mt-0.5 relative z-10 flex h-4 w-4 shrink-0 items-center justify-center">
-                      {renderStageIcon(stage.key, stage.status)}
-                    </span>
-
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-1">
-                        <span className={`truncate ${isRunning ? 'font-semibold text-slate-900' : isDone ? 'font-medium text-slate-700' : 'text-slate-400'}`}>
-                          {stage.label || meta.clientTitle}
+                    {/* 第一行：图标 + 标题 + 状态标签 + 箭头（绝对垂直居中对齐） */}
+                    <div className="flex w-full min-w-0 items-center justify-between gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="flex h-4 w-4 shrink-0 items-center justify-center text-slate-600">
+                          {renderStageIcon(stage.key, stage.status)}
                         </span>
-                        <span className="shrink-0 text-[10px] font-mono text-slate-400">
-                          {STATUS_LABEL[stage.status]}
+                        <span className={`truncate text-xs ${isRunning ? 'font-semibold text-slate-900' : isDone ? 'font-medium text-slate-800' : 'text-slate-400'}`}>
+                          {stage.label || meta.clientTitle}
                         </span>
                       </div>
 
-                      {/* 副标题：交代专业价值 */}
-                      <p className="m-0 mt-0.5 line-clamp-1 text-[10px] text-slate-400 group-hover/item:text-slate-500">
-                        {stage.subtitle || meta.clientSubtitle}
-                      </p>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span className="text-[10px] font-mono text-slate-400">
+                          {STATUS_LABEL[stage.status]}
+                        </span>
+                        <ChevronRight className="h-3 w-3 text-slate-300 transition-transform group-hover/item:translate-x-0.5 group-hover/item:text-slate-500" aria-hidden="true" />
+                      </div>
                     </div>
 
-                    <ChevronRight className="mt-1 h-3 w-3 shrink-0 text-slate-300 transition-transform group-hover/item:translate-x-0.5 group-hover/item:text-slate-500" aria-hidden="true" />
+                    {/* 第二行：极简副标题（左侧缩进 pl-6 与第一行标题文字平齐） */}
+                    <p className="m-0 mt-0.5 pl-6 line-clamp-1 text-[11px] text-slate-400 group-hover/item:text-slate-500">
+                      {stage.subtitle || meta.clientSubtitle}
+                    </p>
                   </Link>
                 </li>
               );
             })}
           </ol>
-
-          {/* 实时高光捕捉卡（如果有捕获的 POI 或灵感） */}
-          {highlights.length > 0 && (
-            <div className="mt-3 rounded-xl border border-slate-200/60 bg-white/70 p-2 text-[11px] text-slate-600 shadow-2xs">
-              <div className="flex items-center gap-1.5 font-medium text-slate-800">
-                <Sparkles className="h-3 w-3 text-slate-500" />
-                <span>规划师灵感速递</span>
-              </div>
-              <div className="mt-1.5 space-y-1">
-                {highlights.slice(-3).map((hl) => (
-                  <div key={hl.id} className="flex items-start gap-1.5 text-[10.5px] text-slate-600">
-                    <span className="text-slate-400">•</span>
-                    <span className="truncate">{hl.text}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>

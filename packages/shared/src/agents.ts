@@ -91,25 +91,14 @@ export const PLANNER_STAGES: Record<PlannerStageKey, PlannerStageMetadata> = {
   },
 };
 
-/** 兼容历史 3 阶段（research / plan / review）的平滑映射 */
-export const LEGACY_STAGE_MAPPING: Record<string, PlannerStageKey> = {
-  research: 'exploration',
-  plan: 'routing',
-  review: 'inspection',
-};
-
-export function getPlannerStageDisplay(keyOrLegacy: string): PlannerStageMetadata {
-  if (keyOrLegacy in PLANNER_STAGES) {
-    return PLANNER_STAGES[keyOrLegacy as PlannerStageKey];
-  }
-  const mapped = LEGACY_STAGE_MAPPING[keyOrLegacy];
-  if (mapped && PLANNER_STAGES[mapped]) {
-    return PLANNER_STAGES[mapped];
+export function getPlannerStageDisplay(key: string): PlannerStageMetadata {
+  if (key in PLANNER_STAGES) {
+    return PLANNER_STAGES[key as PlannerStageKey];
   }
   return {
     key: 'exploration',
-    internalName: keyOrLegacy,
-    clientTitle: keyOrLegacy,
+    internalName: key,
+    clientTitle: key,
     clientSubtitle: '智能规划助手正在精心定制中',
     runningHighlight: '正在处理行程细节…',
     iconType: 'compass',

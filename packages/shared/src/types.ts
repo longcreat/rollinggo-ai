@@ -176,7 +176,7 @@ export interface CoveredCitiesView {
 
 // ---------- 智能生成（C2 服务端 / C3 前端共用协议） ----------
 
-export type GenerationPhase = 'research' | 'plan' | 'review';
+export type GenerationPhase = 'exploration' | 'profiling' | 'climate' | 'routing' | 'inspection';
 export type GenerationJobStatus = 'running' | 'done' | 'error' | 'cancelled';
 /** 取消来源：用户主动取消 vs 整任务超时被系统自动取消（reason 可选以兼容旧事件） */
 export type GenerationCancelReason = 'user' | 'timeout';

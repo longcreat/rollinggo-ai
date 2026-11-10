@@ -136,7 +136,7 @@ export async function startLive(options: {
             const count = execution.tasks[event.tool] ??= { ok: 0, errors: 0 };
             if (event.isError) count.errors++; else count.ok++;
           }
-          if (event.type === 'llm_response' && event.phase === 'plan') execution.planLlmCalls++;
+          if (event.type === 'llm_response' && (event.phase === 'routing' || (event.phase as string) === 'plan')) execution.planLlmCalls++;
           // 只保留结构化观测，避免原始请求、工具参数或模型异常泄露凭据。
           if (event.type === 'candidate') candidates.push(event.poi);
           if (event.type === 'phase_start') events.push({ type: event.type, phase: event.phase, round: event.round, at: event.at });

@@ -48,9 +48,11 @@ export interface LiveStream {
 }
 
 const PHASE_LABEL: Record<string, string> = {
-  research: '查找地点与资料',
-  plan: '规划每日行程',
-  review: '整理文案与建议',
+  exploration: '采风灵感 · 翻阅当季宝藏路线',
+  profiling: '甄选核验 · 探访真实口碑避坑',
+  climate: '顺应时候 · 校准天候与展馆开放',
+  routing: '慢游顺路 · 编排不折返动线与美食',
+  inspection: '自省推演 · 全盘模拟节奏舒缓不赶路',
   calibrate: '校准通勤与餐次',
   write: '整理文案与建议',
   gate: '行前校验',

@@ -17,12 +17,6 @@ interface TranscriptStep {
   durationMs?: number;
 }
 
-const STAGE_LABEL: Record<string, string> = {
-  research: '查找地点与资料',
-  plan: '规划每日行程',
-  review: '整理文案与建议',
-};
-
 const TOOL_LABEL: Record<string, string> = {
   search_verified_places: '查询已验证地点',
   submit_research: '提交调研结果',

@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 import { keys, useCancelGeneration, useGenerationAgents, useGenerationTask } from '../../api/hooks';
+import { useGenerationProjection } from '../../hooks/useGenerationProjection';
 import { PlannerNode, type PlannerStage } from '../live/PlannerNode';
 
 export function TaskCard({ jobId, conversationId }: { jobId: string; conversationId?: string }) {
@@ -15,6 +16,7 @@ export function TaskCard({ jobId, conversationId }: { jobId: string; conversatio
   const status = data?.status ?? 'running';
   const running = status === 'running';
   const agents = useGenerationAgents(jobId, running);
+  const projection = useGenerationProjection(running ? jobId : undefined);
   const from = location.pathname + location.search;
   useEffect(() => {
     if (!conversationId || status === 'running') return;
@@ -24,16 +26,21 @@ export function TaskCard({ jobId, conversationId }: { jobId: string; conversatio
   const stages: PlannerStage[] = (agents.data?.agents ?? []).map((agent) => ({
     key: agent.stage,
     label: agent.label,
+    rawLabel: agent.rawLabel,
+    subtitle: agent.subtitle,
+    highlight: agent.highlight,
     status: agent.status,
     href: `/agent/${encodeURIComponent(jobId)}/agents/${agent.stage}`,
   }));
   const nodeStatus = status === 'done' ? 'done' : status === 'running' ? 'running' : 'error';
+  const highlights = projection.snapshot?.state.highlights ?? [];
 
   return (
     <div className="mt-2" data-chat-planner={jobId}>
       <PlannerNode
         stages={stages}
         status={nodeStatus}
+        highlights={highlights}
         from={from}
         bare
       />

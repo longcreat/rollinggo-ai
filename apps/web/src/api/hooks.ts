@@ -420,9 +420,12 @@ export function useGenerationTask(jobId: string | undefined) {
 }
 
 export interface GenerationAgentNode {
-  stage: 'research' | 'plan' | 'review';
+  stage: 'research' | 'plan' | 'review' | string;
   label: string;
-  status: 'running' | 'done' | 'error';
+  rawLabel?: string;
+  subtitle?: string;
+  highlight?: string;
+  status: 'running' | 'done' | 'error' | 'pending';
   total: number;
   completed: number;
   durationMs: number;

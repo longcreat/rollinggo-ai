@@ -4,6 +4,7 @@
 // 极简：只有返回、标题、状态和步骤列表，不放大按钮、摘要或候选。
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
+import { getPlannerStageDisplay } from '@tripweaver/shared';
 import { api } from '../../api/client';
 import type { LivePhase, LiveStream } from '../../lib/liveAgentStream';
 import { Button } from '../ui/Button';
@@ -60,7 +61,8 @@ export function SubAgentPage({ jobId, stage, stream, onBack }: {
     enabled: !phase,
     staleTime: 15_000,
   });
-  const title = phase?.label ?? STAGE_LABEL[stage] ?? stage;
+  const meta = getPlannerStageDisplay(stage);
+  const title = meta.clientTitle;
   const status = phase?.status ?? (transcript.data?.running ? 'running' : 'done');
   const steps: TranscriptStep[] = phase
     ? phase.lines.map((line) => ({
@@ -81,6 +83,9 @@ export function SubAgentPage({ jobId, stage, stream, onBack }: {
         <StatusIcon running={status === 'running'} error={status === 'error'} done={status === 'done'} className="h-4 w-4" />
         <span className="min-w-0 truncate">{title}</span>
       </h2>
+      <p className="mb-0 mt-0.5 text-[11px] text-slate-500">
+        {meta.clientSubtitle}
+      </p>
       <p className="mb-0 mt-1 text-[11px] text-slate-400">
         {STATUS_LABEL[status]}{steps.length > 0 ? ` · ${steps.filter((step) => step.status === 'done').length}/${steps.length} 步` : ''}
       </p>

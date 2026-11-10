@@ -4,7 +4,7 @@ import { Client } from 'pg';
 import { spawn } from 'node:child_process';
 import { readdir } from 'node:fs/promises';
 
-const databaseName = `tripweaver_verify_retrieval_${Date.now()}`;
+const databaseName = `rollinggo_trip_verify_retrieval_${Date.now()}`;
 const adminUrl = process.env.VERIFY_GENERATION_ADMIN_URL ?? 'postgres://postgres:postgres@127.0.0.1:5432/postgres';
 const url = new URL(adminUrl);
 url.pathname = `/${databaseName}`;
@@ -36,7 +36,7 @@ try {
   });
   if (code) process.exitCode = code;
 } finally {
-  if (created && /^tripweaver_verify_retrieval_\d+$/.test(databaseName)) {
+  if (created && /^rollinggo_trip_verify_retrieval_\d+$/.test(databaseName)) {
     await admin.query(`DROP DATABASE "${databaseName}" WITH (FORCE)`);
   }
   await admin.end();

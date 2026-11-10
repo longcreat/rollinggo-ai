@@ -7,14 +7,14 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { makeSampleTrip } from '@tripweaver/shared';
-import { pool } from '@tripweaver/core/db/client';
-import { prepareImportedPlaces, type ImportPlace } from '@tripweaver/services/placeImportIdentity';
-import { captureIdentityImport, rollbackIdentityImport } from '@tripweaver/services/placeIdentityAudit';
-import { loadPlaceIdentityIndex } from '@tripweaver/services/placeIdentityService';
-import { createPlaceRetriever } from '@tripweaver/agent/generation/placeRetrieval';
-import { loadCityPlaceFacts } from '@tripweaver/agent/generation/scheduling/placeFacts';
-import { createTrip, getTrip } from '@tripweaver/services/tripService';
+import { makeSampleTrip } from '@rollinggo-trip/shared';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { prepareImportedPlaces, type ImportPlace } from '@rollinggo-trip/services/placeImportIdentity';
+import { captureIdentityImport, rollbackIdentityImport } from '@rollinggo-trip/services/placeIdentityAudit';
+import { loadPlaceIdentityIndex } from '@rollinggo-trip/services/placeIdentityService';
+import { createPlaceRetriever } from '@rollinggo-trip/agent/generation/placeRetrieval';
+import { loadCityPlaceFacts } from '@rollinggo-trip/agent/generation/scheduling/placeFacts';
+import { createTrip, getTrip } from '@rollinggo-trip/services/tripService';
 
 after(() => pool.end());
 

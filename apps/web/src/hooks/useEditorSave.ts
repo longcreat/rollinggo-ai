@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Value } from '@sinclair/typebox/value';
-import { TripSchema, type Trip, type TripVersionChain } from '@tripweaver/shared';
+import { TripSchema, type Trip, type TripVersionChain } from '@rollinggo-trip/shared';
 import { keys, useSaveTrip } from '../api/hooks';
 import { useEditorStore } from '../store/editorStore';
 

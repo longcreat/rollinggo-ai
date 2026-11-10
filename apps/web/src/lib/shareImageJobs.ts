@@ -1,4 +1,4 @@
-import { SHARE_POSTER_URL_PATTERN, TripShareImageGeneratedResponseSchema, type GenerationNotification, type Trip, type TripShareImageResponse, type TripShareImageStyle } from '@tripweaver/shared';
+import { SHARE_POSTER_URL_PATTERN, TripShareImageGeneratedResponseSchema, type GenerationNotification, type Trip, type TripShareImageResponse, type TripShareImageStyle } from '@rollinggo-trip/shared';
 import { Value } from '@sinclair/typebox/value';
 import { api } from '../api/client';
 import { downloadShareImage, isWeChat } from './export';

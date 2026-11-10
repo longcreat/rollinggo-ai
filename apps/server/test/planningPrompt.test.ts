@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { PlanningBriefData } from '@tripweaver/shared';
-import { PLANNING_INSTRUCTIONS, buildPlanningPrompt } from '@tripweaver/agent/chat/agent/planningPrompt';
+import type { PlanningBriefData } from '@rollinggo-trip/shared';
+import { PLANNING_INSTRUCTIONS, buildPlanningPrompt } from '@rollinggo-trip/agent/chat/agent/planningPrompt';
 
 const brief: PlanningBriefData = {
   destination: '成都',

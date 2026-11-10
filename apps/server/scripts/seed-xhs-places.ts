@@ -22,11 +22,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
-import { captureIdentityImport, recordIdentityImport } from '@tripweaver/services/placeIdentityAudit';
-import { env } from '@tripweaver/core/env';
-import { prepareImportedPlaces, reconcileImportedPlaces } from '@tripweaver/services/placeImportIdentity';
-import { acceptRelationSource } from '@tripweaver/services/placeRelationSnapshot';
-import { evidenceStrength } from '@tripweaver/services/evidenceStrength';
+import { captureIdentityImport, recordIdentityImport } from '@rollinggo-trip/services/placeIdentityAudit';
+import { env } from '@rollinggo-trip/core/env';
+import { prepareImportedPlaces, reconcileImportedPlaces } from '@rollinggo-trip/services/placeImportIdentity';
+import { acceptRelationSource } from '@rollinggo-trip/services/placeRelationSnapshot';
+import { evidenceStrength } from '@rollinggo-trip/services/evidenceStrength';
 import { IMPORT_DIR, latestExports, readExport, scanExports, type ExportFile } from './lib/exportFiles';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -282,7 +282,7 @@ async function main(): Promise<void> {
   );
 
   const pool = new pg.Pool({ connectionString: env.databaseUrl });
-  const { runMigrations } = await import('@tripweaver/core/db/migrate');
+  const { runMigrations } = await import('@rollinggo-trip/core/db/migrate');
   await runMigrations(pool);
   const client = await pool.connect();
 

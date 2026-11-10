@@ -17,13 +17,13 @@ import {
   type PlanningBriefPatch,
   type PlanningBriefView,
   type Trip,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 import { normalizeBriefData, syncBriefTripDates } from './brief';
 import { Value } from '@sinclair/typebox/value';
-import { ChatAttachmentSchema, type ChatAttachment } from '@tripweaver/shared';
+import { ChatAttachmentSchema, type ChatAttachment } from '@rollinggo-trip/shared';
 import type { TripWriter } from './tripService';
-import { db } from '@tripweaver/core/db/client';
-import { chatMessages, conversations, generations, planningBriefs, trips } from '@tripweaver/core/db/schema';
+import { db } from '@rollinggo-trip/core/db/client';
+import { chatMessages, conversations, generations, planningBriefs, trips } from '@rollinggo-trip/core/db/schema';
 
 export const DEFAULT_CONVERSATION_TITLE = '新对话';
 const TITLE_MAX = 30;

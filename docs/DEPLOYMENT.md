@@ -1,19 +1,19 @@
 # 部署与配置
 
-面向**站长**：把自己的织程跑起来，配哪些 Key、花多少钱、怎么挂 CDN。
+面向**站长**：把自己的rollinggo 旅行跑起来，配哪些 Key、花多少钱、怎么挂 CDN。
 
 只想本地跑一下看效果，看 [README 的快速开始](../README.md#快速开始) 就够。
 
 ## 快速部署
 
 ```bash
-git clone https://github.com/aimer-rhythm/trip-weaver.git && cd trip-weaver
+git clone https://github.com/longcreat/rollinggo-ai.git && cd rollinggo-ai
 cp .env.example .env
 # 编辑 .env：至少填 MASTER_KEY（生成命令见文件内注释）、站点 LLM Key
 docker compose up -d
 ```
 
-默认拉取 `ghcr.io/aimer-rhythm/trip-weaver:latest` 预构建镜像；镜像不可用时用 `TRIPWEAVER_IMAGE='' docker compose up --build -d` 本地构建。
+默认拉取 `ghcr.io/longcreat/rollinggo-ai:latest` 预构建镜像；镜像不可用时用 `ROLLINGGO_TRIP_IMAGE='' docker compose up --build -d` 本地构建。
 
 app 只绑 `127.0.0.1:3001`，由宿主机 Nginx 转发，站点配置参考 `nginx.host.conf`（含 SSE 关键参数）；想用容器内自带反代则改用 `docker-compose.release.yml`。
 
@@ -124,7 +124,7 @@ PostgreSQL + pgvector 用 `docker compose up -d db` 起（或指向已有的本�
 # .env
 MEDIA_STORE=s3
 MEDIA_S3_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
-MEDIA_S3_BUCKET=tripweaver-media
+MEDIA_S3_BUCKET=rollinggo-trip-media
 MEDIA_S3_ACCESS_KEY_ID=...
 MEDIA_S3_SECRET_ACCESS_KEY=...
 MEDIA_BASE_URL=https://media.example.com/media   # R2 自定义域名映射桶根，/media 是 key 的一部分

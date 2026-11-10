@@ -177,7 +177,7 @@ export function simulateDay(day: TripDay, ctx: DaySimContext): DayReport {
   }
 
   // 住宿 leg 计入当日通勤与步行（geoPipeline 已写入时才有；缺失即不计，不臆造）。
-  // 哨兵匹配复用 @tripweaver/shared 的 lodgingLegsForDay（与前端 DaySection/地图同一事实源，避免漂移）。
+  // 哨兵匹配复用 @rollinggo-trip/shared 的 lodgingLegsForDay（与前端 DaySection/地图同一事实源，避免漂移）。
   const { departure: dep, returning: ret } = lodgingLegsForDay(day);
   if (dep) {
     transitMinutes += dep.durationMin;

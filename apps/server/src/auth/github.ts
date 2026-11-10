@@ -1,12 +1,12 @@
 // GitHub OAuth（web application flow，手写最小实现）：
 // access token 仅用于拉取一次身份，用完即弃不落库；账号关联只信 primary && verified 邮箱
-import { env } from '@tripweaver/core/env';
+import { env } from '@rollinggo-trip/core/env';
 
 const AUTHORIZE_URL = 'https://github.com/login/oauth/authorize';
 const TOKEN_URL = 'https://github.com/login/oauth/access_token';
 const API_USER_URL = 'https://api.github.com/user';
 const API_EMAILS_URL = 'https://api.github.com/user/emails';
-const USER_AGENT = 'tripweaver';
+const USER_AGENT = 'rollinggo-trip';
 
 export const OAUTH_STATE_COOKIE = 'tw_oauth_state';
 export const OAUTH_STATE_TTL_S = 600;

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { LODGING_SENTINEL, uid, type Activity, type TransitLeg, type Trip, type TripDay } from '@tripweaver/shared';
+import { LODGING_SENTINEL, uid, type Activity, type TransitLeg, type Trip, type TripDay } from '@rollinggo-trip/shared';
 import { routePairKey } from '../lib/routePair';
 
 // 编辑器交互态：业务数据以服务端为唯一事实源，此处仅为编辑期副本

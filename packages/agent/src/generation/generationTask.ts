@@ -7,11 +7,11 @@
 // 下一步：把 runGeneration 拆成 research/plan/calibrate/write/gate/commit 多 phase，在每个边界
 // checkpoint，崩溃后从上一个阶段续跑（当前是整条流水线一个 phase，重跑代价是重新调研）。
 import { defineTask, type TaskId } from '@earendil-works/pi-durable';
-import type { DataSourceKind, GenerateForm, GenerationWarning } from '@tripweaver/shared';
+import type { DataSourceKind, GenerateForm, GenerationWarning } from '@rollinggo-trip/shared';
 import { createLiveRun, emitLive, getLiveRun, type LiveRun } from './liveRun';
 import { runGeneration, type GenerationRunOptions } from './orchestrator';
 import { finalizeGenerationTask, setGenerationAgentConversation } from './taskStore';
-import { resolveLlmConfig } from '@tripweaver/core/settingsService';
+import { resolveLlmConfig } from '@rollinggo-trip/core/settingsService';
 import type { ResearchCheckpoint } from './checkpoint';
 import type { GenerationProvenance, GenerationTaskRef } from './provenance';
 
@@ -144,7 +144,7 @@ export function taskOutcome(result: GenerationRunResult):
 }
 
 export const GenerationTask = defineTask<GenerationTaskInput, GenerationTaskState, GenerationTaskResult>({
-  name: 'tripweaver.generation',
+  name: 'rollinggo-trip.generation',
   version: 1,
   initial: () => ({ phase: 'run' }),
   phases: {

@@ -1,4 +1,4 @@
-import type { GenerateForm } from '@tripweaver/shared';
+import type { GenerateForm } from '@rollinggo-trip/shared';
 
 /** 预算仅是旧 JSON 的兼容字段；不同历史值不能影响当前评估输入口径。 */
 export function evaluationInput(form: GenerateForm) {

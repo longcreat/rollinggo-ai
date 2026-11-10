@@ -14,7 +14,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   createS3MediaStore, mediaCacheControl, mediaContentType, readMediaStoreConfig, type MediaObject, type MediaStore,
-} from '@tripweaver/core/lib/mediaStore';
+} from '@rollinggo-trip/core/lib/mediaStore';
 
 // 不依赖 cwd：先读仓库根 .env（compose 部署），再读 apps/server/.env（本地开发，优先级更高）。
 loadEnv({ path: fileURLToPath(new URL('../../../.env', import.meta.url)), quiet: true });

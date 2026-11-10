@@ -1,4 +1,4 @@
-import type { GenerateForm } from '@tripweaver/shared';
+import type { GenerateForm } from '@rollinggo-trip/shared';
 import type { RetrievedPlace, RetrieveOptions } from './placeRetrieval';
 import { isFoodFocused } from './mealPlanning';
 import { placeCategory } from './retrievalRanking';

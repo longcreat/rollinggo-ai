@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import type { PoolClient } from 'pg';
-import { createPlaceIdentityIndex, identityStrings, isScopedPlace, placeIdentity, type IdentityPlace } from '@tripweaver/core/lib/placeIdentity';
-import { placeEmbeddingText } from '@tripweaver/core/lib/placeEmbeddingText';
+import { createPlaceIdentityIndex, identityStrings, isScopedPlace, placeIdentity, type IdentityPlace } from '@rollinggo-trip/core/lib/placeIdentity';
+import { placeEmbeddingText } from '@rollinggo-trip/core/lib/placeEmbeddingText';
 import { captureIdentityImport, recordIdentityImport } from './placeIdentityAudit';
 
 export interface GoldsetActivity {

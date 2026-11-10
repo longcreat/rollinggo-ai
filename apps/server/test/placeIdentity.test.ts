@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { placeNameKey, samePlaceReference, uniquePlaceReferences } from '@tripweaver/shared';
-import { canonicalPlaceId, createPlaceIdentityIndex, type IdentityPlace } from '@tripweaver/core/lib/placeIdentity';
-import { rankPlaces, type PlaceRow } from '@tripweaver/agent/generation/retrievalRanking';
+import { placeNameKey, samePlaceReference, uniquePlaceReferences } from '@rollinggo-trip/shared';
+import { canonicalPlaceId, createPlaceIdentityIndex, type IdentityPlace } from '@rollinggo-trip/core/lib/placeIdentity';
+import { rankPlaces, type PlaceRow } from '@rollinggo-trip/agent/generation/retrievalRanking';
 
 function row(id: string, name: string, aliases: string[] = [], extra: Partial<PlaceRow> = {}): PlaceRow {
   return { id, city: '济南', name, category: '自然', verified: true, source: 'xhs', lat: null, lng: null,

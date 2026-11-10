@@ -1,4 +1,4 @@
-import type { ResearchPoi, Trip } from '@tripweaver/shared';
+import type { ResearchPoi, Trip } from '@rollinggo-trip/shared';
 
 type AmapPhotoCover = Pick<ResearchPoi, 'coverUrl' | 'photos'>;
 

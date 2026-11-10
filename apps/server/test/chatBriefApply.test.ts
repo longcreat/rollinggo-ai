@@ -8,8 +8,8 @@ import {
   briefToGenerateForm,
   makeSampleTrip,
   type PlanningBriefData,
-} from '@tripweaver/shared';
-import { applyDialogueDecision, briefStatus, normalizeBriefData, syncBriefTripDates } from '@tripweaver/services/brief';
+} from '@rollinggo-trip/shared';
+import { applyDialogueDecision, briefStatus, normalizeBriefData, syncBriefTripDates } from '@rollinggo-trip/services/brief';
 
 const empty: PlanningBriefData = { constraints: [] };
 

@@ -2,8 +2,8 @@
 // 纯函数，不连库不发请求。
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { Trip, TripDay } from '@tripweaver/shared';
-import { dayNeedsRouteRepair, routePairsFor } from '@tripweaver/services/routeRepairPlan';
+import type { Trip, TripDay } from '@rollinggo-trip/shared';
+import { dayNeedsRouteRepair, routePairsFor } from '@rollinggo-trip/services/routeRepairPlan';
 
 function activity(id: string, name: string, lat: number, lng: number) {
   return {

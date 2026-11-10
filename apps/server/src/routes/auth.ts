@@ -12,9 +12,9 @@ import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { randomBytes } from 'node:crypto';
 import { Type } from '@sinclair/typebox';
 import { eq } from 'drizzle-orm';
-import { EmailCodeBodySchema, LoginBodySchema, PasswordResetBodySchema, RegisterBodySchema, uid } from '@tripweaver/shared';
-import { db } from '@tripweaver/core/db/client';
-import { sessions, users } from '@tripweaver/core/db/schema';
+import { EmailCodeBodySchema, LoginBodySchema, PasswordResetBodySchema, RegisterBodySchema, uid } from '@rollinggo-trip/shared';
+import { db } from '@rollinggo-trip/core/db/client';
+import { sessions, users } from '@rollinggo-trip/core/db/schema';
 import { hashPassword, verifyPassword } from '../auth/password';
 import { consumeEmailCode, issueEmailCode, EmailCodeError } from '../auth/emailCode';
 import { checkInviteCode } from '../auth/invite';
@@ -28,7 +28,7 @@ import {
 } from '../auth/github';
 import { SESSION_COOKIE, createSession, destroySession } from '../auth/session';
 import { requireAuth, resolveUser } from '../auth/guard';
-import { env, hasEmailDelivery, hasGithubOauth } from '@tripweaver/core/env';
+import { env, hasEmailDelivery, hasGithubOauth } from '@rollinggo-trip/core/env';
 
 const COOKIE_OPTS = {
   httpOnly: true,        // 前端 JS 读不到 token，杜绝 XSS 直接窃取会话

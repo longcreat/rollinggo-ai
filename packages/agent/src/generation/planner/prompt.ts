@@ -2,7 +2,7 @@
 //
 // 与旧「调研 Agent」的区别：调研只产出候选池，定天/定序/定时长全部由本 Agent 决定；
 // 但所有距离、通勤、时刻仍来自工具，模型不自己算。
-import { DAILY_SIGHT_LIMITS, type GenerateForm } from '@tripweaver/shared';
+import { DAILY_SIGHT_LIMITS, type GenerateForm } from '@rollinggo-trip/shared';
 import { withTimeContext } from '../../chat/agent/timeContext';
 
 const range = (pace: keyof typeof DAILY_SIGHT_LIMITS) => {

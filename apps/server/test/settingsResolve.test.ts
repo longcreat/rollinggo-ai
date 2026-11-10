@@ -6,9 +6,9 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { pool } from '@tripweaver/core/db/client';
-import { encryptSecret } from '@tripweaver/core/crypto/secretBox';
-import { resolveLlmConfig } from '@tripweaver/core/settingsService';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { encryptSecret } from '@rollinggo-trip/core/crypto/secretBox';
+import { resolveLlmConfig } from '@rollinggo-trip/core/settingsService';
 
 after(() => pool.end());
 

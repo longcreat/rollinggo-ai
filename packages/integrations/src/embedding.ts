@@ -1,7 +1,7 @@
 // OpenAI 兼容 Embedding 客户端：POST {baseUrl}/embeddings
 // 失败一律回 null（网络/4xx/维度不符），不抛错（对齐项目降级哲学）
 // BYOK baseUrl 不过 ssrfGuard：embedding 走站长独立配置或 SITE_* 回落，不走用户 BYOK（见 model.ts 注释）
-import { env, hasEmbedding } from '@tripweaver/core/env';
+import { env, hasEmbedding } from '@rollinggo-trip/core/env';
 import { createQueryEmbedder } from './queryEmbedding';
 
 export const embedQuery = createQueryEmbedder(env.embedding);

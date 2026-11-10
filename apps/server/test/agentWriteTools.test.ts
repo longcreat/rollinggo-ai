@@ -1,11 +1,11 @@
 // 写工具的装配与回执契约：工具清单、地点解析失败降级、读工具能看到本轮改动。
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { Trip } from '@tripweaver/shared';
-import { createTripTools } from '@tripweaver/agent/chat/agent/tools';
-import { createTripDraft } from '@tripweaver/agent/chat/agent/tripDraft';
-import { createTripWriteTools } from '@tripweaver/agent/chat/agent/writeTools';
-import type { DetailSources } from '@tripweaver/integrations/detailSources';
+import type { Trip } from '@rollinggo-trip/shared';
+import { createTripTools } from '@rollinggo-trip/agent/chat/agent/tools';
+import { createTripDraft } from '@rollinggo-trip/agent/chat/agent/tripDraft';
+import { createTripWriteTools } from '@rollinggo-trip/agent/chat/agent/writeTools';
+import type { DetailSources } from '@rollinggo-trip/integrations/detailSources';
 
 function trip(): Trip {
   return {

@@ -22,12 +22,12 @@ import {
   PLANNER_STAGE_KEYS,
   type PlannerStageKey,
   uid,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 import { requireAuth } from '../auth/guard';
-import { resolveLlmConfig } from '@tripweaver/core/settingsService';
-import { getConversation } from '@tripweaver/services/conversationService';
-import { getTrip } from '@tripweaver/services/tripService';
-import { hasSiteLlm } from '@tripweaver/core/env';
+import { resolveLlmConfig } from '@rollinggo-trip/core/settingsService';
+import { getConversation } from '@rollinggo-trip/services/conversationService';
+import { getTrip } from '@rollinggo-trip/services/tripService';
+import { hasSiteLlm } from '@rollinggo-trip/core/env';
 import {
   cancelLiveRun,
   createLiveRun,
@@ -36,12 +36,12 @@ import {
   projectionFromTask,
   subscribeLiveProjection,
   type LiveRun,
-} from '@tripweaver/agent/generation/liveRun';
-import type { GenerationTaskInput } from '@tripweaver/agent/generation/generationTask';
-import { startGenerationTask } from '@tripweaver/agent/generation/startGeneration';
-import { agentStoragePath, ensureAgentStorageDir } from '@tripweaver/agent/generation/agentStorage';
-import { getAgentRuntime } from '@tripweaver/agent/chat/agent/runtime';
-import { getGenerationResult } from '@tripweaver/services/notificationService';
+} from '@rollinggo-trip/agent/generation/liveRun';
+import type { GenerationTaskInput } from '@rollinggo-trip/agent/generation/generationTask';
+import { startGenerationTask } from '@rollinggo-trip/agent/generation/startGeneration';
+import { agentStoragePath, ensureAgentStorageDir } from '@rollinggo-trip/agent/generation/agentStorage';
+import { getAgentRuntime } from '@rollinggo-trip/agent/chat/agent/runtime';
+import { getGenerationResult } from '@rollinggo-trip/services/notificationService';
 import {
   beginGenerationTask,
   finalizeGenerationTask,
@@ -49,9 +49,9 @@ import {
   getGenerationTask,
   markGenerationTaskFailed,
   type GenerationTaskView,
-} from '@tripweaver/agent/generation/taskStore';
-import type { GenerationAgentKey, GenerationTaskRef } from '@tripweaver/agent/generation/provenance';
-import { normalizeAgentTranscript } from '@tripweaver/agent/generation/agentTranscript';
+} from '@rollinggo-trip/agent/generation/taskStore';
+import type { GenerationAgentKey, GenerationTaskRef } from '@rollinggo-trip/agent/generation/provenance';
+import { normalizeAgentTranscript } from '@rollinggo-trip/agent/generation/agentTranscript';
 
 const AGENT_STAGES: Record<PlannerStageKey, readonly string[]> = {
   exploration: ['exploration', 'research'],

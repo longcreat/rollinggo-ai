@@ -130,7 +130,7 @@ npm run eval:live -- --suite smoke
 
 模型配置：`SITE_LLM_BASE_URL`、`SITE_LLM_API_KEY`、`SITE_LLM_MODEL`；地图配置：`AMAP_KEY`。可选 `SEARCH_API_KEY`、`SEARCH_API_BASE_URL`、`EMBEDDING_*`。配置优先级为当前 shell → `apps/server/.env` → 根 `.env`，仅加载白名单字段，不加载其中的数据库或主密钥。
 
-实际过程：创建随机 `tripweaver_eval_<24位hex>` 库 → 覆盖 `DATABASE_URL` 与独立随机主密钥 → 导入应用并迁移 → 导入所选知识库 → 执行生成 → 保存产物 → 关闭连接并删除本次库。live 不会连接应用 `DATABASE_URL`。库内 `eval-user` 是独立测试用户，无登录密码。
+实际过程：创建随机 `rollinggo_trip_eval_<24位hex>` 库 → 覆盖 `DATABASE_URL` 与独立随机主密钥 → 导入应用并迁移 → 导入所选知识库 → 执行生成 → 保存产物 → 关闭连接并删除本次库。live 不会连接应用 `DATABASE_URL`。库内 `eval-user` 是独立测试用户，无登录密码。
 
 固定种子 `fixtures/places.json` 含从 7 月历史金集提取的 87 个景点，无用户数据、向量或实时营业信息。默认 `--knowledge golden` 测固定 SQL 知识库路径；`--knowledge empty` 明确测空库降级，两者 manifest/hash 不同。旧金集种子不足以证明泛化检索质量。
 

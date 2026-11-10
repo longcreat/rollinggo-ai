@@ -3,9 +3,9 @@
 import { test } from 'node:test';
 import './helpers/amapQuotaMock';
 import assert from 'node:assert/strict';
-import { ROUTE_BREAKER_THRESHOLD } from '@tripweaver/integrations/routeBreaker';
-import { downsamplePolyline } from '@tripweaver/core/lib/polyline';
-import { createAmapRouteBreaker, routeEstimate } from '@tripweaver/integrations/amap/route';
+import { ROUTE_BREAKER_THRESHOLD } from '@rollinggo-trip/integrations/routeBreaker';
+import { downsamplePolyline } from '@rollinggo-trip/core/lib/polyline';
+import { createAmapRouteBreaker, routeEstimate } from '@rollinggo-trip/integrations/amap/route';
 
 const originalFetch = globalThis.fetch;
 

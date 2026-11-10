@@ -27,20 +27,20 @@ Object.assign(process.env, {
   EVAL_VERIFY_GEO: 'fixture',
 });
 const llm = await startMockLlm(18808, { delayMs: 1 });
-const { db, pool } = await import('@tripweaver/core/db/client');
-const { getAgentRuntime, closeAgentRuntime } = await import('@tripweaver/agent/chat/agent/runtime');
-const { buildAgentModels } = await import('@tripweaver/agent/chat/agent/models');
-const { agentStoragePath, ensureAgentStorageDir } = await import('@tripweaver/agent/generation/agentStorage');
+const { db, pool } = await import('@rollinggo-trip/core/db/client');
+const { getAgentRuntime, closeAgentRuntime } = await import('@rollinggo-trip/agent/chat/agent/runtime');
+const { buildAgentModels } = await import('@rollinggo-trip/agent/chat/agent/models');
+const { agentStoragePath, ensureAgentStorageDir } = await import('@rollinggo-trip/agent/generation/agentStorage');
 const { BACKGROUND_CONTEXT } = await import('@earendil-works/chord/context');
-const { runGeneration } = await import('@tripweaver/agent/generation/orchestrator');
-const { createLiveRun, emitLive } = await import('@tripweaver/agent/generation/liveRun');
-const { beginGenerationTask, finalizeGenerationTask, getRunningGenerationTask } = await import('@tripweaver/agent/generation/taskStore');
-const { loadPlaceFacts } = await import('@tripweaver/agent/generation/scheduling/placeFacts');
-const { poiScore, scoreMaxima } = await import('@tripweaver/agent/generation/scheduling/score');
+const { runGeneration } = await import('@rollinggo-trip/agent/generation/orchestrator');
+const { createLiveRun, emitLive } = await import('@rollinggo-trip/agent/generation/liveRun');
+const { beginGenerationTask, finalizeGenerationTask, getRunningGenerationTask } = await import('@rollinggo-trip/agent/generation/taskStore');
+const { loadPlaceFacts } = await import('@rollinggo-trip/agent/generation/scheduling/placeFacts');
+const { poiScore, scoreMaxima } = await import('@rollinggo-trip/agent/generation/scheduling/score');
 const { createSession } = await import('../apps/server/src/auth/session');
 const { generationRoutes } = await import('../apps/server/src/routes/generations');
 const { notificationRoutes } = await import('../apps/server/src/routes/notifications');
-const { recordGenerationNotification, listNotifications } = await import('@tripweaver/services/notificationService');
+const { recordGenerationNotification, listNotifications } = await import('@rollinggo-trip/services/notificationService');
 const form = { destination: '北京', days: 3, startDate: '', budgetLevel: '经济' as const,
   partySize: 1, preferences: ['美食'] as ['美食'], totalBudget: 0, extraNotes: '', pace: 'tight' as const };
 const cfg = { baseUrl: 'http://127.0.0.1:18808/v1', apiKey: 'mock', model: 'mock-chat', byok: false };
@@ -126,7 +126,7 @@ try {
   assert.deepEqual(await counts(success.userId), { trips: 1, done: 1 });
   const saved = (await pool.query(`SELECT data FROM trips WHERE id=$1`, [success.tripId])).rows[0].data;
   assert.equal(saved.days.length, 3);
-  const { personalAdviceIsCurrent, TripSchema } = await import('@tripweaver/shared');
+  const { personalAdviceIsCurrent, TripSchema } = await import('@rollinggo-trip/shared');
   const { Value } = await import('@sinclair/typebox/value');
   assert.ok(Value.Check(TripSchema, saved));
   assert.ok(saved.meta.advice?.suggestions.length && saved.meta.advice?.cautions.length);

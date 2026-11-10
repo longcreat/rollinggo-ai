@@ -2,12 +2,12 @@
 // 排程要的停留时长 / 细粒度类型 / 主题 / 推荐分 都在 canonical_places.payload 里。
 // 一次读取同城已核实目录，按显式实体身份合并；名称仅用于精确主名/别名索引。
 // 查询失败降级为空 Map，不阻断生成。
-import { pool } from '@tripweaver/core/db/client';
-import { placeNameKey } from '@tripweaver/shared';
-import { canonicalPlaceId, createPlaceIdentityIndex, placeNames, type IdentityPlace } from '@tripweaver/core/lib/placeIdentity';
-import { normalizePlaceKey } from '@tripweaver/core/lib/placeKey';
-import { readImageGallery, type StoredImage } from '@tripweaver/core/lib/imageGallery';
-import { filterIdentityImages } from '@tripweaver/services/placeImagePolicy';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { placeNameKey } from '@rollinggo-trip/shared';
+import { canonicalPlaceId, createPlaceIdentityIndex, placeNames, type IdentityPlace } from '@rollinggo-trip/core/lib/placeIdentity';
+import { normalizePlaceKey } from '@rollinggo-trip/core/lib/placeKey';
+import { readImageGallery, type StoredImage } from '@rollinggo-trip/core/lib/imageGallery';
+import { filterIdentityImages } from '@rollinggo-trip/services/placeImagePolicy';
 
 // 归一键已下沉到 lib/placeKey（09-27）；这里 re-export 保持既有导入路径不变
 export { normalizePlaceKey };

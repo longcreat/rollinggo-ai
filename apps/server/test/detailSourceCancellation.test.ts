@@ -1,10 +1,10 @@
 import { after, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pool } from '@tripweaver/core/db/client';
-import { WebSearchSource } from '@tripweaver/integrations/websearch/searchSource';
-import { AmapPoiSource } from '@tripweaver/integrations/amap/poiSource';
-import { amapQuotaGate } from '@tripweaver/integrations/amap/request';
-import { amapDay } from '@tripweaver/core/amapServices';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { WebSearchSource } from '@rollinggo-trip/integrations/websearch/searchSource';
+import { AmapPoiSource } from '@rollinggo-trip/integrations/amap/poiSource';
+import { amapQuotaGate } from '@rollinggo-trip/integrations/amap/request';
+import { amapDay } from '@rollinggo-trip/core/amapServices';
 
 after(() => pool.end());
 

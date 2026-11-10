@@ -2,10 +2,10 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import test from 'node:test';
-import { DraftTrip } from '@tripweaver/agent/generation/draft';
-import { missingTitleCharacters } from '@tripweaver/agent/generation/titleFont';
-import { titleFontSources } from '@tripweaver/agent/generation/titleFont.generated';
-import { buildTitleTool } from '@tripweaver/agent/generation/tools/titleTool';
+import { DraftTrip } from '@rollinggo-trip/agent/generation/draft';
+import { missingTitleCharacters } from '@rollinggo-trip/agent/generation/titleFont';
+import { titleFontSources } from '@rollinggo-trip/agent/generation/titleFont.generated';
+import { buildTitleTool } from '@rollinggo-trip/agent/generation/tools/titleTool';
 
 test('字符覆盖数据对应当前部署的全部手写字体分片', async () => {
   const directory = new URL('../../../web/public/fonts/handwriting/', import.meta.url);

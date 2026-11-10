@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import type { Message, UserMessage, AssistantMessage } from '@earendil-works/pi-ai';
-import { sanitizeRequestMessages } from '@tripweaver/agent/chat/agent/sanitizeHook';
+import { sanitizeRequestMessages } from '@rollinggo-trip/agent/chat/agent/sanitizeHook';
 
 describe('beforeRequest 思考块防伪过滤 (对齐 Pi Durable 规范)', () => {
   it('当上下文刚经历 Compaction，紧接其后的首条 Assistant 消息必须剥离孤立 thinking 块', () => {
@@ -20,7 +20,7 @@ describe('beforeRequest 思考块防伪过滤 (对齐 Pi Durable 规范)', () =>
         role: 'assistant',
         timestamp: Date.now(),
         api: 'openai-completions',
-        provider: 'tripweaver',
+        provider: 'rollinggo-trip',
         model: 'qwen-plus',
         usage: { input: 10, output: 20, cacheRead: 0, cacheWrite: 0, totalTokens: 30 },
         stopReason: 'stop',
@@ -66,7 +66,7 @@ describe('beforeRequest 思考块防伪过滤 (对齐 Pi Durable 规范)', () =>
         role: 'assistant',
         timestamp: Date.now(),
         api: 'openai-completions',
-        provider: 'tripweaver',
+        provider: 'rollinggo-trip',
         model: 'qwen-plus',
         usage: { input: 10, output: 20, cacheRead: 0, cacheWrite: 0, totalTokens: 30 },
         stopReason: 'stop',

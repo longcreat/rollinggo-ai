@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildCurrentTimeContext, withTimeContext } from '@tripweaver/agent/chat/agent/timeContext';
+import { buildCurrentTimeContext, withTimeContext } from '@rollinggo-trip/agent/chat/agent/timeContext';
 
 describe('timeContext 实时时间上下文', () => {
   it('生成结构化的 <current_time> 块', () => {

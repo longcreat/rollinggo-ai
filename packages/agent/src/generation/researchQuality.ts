@@ -1,4 +1,4 @@
-import type { ResearchPoi } from '@tripweaver/shared';
+import type { ResearchPoi } from '@rollinggo-trip/shared';
 
 const UNKNOWN = '预约要求尚未核实，请以官方最新信息为准。';
 const CONFLICT = '预约资料存在冲突，请通过官方渠道确认后安排。';

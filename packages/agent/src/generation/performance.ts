@@ -1,4 +1,4 @@
-import type { GenerationPhase, GenerationJobStatus } from '@tripweaver/shared';
+import type { GenerationPhase, GenerationJobStatus } from '@rollinggo-trip/shared';
 
 interface TaskStart {
   at: number;

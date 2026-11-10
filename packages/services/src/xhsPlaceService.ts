@@ -4,8 +4,8 @@
 // 与 reservationSeeds 的分工：
 //   reservationSeeds = 全国热门预约景点（静态种子表，官方渠道链接）
 //   xhsPlaceService  = 单城社区口碑（PG，含图片 OCR 的价格/预约/营业时间 + 避坑 + 原笔记链接）
-import { pool } from '@tripweaver/core/db/client';
-import { createPlaceIdentityIndex } from '@tripweaver/core/lib/placeIdentity';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { createPlaceIdentityIndex } from '@rollinggo-trip/core/lib/placeIdentity';
 
 const XHS_SOURCE = 'xhs';
 const CACHE_TTL_MS = 10 * 60 * 1000; // 单次生成内数据不变，10 分钟足够

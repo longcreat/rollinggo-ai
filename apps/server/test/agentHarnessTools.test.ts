@@ -2,11 +2,11 @@
 // 纯内存，不连模型/数据库；验证工具写入回合状态，由 turn 统一组装附件与提交。
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { AgentQuestion, AgentQuestionAnswer, Trip } from '@tripweaver/shared';
-import { createTripTools, type TripToolDeps } from '@tripweaver/agent/chat/agent/tools';
-import { createTripDraft } from '@tripweaver/agent/chat/agent/tripDraft';
-import { createAgentTurnState } from '@tripweaver/agent/chat/agent/turnState';
-import type { DetailSources } from '@tripweaver/integrations/detailSources';
+import type { AgentQuestion, AgentQuestionAnswer, Trip } from '@rollinggo-trip/shared';
+import { createTripTools, type TripToolDeps } from '@rollinggo-trip/agent/chat/agent/tools';
+import { createTripDraft } from '@rollinggo-trip/agent/chat/agent/tripDraft';
+import { createAgentTurnState } from '@rollinggo-trip/agent/chat/agent/turnState';
+import type { DetailSources } from '@rollinggo-trip/integrations/detailSources';
 
 const trip: Trip = {
   id: 'trip-harness', title: '成都两日', destination: '成都', startDate: '2026-11-10',

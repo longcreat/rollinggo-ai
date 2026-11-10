@@ -2,11 +2,11 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { makeSampleTrip } from '@tripweaver/shared';
-import { pool } from '@tripweaver/core/db/client';
-import { createTrip } from '@tripweaver/services/tripService';
-import { rewindTrip } from '@tripweaver/services/tripHistoryService';
-import { findConversationForTrip, getConversationDetail } from '@tripweaver/services/conversationService';
+import { makeSampleTrip } from '@rollinggo-trip/shared';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { createTrip } from '@rollinggo-trip/services/tripService';
+import { rewindTrip } from '@rollinggo-trip/services/tripHistoryService';
+import { findConversationForTrip, getConversationDetail } from '@rollinggo-trip/services/conversationService';
 
 after(() => pool.end());
 

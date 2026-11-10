@@ -3,11 +3,11 @@ import test from 'node:test';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { createLocalMediaStore, normalizeMediaKey } from '@tripweaver/core/lib/mediaStore';
+import { createLocalMediaStore, normalizeMediaKey } from '@rollinggo-trip/core/lib/mediaStore';
 import { createMemoryMediaStore } from './helpers/memoryMediaStore';
 
 async function fixture(run: (root: string) => Promise<void>) {
-  const root = await mkdtemp(path.join(os.tmpdir(), 'tripweaver-media-store-'));
+  const root = await mkdtemp(path.join(os.tmpdir(), 'rollinggo-trip-media-store-'));
   try { await run(root); } finally { await rm(root, { recursive: true, force: true }); }
 }
 

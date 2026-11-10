@@ -12,7 +12,7 @@ import {
   type TransportMode,
   type TravelPreferences,
   type TripPace,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 import { RangeCalendar } from '../RangeCalendar';
 import { Modal } from '../Modal';
 import { NavigationIcon } from '../NavigationIcon';

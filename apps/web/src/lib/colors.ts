@@ -1,4 +1,4 @@
-import { DAY_COLORS, type ActivityCategory } from '@tripweaver/shared';
+import { DAY_COLORS, type ActivityCategory } from '@rollinggo-trip/shared';
 
 export function dayColor(dayIndex: number): string {
   return DAY_COLORS[(dayIndex - 1) % DAY_COLORS.length]!;

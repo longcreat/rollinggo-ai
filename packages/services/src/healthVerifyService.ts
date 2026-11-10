@@ -1,7 +1,7 @@
 // 体检卡实时核验（H2）：按 finding 查最新信息（预约/营业时间），直连 DetailSources，
 // 不走 durable 子代理——单点查询走子代理是杀鸡用牛刀，且这是同步 REST 语义。
-import { simulateTrip, type HealthFinding, type Trip } from '@tripweaver/shared';
-import { resolveDetailSources } from '@tripweaver/integrations/detailSources';
+import { simulateTrip, type HealthFinding, type Trip } from '@rollinggo-trip/shared';
+import { resolveDetailSources } from '@rollinggo-trip/integrations/detailSources';
 import { getTripWeather } from './tripWeatherService';
 
 const VERIFY_TIMEOUT_MS = 15_000;

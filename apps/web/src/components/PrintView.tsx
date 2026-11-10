@@ -1,5 +1,5 @@
 // 打印/长图共用的线性排版视图（全文，不含地图与概览候选池）——常驻离屏渲染
-import type { Trip } from '@tripweaver/shared';
+import type { Trip } from '@rollinggo-trip/shared';
 import { dayColor } from '../lib/colors';
 import { DATA_SOURCE_LABEL } from '../lib/poi';
 

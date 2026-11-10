@@ -10,7 +10,7 @@
 // 故参照点也要互检：城市中心与活动中位中心相距超 REFERENCE_CONFLICT_KM 时弃前者用后者。
 // 原则：校验只拒不改 —— 不试图「纠正」坐标，拒绝即视同解析失败（宁缺毋错）；
 // 对 AMAP 与 Nominatim 两条路径的结果统一校验，与来源无关；参照点不可得时跳过校验（防御：不因校验挂掉生成）。
-import { haversineMeters } from '@tripweaver/shared';
+import { haversineMeters } from '@rollinggo-trip/shared';
 import { MIN_LOCATED_POIS, medianCenter } from './longHaul';
 
 /** 解析结果距参照点（目的地城市中心/已解析坐标中位中心）超此值判为解析失败，弃用坐标（活动条目

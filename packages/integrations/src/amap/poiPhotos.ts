@@ -11,8 +11,8 @@
 // place 服务的持久化日预算、命中后由调用方回写 `canonical_places.payload.amapPhoto`
 // —— 同一地点终身只花一次配额。
 // `calls` 暴露任务尝试统计；真实外呼预算由 amapRequest 的持久账本计量。
-import { TtlCache } from '@tripweaver/core/lib/ttlCache';
-import { normalizePlaceKey } from '@tripweaver/core/lib/placeKey';
+import { TtlCache } from '@rollinggo-trip/core/lib/ttlCache';
+import { normalizePlaceKey } from '@rollinggo-trip/core/lib/placeKey';
 import { amapQueue } from './geocoder';
 import { amapRequest } from './request';
 

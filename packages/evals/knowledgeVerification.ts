@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { Pool } from 'pg';
-import { runMigrations } from '@tripweaver/core/db/migrate';
-import { createPlaceRetriever } from '@tripweaver/agent/generation/placeRetrieval';
+import { runMigrations } from '@rollinggo-trip/core/db/migrate';
+import { createPlaceRetriever } from '@rollinggo-trip/agent/generation/placeRetrieval';
 import { hash } from './artifacts';
 import { createEvaluationDatabase } from './isolation';
 import { exportKnowledge } from './exportKnowledge';

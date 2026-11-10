@@ -1,13 +1,13 @@
 {
-  "name": "@tripweaver/evals",
+  "name": "@rollinggo-trip/evals",
   "private": true,
   "type": "module",
   "dependencies": {
-    "@tripweaver/shared": "*",
-    "@tripweaver/core": "*",
-    "@tripweaver/integrations": "*",
-    "@tripweaver/services": "*",
-    "@tripweaver/agent": "*"
+    "@rollinggo-trip/shared": "*",
+    "@rollinggo-trip/core": "*",
+    "@rollinggo-trip/integrations": "*",
+    "@rollinggo-trip/services": "*",
+    "@rollinggo-trip/agent": "*"
   },
   "exports": {
     "./*": "./*.ts"

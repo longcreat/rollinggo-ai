@@ -1,4 +1,4 @@
-import type { Activity, Trip } from '@tripweaver/shared';
+import type { Activity, Trip } from '@rollinggo-trip/shared';
 
 export function routePairKey(trip: Trip, dayId: string, fromId: string): string | null {
   const day = trip.days.find((d) => d.id === dayId);

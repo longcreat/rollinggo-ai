@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { reduceStreamParts, type StreamParts } from '../../../apps/web/src/lib/chatStreamParts';
-import type { ChatStreamEvent } from '@tripweaver/shared';
+import type { ChatStreamEvent } from '@rollinggo-trip/shared';
 
 type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
 

@@ -1,4 +1,4 @@
-import { isApiResponse, type ApiCode } from '@tripweaver/shared';
+import { isApiResponse, type ApiCode } from '@rollinggo-trip/shared';
 
 export class ApiError extends Error {
   constructor(

@@ -4,13 +4,13 @@ process.env.MASTER_KEY = 'a'.repeat(64);
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createS3MediaStore } from '@tripweaver/core/lib/mediaStore';
+import { createS3MediaStore } from '@rollinggo-trip/core/lib/mediaStore';
 
-const { mediaObjectKey } = await import('@tripweaver/core/lib/dataStore');
+const { mediaObjectKey } = await import('@rollinggo-trip/core/lib/dataStore');
 
 const config = {
   endpoint: 'https://acct.r2.cloudflarestorage.com',
-  bucket: 'tripweaver-media',
+  bucket: 'rollinggo-trip-media',
   accessKeyId: 'AKIAEXAMPLEFIXTURE',
   secretAccessKey: 'secret-fixture',
   region: 'auto',
@@ -42,7 +42,7 @@ test('put：签名请求落到 bucket/key，带上 Content-Type 与 Cache-Contro
     assert.equal(seen.length, 1);
     const request = seen[0]!;
     assert.equal(request.method, 'PUT');
-    assert.equal(request.url, 'https://acct.r2.cloudflarestorage.com/tripweaver-media/media/share-posters/abc.png');
+    assert.equal(request.url, 'https://acct.r2.cloudflarestorage.com/rollinggo-trip-media/media/share-posters/abc.png');
     assert.equal(request.headers.get('content-type'), 'image/png');
     assert.equal(request.headers.get('cache-control'), 'public, max-age=31536000, immutable');
     const authorization = request.headers.get('authorization') ?? '';
@@ -66,7 +66,7 @@ test('中文 key 只编码一次，且不会变成 media/media 前缀', async ()
   try {
     await store.put('media/xhs/杭州/8f3a/00.webp', Buffer.from('x'));
     const url = seen[0]!.url;
-    assert.equal(url, 'https://acct.r2.cloudflarestorage.com/tripweaver-media/media/xhs/%E6%9D%AD%E5%B7%9E/8f3a/00.webp');
+    assert.equal(url, 'https://acct.r2.cloudflarestorage.com/rollinggo-trip-media/media/xhs/%E6%9D%AD%E5%B7%9E/8f3a/00.webp');
     assert.ok(!url.includes('%25'), '百分号本身不能再被编码（二次编码会让签名与对象不匹配）');
   } finally { restore(); }
 });

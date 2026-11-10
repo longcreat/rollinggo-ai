@@ -1,6 +1,6 @@
-# 织程 TripWeaver · 技术架构文档
+# rollinggo 旅行 · RollingGo Trip · 技术架构文档
 
-- 项目名称：**织程 TripWeaver**（仓库名 `tripweaver`）
+- 项目名称：**rollinggo 旅行 · RollingGo Trip**（仓库名 `rollinggo-ai`）
 - 文档版本：v0.7
 - 日期：2026-11-07
 - 关联文档：[PRD](./PRD.md)
@@ -78,7 +78,7 @@
 
 ## 3. Monorepo 结构（关键部分）
 
-依赖方向：`shared ← core ← integrations ← services ← agent ← apps/server`；跨包引用统一 `@tripweaver/<pkg>/<path>`。
+依赖方向：`shared ← core ← integrations ← services ← agent ← apps/server`；跨包引用统一 `@rollinggo-trip/<pkg>/<path>`。
 
 ```
 ├─ package.json                        # workspaces + eval scripts

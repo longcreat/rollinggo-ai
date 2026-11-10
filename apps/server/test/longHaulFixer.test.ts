@@ -18,8 +18,8 @@ import {
   type LegMode,
   type Lodging,
   type TransitLeg,
-} from '@tripweaver/shared';
-import { DraftTrip } from '@tripweaver/agent/generation/draft';
+} from '@rollinggo-trip/shared';
+import { DraftTrip } from '@rollinggo-trip/agent/generation/draft';
 import {
   MAX_MOVES_PER_DAY,
   MAX_TOTAL_ATTEMPTS,
@@ -30,7 +30,7 @@ import {
   scanMixedDay,
   verifiedFixNotes,
   type DraftDay,
-} from '@tripweaver/agent/generation/longHaulFixer';
+} from '@rollinggo-trip/agent/generation/longHaulFixer';
 
 // ---------- 夹具 ----------
 

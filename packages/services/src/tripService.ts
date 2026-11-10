@@ -9,9 +9,9 @@ import {
   type TripListPage,
   type TripListSort,
   type TripVersionChain,
-} from '@tripweaver/shared';
-import { db } from '@tripweaver/core/db/client';
-import { trips, users } from '@tripweaver/core/db/schema';
+} from '@rollinggo-trip/shared';
+import { db } from '@rollinggo-trip/core/db/client';
+import { trips, users } from '@rollinggo-trip/core/db/schema';
 import { commitOperation, operationFingerprint } from './detailOperationService';
 
 export type TripWriter = Pick<typeof db, 'select' | 'insert' | 'update' | 'delete'>;

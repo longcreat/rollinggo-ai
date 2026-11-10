@@ -2,9 +2,9 @@
 // 为什么复用 generations 而不是新表：配额、会话反查、用量统计都已依赖这张表；
 // 新表会制造第三个事实源。所有写入按 (user_id, job_id) 幂等，重跑不会产生重复任务。
 import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
-import type { DataSourceKind, GenerateForm, GenerationJobStatus, GenerationWarning } from '@tripweaver/shared';
-import { db } from '@tripweaver/core/db/client';
-import { generations } from '@tripweaver/core/db/schema';
+import type { DataSourceKind, GenerateForm, GenerationJobStatus, GenerationWarning } from '@rollinggo-trip/shared';
+import { db } from '@rollinggo-trip/core/db/client';
+import { generations } from '@rollinggo-trip/core/db/schema';
 import type { GenerationAgentKey, GenerationTaskRef } from './provenance';
 
 export interface GenerationTaskUsage {

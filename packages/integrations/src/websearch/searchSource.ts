@@ -1,11 +1,11 @@
 // Web 搜索适配层：通过 Tavily 官方 API 提供高质量实时网络搜索、内容提炼与事实溯源。
 // 遵循成熟 Harness 的设计原则：直接透传自然语言 Query，由专业 AI 搜索引擎完成意图识别与排序，
 // 零人工关键词正则篡改，零脆弱硬编码。
-import { env } from '@tripweaver/core/env';
-import { createSerialQueue } from '@tripweaver/core/lib/serialQueue';
-import { TtlCache } from '@tripweaver/core/lib/ttlCache';
-import { resolveSearchCredential } from '@tripweaver/core/settingsService';
-import { assertSafeBaseUrl } from '@tripweaver/core/ssrfGuard';
+import { env } from '@rollinggo-trip/core/env';
+import { createSerialQueue } from '@rollinggo-trip/core/lib/serialQueue';
+import { TtlCache } from '@rollinggo-trip/core/lib/ttlCache';
+import { resolveSearchCredential } from '@rollinggo-trip/core/settingsService';
+import { assertSafeBaseUrl } from '@rollinggo-trip/core/ssrfGuard';
 import type { SourceStatus } from '../sourceStatus';
 
 const SEARCH_MIN_INTERVAL_MS = 500;

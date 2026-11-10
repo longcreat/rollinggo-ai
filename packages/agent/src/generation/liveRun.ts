@@ -7,7 +7,7 @@ import {
   type GenerationEvent,
   type GenerationJobStatus,
   type TripProjectionSnapshot,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 import { createGenerationProjection, type GenerationProjection } from './projectionAdapter';
 import type { GenerationTaskRef } from './provenance';
 import type { GenerationTaskView } from './taskStore';

@@ -1,7 +1,7 @@
 // HITL 问题卡：Agent 在工具执行中暂停时显示，用户选择/自定义答案后提交。
 // 视觉跟随编辑器：白底、细边框、紧凑表单；选项用纵向列表而不是彩色胶囊。
 import { useMemo, useState } from 'react';
-import type { AgentQuestionAnswer, PendingQuestionView } from '@tripweaver/shared';
+import type { AgentQuestionAnswer, PendingQuestionView } from '@rollinggo-trip/shared';
 
 export function QuestionCard(props: {
   question: PendingQuestionView;

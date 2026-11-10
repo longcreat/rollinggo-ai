@@ -1,7 +1,7 @@
 // 体检 Pass 2：确定性执行用户 accept 的建议。纪律照 longHaulFixer——
 // 每步执行后重验可行性，hard 违规数不严格递减即回滚该步；任何异常整批回滚。
 // 不用 LLM：建议里的 dayIndex/activityId 来自 Pass 1a 的精确定位，执行是纯数据操作。
-import { simulateTrip, type HealthDecision, type HealthFinding, type Trip } from '@tripweaver/shared';
+import { simulateTrip, type HealthDecision, type HealthFinding, type Trip } from '@rollinggo-trip/shared';
 import { scheduleDays } from './itinerary/schedule';
 
 export interface HealthRepairOutcome {

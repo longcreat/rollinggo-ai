@@ -10,14 +10,14 @@ import { createModels } from '@earendil-works/pi-ai/models';
 import { fauxAssistantMessage, fauxProvider, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
 import { defineTool } from '@earendil-works/pi-durable';
 import { obj } from '@earendil-works/pi-schema';
-import { closeAgentRuntime, getAgentRuntime, runAgentTurn, type AgentStreamEvent } from '@tripweaver/agent/chat/agent/runtime';
-import { createSubagentTool, resetSubagentCache } from '@tripweaver/agent/chat/agent/subagent';
+import { closeAgentRuntime, getAgentRuntime, runAgentTurn, type AgentStreamEvent } from '@rollinggo-trip/agent/chat/agent/runtime';
+import { createSubagentTool, resetSubagentCache } from '@rollinggo-trip/agent/chat/agent/subagent';
 
 const directories: string[] = [];
 const paths: string[] = [];
 
 async function storage(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'tripweaver-subagent-'));
+  const dir = await mkdtemp(join(tmpdir(), 'rollinggo-trip-subagent-'));
   directories.push(dir);
   const path = join(dir, 'runs.sqlite');
   paths.push(path);

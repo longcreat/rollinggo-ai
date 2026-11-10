@@ -2,9 +2,9 @@
 // 增强路径原则：记录失败只 console.warn，永不阻断生成（对齐 error-handling spec）。
 // 快照天然不含 API key —— key 走 Agent 的 getApiKey 回调，不进 context。
 import { eq } from 'drizzle-orm';
-import { uid, type GenerationPhase } from '@tripweaver/shared';
-import { db } from '@tripweaver/core/db/client';
-import { llmRequestLogs } from '@tripweaver/core/db/schema';
+import { uid, type GenerationPhase } from '@rollinggo-trip/shared';
+import { db } from '@rollinggo-trip/core/db/client';
+import { llmRequestLogs } from '@rollinggo-trip/core/db/schema';
 
 export interface LlmRequestLogScope {
   jobId: string;

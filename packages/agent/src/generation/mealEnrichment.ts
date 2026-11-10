@@ -7,8 +7,8 @@
 //
 // 纪律：只替换合成锚点（description 前缀匹配），已有真实候选的餐次不动；命中必须带坐标、
 // 当天不闭馆、不与当天活动重名；搜索次数有硬上限（预算友好），查不到就保留锚点（现状降级）。
-import { dateForDayIndex, haversineMeters, isClosedOnDate } from '@tripweaver/shared';
-import type { PoiSource } from '@tripweaver/integrations/geoContracts';
+import { dateForDayIndex, haversineMeters, isClosedOnDate } from '@rollinggo-trip/shared';
+import type { PoiSource } from '@rollinggo-trip/integrations/geoContracts';
 import type { DraftTrip } from './draft';
 import { isMeal, MEAL_ANCHOR_ID_PREFIX } from './mealPlanning';
 

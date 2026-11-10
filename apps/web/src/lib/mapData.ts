@@ -1,7 +1,7 @@
 // 地图数据层（09-26 抽出）：把「行程 → 可渲染的点与线」这段纯计算与具体地图 SDK 解耦，
 // 供两套渲染共用（高德 JS API 优先，Leaflet 降级）。
 // 坐标系：一律 GCJ-02 —— 高德 JS API 原生 GCJ-02，高德栅格瓦片也同系，故两套底图共用这里的坐标。
-import { wgs84ToGcj02, type Activity, type TripDay } from '@tripweaver/shared';
+import { wgs84ToGcj02, type Activity, type TripDay } from '@rollinggo-trip/shared';
 import { dayColor, hasValidCoord } from './colors';
 import { legForPair } from './tripDerive';
 

@@ -3,11 +3,11 @@
 // 服务商失败/超额/无 Key 均静默降级（Nominatim 转换 / 启发式估算），生成流程永不因此失败。
 // geocodeAll 出口统一过地理合理性校验（07-18，见 geoSanity.ts）：异地错配坐标弃用，宁缺毋错。
 // 走哪家服务商由 integrations/geoProvider 决定（09-25）：本文件只认门面，不直接引用 amap/*。
-import { LODGING_SENTINEL, effectiveLegMode, haversineMeters, type LegMode, type ResearchPoi, type TransitLeg } from '@tripweaver/shared';
-import type { GeocodedPlace } from '@tripweaver/integrations/geoContracts';
-import type { MapProvider } from '@tripweaver/core/env';
-import { ROUTE_MAX_PER_TASK } from '@tripweaver/integrations/amap/route';
-import { createNullGeoProvider, resolveGeoProvider, type GeoProvider } from '@tripweaver/integrations/geoProvider';
+import { LODGING_SENTINEL, effectiveLegMode, haversineMeters, type LegMode, type ResearchPoi, type TransitLeg } from '@rollinggo-trip/shared';
+import type { GeocodedPlace } from '@rollinggo-trip/integrations/geoContracts';
+import type { MapProvider } from '@rollinggo-trip/core/env';
+import { ROUTE_MAX_PER_TASK } from '@rollinggo-trip/integrations/amap/route';
+import { createNullGeoProvider, resolveGeoProvider, type GeoProvider } from '@rollinggo-trip/integrations/geoProvider';
 import { estimateLeg } from './legEstimator';
 import { rejectFarGeocodes } from './geoSanity';
 import type { DraftTrip } from './draft';

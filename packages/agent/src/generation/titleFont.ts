@@ -1,1 +1,1 @@
-export { missingTitleCharacters } from '@tripweaver/shared';
+export { missingTitleCharacters } from '@rollinggo-trip/shared';

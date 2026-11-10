@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test, mock, afterEach } from 'node:test';
-import { amapQuotaGate, amapRequest, setAmapLogger } from '@tripweaver/integrations/amap/request';
-import { AMAP_PATHS, AMAP_SERVICES, amapDay, readAmapServiceBudgets } from '@tripweaver/core/amapServices';
+import { amapQuotaGate, amapRequest, setAmapLogger } from '@rollinggo-trip/integrations/amap/request';
+import { AMAP_PATHS, AMAP_SERVICES, amapDay, readAmapServiceBudgets } from '@rollinggo-trip/core/amapServices';
 
 afterEach(() => { mock.restoreAll(); mock.timers.reset(); });
 const allowed = (service: typeof AMAP_SERVICES[number]) => ({ ...amapDay(), service, allowed: true, used: 1, limit: 5 });
@@ -29,7 +29,7 @@ test('daily boundary is midnight UTC+8', () => {
 
 test('exhausted budget and database outage never reach upstream', async () => {
   const fetch = mock.method(globalThis, 'fetch', async () => new Response('{}'));
-  const gate = mock.method(amapQuotaGate, 'acquire', async (service: import('@tripweaver/core/amapServices').AmapService) => ({ ...allowed(service), allowed: false }));
+  const gate = mock.method(amapQuotaGate, 'acquire', async (service: import('@rollinggo-trip/core/amapServices').AmapService) => ({ ...allowed(service), allowed: false }));
   await assert.rejects(amapRequest('place', new URLSearchParams()));
   gate.mock.mockImplementation(async () => { throw new Error('database secret'); });
   await assert.rejects(amapRequest('walk', new URLSearchParams()), /计量暂不可用/);
@@ -37,7 +37,7 @@ test('exhausted budget and database outage never reach upstream', async () => {
 });
 
 test('each endpoint reserves its service once, including upstream rejection', async () => {
-  const gate = mock.method(amapQuotaGate, 'acquire', async (service: import('@tripweaver/core/amapServices').AmapService) => allowed(service));
+  const gate = mock.method(amapQuotaGate, 'acquire', async (service: import('@rollinggo-trip/core/amapServices').AmapService) => allowed(service));
   const paths: string[] = [];
   mock.method(globalThis, 'fetch', async (url: string | URL | Request) => {
     paths.push(new URL(String(url)).pathname);
@@ -51,7 +51,7 @@ test('each endpoint reserves its service once, including upstream rejection', as
 test('network failure is charged and sensitive upstream content is excluded from logs', async () => {
   const records: unknown[] = [];
   setAmapLogger({ info: (data: unknown) => { records.push(data); }, warn: (data: unknown) => { records.push(data); } });
-  const gate = mock.method(amapQuotaGate, 'acquire', async (service: import('@tripweaver/core/amapServices').AmapService) => allowed(service));
+  const gate = mock.method(amapQuotaGate, 'acquire', async (service: import('@rollinggo-trip/core/amapServices').AmapService) => allowed(service));
   const fetch = mock.method(globalThis, 'fetch', async () => { throw new Error('private-key'); });
   await assert.rejects(amapRequest('drive', new URLSearchParams({ key: 'private-key' })), /请求失败/);
   fetch.mock.mockImplementation(async () => new Response(JSON.stringify({ status: '0', info: 'private-key', infocode: 'private-key' })));
@@ -63,7 +63,7 @@ test('network failure is charged and sensitive upstream content is excluded from
 test('midnight between reservation and fetch requires a new-day reservation', async () => {
   mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-29T15:59:59Z') });
   let reservations = 0;
-  mock.method(amapQuotaGate, 'acquire', async (service: import('@tripweaver/core/amapServices').AmapService) => {
+  mock.method(amapQuotaGate, 'acquire', async (service: import('@rollinggo-trip/core/amapServices').AmapService) => {
     const decision = allowed(service);
     if (++reservations === 1) mock.timers.setTime(Date.parse('2026-09-29T16:00:00Z'));
     return decision;

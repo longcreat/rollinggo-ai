@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { generationStatusView } from '@tripweaver/agent/generation/statusView';
-import type { GenerationTaskView } from '@tripweaver/agent/generation/taskStore';
+import { generationStatusView } from '@rollinggo-trip/agent/generation/statusView';
+import type { GenerationTaskView } from '@rollinggo-trip/agent/generation/taskStore';
 
 const task = (overrides: Partial<GenerationTaskView> = {}): GenerationTaskView => ({
   jobId: 'job-1',

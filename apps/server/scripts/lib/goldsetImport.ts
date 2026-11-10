@@ -4,9 +4,9 @@ import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { Type } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
-import { env } from '@tripweaver/core/env';
-import { runMigrations } from '@tripweaver/core/db/migrate';
-import { importGoldsetCity, type GoldsetActivity, type GoldsetInput } from '@tripweaver/services/goldsetPlaceImport';
+import { env } from '@rollinggo-trip/core/env';
+import { runMigrations } from '@rollinggo-trip/core/db/migrate';
+import { importGoldsetCity, type GoldsetActivity, type GoldsetInput } from '@rollinggo-trip/services/goldsetPlaceImport';
 
 const ActivitySchema=Type.Object({name:Type.String({minLength:1}),category:Type.Optional(Type.String()),
   lat:Type.Number({minimum:-90,maximum:90}),lng:Type.Number({minimum:-180,maximum:180}),coordSource:Type.Literal('geocoded')});

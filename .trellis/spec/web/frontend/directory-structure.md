@@ -51,6 +51,6 @@ When adding a route, decide explicitly whether it is public or authenticated, pl
 
 ## Shared Contracts
 
-The web package resolves `@tripweaver/shared` directly to `packages/shared/src/index.ts`. Domain types, constants, schemas, and shared calculations should come from that package rather than being duplicated in the web tree.
+The web package resolves `@rollinggo-trip/shared` directly to `packages/shared/src/index.ts`. Domain types, constants, schemas, and shared calculations should come from that package rather than being duplicated in the web tree.
 
 Evidence: `apps/web/tsconfig.json`, `packages/shared/src/index.ts`, `packages/shared/src/types.ts`.

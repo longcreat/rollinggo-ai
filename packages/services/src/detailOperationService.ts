@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
-import { db } from '@tripweaver/core/db/client';
-import { detailOperations } from '@tripweaver/core/db/schema';
+import { db } from '@rollinggo-trip/core/db/client';
+import { detailOperations } from '@rollinggo-trip/core/db/schema';
 import { lockTripWriter, type TripWriter } from './tripService';
 
 export const operationFingerprint = (kind: string, input: unknown) => createHash('sha256').update(JSON.stringify([kind, input])).digest('hex');

@@ -6,8 +6,8 @@
 //   · 配额闸门（各自内部处理）
 // 所以这里只保留 SDK 无关的核心实现；对话侧包成 pi-durable ToolRegistration、
 // 规划侧包成 pi-agent-core AgentTool，避免两份逻辑随规则漂移。
-import type { SourcedPoi } from '@tripweaver/integrations/geoContracts';
-import { classifySubPoi } from '@tripweaver/services/geofenceImport';
+import type { SourcedPoi } from '@rollinggo-trip/integrations/geoContracts';
+import { classifySubPoi } from '@rollinggo-trip/services/geofenceImport';
 
 /** 两个 SDK 都只需要这三个字段；对话侧从 WebSearchHit 里裁出。 */
 export interface WebHit {

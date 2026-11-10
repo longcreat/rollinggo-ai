@@ -26,6 +26,6 @@ apps/
 ## 约束
 
 - 不改变运行时行为、API、数据库结构。
-- 每个包独立 `package.json` + `tsconfig.json`，导出 TS 源码（与现有 `@tripweaver/shared` 一致）。
-- 用 `git mv` 保留历史；跨包引用统一 `@tripweaver/<pkg>/<path>`。
+- 每个包独立 `package.json` + `tsconfig.json`，导出 TS 源码（与现有 `@rollinggo-trip/shared` 一致）。
+- 用 `git mv` 保留历史；跨包引用统一 `@rollinggo-trip/<pkg>/<path>`。
 - 通过 `npm run typecheck` 与现有 `eval:test` 子集验证。

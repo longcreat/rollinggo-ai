@@ -1,7 +1,7 @@
 import { Value } from '@sinclair/typebox/value';
-import { chinaDate, validWeatherDate, WEATHER_FORECAST_DAYS, WeatherCastSchema, WeatherForecastSchema, type WeatherCast, type WeatherForecast } from '@tripweaver/shared';
-import { TtlCache } from '@tripweaver/core/lib/ttlCache';
-import { qweatherIdentity, type QWeatherAuth } from '@tripweaver/core/qweatherAuth';
+import { chinaDate, validWeatherDate, WEATHER_FORECAST_DAYS, WeatherCastSchema, WeatherForecastSchema, type WeatherCast, type WeatherForecast } from '@rollinggo-trip/shared';
+import { TtlCache } from '@rollinggo-trip/core/lib/ttlCache';
+import { qweatherIdentity, type QWeatherAuth } from '@rollinggo-trip/core/qweatherAuth';
 import { qweatherRequest } from './client';
 
 function record(value: unknown): Record<string, unknown> | undefined {

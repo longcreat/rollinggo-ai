@@ -2,7 +2,7 @@
 // 旧确定性排程（buildSchedule）已由 planner/ 编排 Agent 接管，相关用例随之移除。
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { NEUTRAL_RATIO, poiScore, scoreMaxima } from '@tripweaver/agent/generation/scheduling/score';
+import { NEUTRAL_RATIO, poiScore, scoreMaxima } from '@rollinggo-trip/agent/generation/scheduling/score';
 
 test('选点权重：缺失分走中性（不当 0），金集另有加分', () => {
   const maxima = { score: 50, mention: 20 };

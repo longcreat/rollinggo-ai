@@ -2,7 +2,7 @@
 // 隔离靠会话显式选择自己的工具扩展，而不是按用途拆文件 —— 一个用户一个 Harness。
 import { mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { dataRoot } from '@tripweaver/core/lib/dataStore';
+import { dataRoot } from '@rollinggo-trip/core/lib/dataStore';
 
 const AGENT_RUNS_DIR = join(dataRoot, 'agent-runs');
 

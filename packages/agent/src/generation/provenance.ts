@@ -1,5 +1,5 @@
 // 生成任务的来源标注与最小任务引用（不再有内存 Job 对象）。
-import type { GenerationKind } from '@tripweaver/shared';
+import type { GenerationKind } from '@rollinggo-trip/shared';
 
 export interface GenerationProvenance {
   conversationId?: string;

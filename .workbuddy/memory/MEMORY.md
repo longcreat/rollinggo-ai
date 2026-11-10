@@ -1,4 +1,4 @@
-# TripWeaver 项目长期记忆
+# RollingGo Trip 项目长期记忆
 
 ## 密钥与启动：Doppler 统一管理
 

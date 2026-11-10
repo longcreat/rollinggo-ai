@@ -1,5 +1,5 @@
-import { createPlaceIdentityIndex, placeIdentity, type IdentityPlace } from '@tripweaver/core/lib/placeIdentity';
-import type { StoredImage } from '@tripweaver/core/lib/imageGallery';
+import { createPlaceIdentityIndex, placeIdentity, type IdentityPlace } from '@rollinggo-trip/core/lib/placeIdentity';
+import type { StoredImage } from '@rollinggo-trip/core/lib/imageGallery';
 import { filterIdentityImages } from './placeImagePolicy';
 
 /** 旧图片清单沿稳定成员 ID 找到现行主实体，原路径与来源保持不变。 */

@@ -1,6 +1,6 @@
 // 检索核心接受只读依赖，独立探针不触发数据库迁移。
-import { pool } from '@tripweaver/core/db/client';
-import { embedQuery } from '@tripweaver/integrations/embedding';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { embedQuery } from '@rollinggo-trip/integrations/embedding';
 import { createPlaceRetriever } from './placeRetrieval';
 
 export type { EvidenceItem, RetrievedPlace, RetrieveOptions } from './placeRetrieval';

@@ -8,16 +8,16 @@
  */
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
-import { DetailChatRequestSchema, AddFoodRequestSchema, AgentQuestionAnswersRequestSchema, type ChatStreamEvent } from '@tripweaver/shared';
-import { hasSiteLlm } from '@tripweaver/core/env';
-import { getConversation } from '@tripweaver/services/conversationService';
-import { prepareDetailChat, runDetailChat } from '@tripweaver/agent/detailChatService';
-import { readOperation, startDetailTurn, stopDetailTurn } from '@tripweaver/services/detailOperationService';
-import { resolveLlmConfig } from '@tripweaver/core/settingsService';
-import { streamErrorPayload } from '@tripweaver/agent/chat/streamError';
-import { addFood } from '@tripweaver/services/tripHistoryService';
-import { answerPendingQuestion, cancelPendingQuestions, hasPendingQuestion, pendingQuestion, startHardTimeout } from '@tripweaver/agent/chat/agent/humanInLoop';
-import { expireConversationQuestions, getQuestion, markQuestionAnswered, markQuestionExpired } from '@tripweaver/agent/chat/agent/questionStore';
+import { DetailChatRequestSchema, AddFoodRequestSchema, AgentQuestionAnswersRequestSchema, type ChatStreamEvent } from '@rollinggo-trip/shared';
+import { hasSiteLlm } from '@rollinggo-trip/core/env';
+import { getConversation } from '@rollinggo-trip/services/conversationService';
+import { prepareDetailChat, runDetailChat } from '@rollinggo-trip/agent/detailChatService';
+import { readOperation, startDetailTurn, stopDetailTurn } from '@rollinggo-trip/services/detailOperationService';
+import { resolveLlmConfig } from '@rollinggo-trip/core/settingsService';
+import { streamErrorPayload } from '@rollinggo-trip/agent/chat/streamError';
+import { addFood } from '@rollinggo-trip/services/tripHistoryService';
+import { answerPendingQuestion, cancelPendingQuestions, hasPendingQuestion, pendingQuestion, startHardTimeout } from '@rollinggo-trip/agent/chat/agent/humanInLoop';
+import { expireConversationQuestions, getQuestion, markQuestionAnswered, markQuestionExpired } from '@rollinggo-trip/agent/chat/agent/questionStore';
 
 const Id = Type.Object({ id: Type.String({ maxLength: 100 }) });
 const Operation = Type.Object({ id: Type.String({ maxLength: 100 }), operationId: Type.String({ maxLength: 100 }) });

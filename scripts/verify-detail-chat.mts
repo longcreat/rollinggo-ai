@@ -13,7 +13,7 @@ import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import { chromium } from 'playwright';
-import { makeSampleTrip, uid } from '@tripweaver/shared';
+import { makeSampleTrip, uid } from '@rollinggo-trip/shared';
 
 const databaseName = `detail_chat_verify_${Date.now()}`;
 const adminUrl = process.env.VERIFY_GENERATION_ADMIN_URL ?? 'postgres://postgres:postgres@127.0.0.1:5432/postgres';
@@ -90,11 +90,11 @@ const llm = createServer(async (req, res) => {
   res.end('data: [DONE]\n\n');
 });
 llm.listen(18828, '127.0.0.1'); await once(llm, 'listening');
-const { db, pool } = await import('@tripweaver/core/db/client');
-const { createTrip, updateTrip, listTripVersions, getTrip } = await import('@tripweaver/services/tripService');
+const { db, pool } = await import('@rollinggo-trip/core/db/client');
+const { createTrip, updateTrip, listTripVersions, getTrip } = await import('@rollinggo-trip/services/tripService');
 const { createSession } = await import('../apps/server/src/auth/session');
-const { ensureTripConversation, restoreTrip, repairChangedRoutes } = await import('@tripweaver/services/tripHistoryService');
-const { appendMessages } = await import('@tripweaver/services/conversationService');
+const { ensureTripConversation, restoreTrip, repairChangedRoutes } = await import('@rollinggo-trip/services/tripHistoryService');
+const { appendMessages } = await import('@rollinggo-trip/services/conversationService');
 const { conversationRoutes } = await import('../apps/server/src/routes/conversations');
 const { tripRoutes } = await import('../apps/server/src/routes/trips');
 const { authRoutes } = await import('../apps/server/src/routes/auth');
@@ -145,7 +145,7 @@ try {
   delete source.lodging;
   const initial = await createTrip('detail-user', source);
   await pool.query('ALTER TABLE trips DROP COLUMN change_summary; ALTER TABLE chat_messages DROP COLUMN attachment');
-  const { runMigrations } = await import('@tripweaver/core/db/migrate');
+  const { runMigrations } = await import('@rollinggo-trip/core/db/migrate');
   await runMigrations(pool); await runMigrations(pool);
   assert.equal((await getTrip('detail-user', initial.id))!.title, initial.title);
   const { conversationId } = await ensureTripConversation('detail-user', initial.id);
@@ -285,7 +285,7 @@ try {
   const regenerateFrames = (await regenerated.text()).split('\n\n').filter((f) => f.startsWith('data:')).map((f) => JSON.parse(f.slice(5)));
   const regenerateResult = regenerateFrames.at(-1).result;
   assert.ok(regenerateResult?.startedGenerationJobId, JSON.stringify(regenerateFrames));
-  const { getLiveRun, cancelLiveRun } = await import('@tripweaver/agent/generation/liveRun');
+  const { getLiveRun, cancelLiveRun } = await import('@rollinggo-trip/agent/generation/liveRun');
   const run = getLiveRun(regenerateResult.startedGenerationJobId, 'detail-user');
   run?.abort.abort();
   cancelLiveRun(regenerateResult.startedGenerationJobId, 'detail-user');

@@ -1,12 +1,12 @@
 // 导出浏览器工具：AI 图片下载 / JSON 下载 / 打印 / 微信环境探测
-import { TRIP_EXPORT_VERSION, type Trip, type TripExport, type TripShareImageResponse } from '@tripweaver/shared';
+import { TRIP_EXPORT_VERSION, type Trip, type TripExport, type TripShareImageResponse } from '@rollinggo-trip/shared';
 
 export function isWeChat(): boolean {
   return /MicroMessenger/i.test(navigator.userAgent);
 }
 
 function safeFileName(title: string): string {
-  return title.replace(/[\\/:*?"<>|]/g, '_').slice(0, 50) || 'tripweaver';
+  return title.replace(/[\\/:*?"<>|]/g, '_').slice(0, 50) || 'rollinggo-trip';
 }
 
 function downloadUrl(url: string, filename: string): void {

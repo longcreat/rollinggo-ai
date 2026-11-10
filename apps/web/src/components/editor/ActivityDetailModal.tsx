@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Activity, ResearchPoi } from '@tripweaver/shared';
+import type { Activity, ResearchPoi } from '@rollinggo-trip/shared';
 import { Modal } from '../Modal';
 import { Button } from '../ui/Button';
 import { PoiCover, ReservationBadge, PhotoCredit } from '../PoiCard';

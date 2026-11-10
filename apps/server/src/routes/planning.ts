@@ -2,12 +2,12 @@
 // 保留此路由以防旧客户端或自动化测试依赖 /:id/planning，内部全量走主 Agent ReAct。
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
-import { PlanningTurnRequestSchema, type ChatStreamEvent } from '@tripweaver/shared';
-import { hasSiteLlm } from '@tripweaver/core/env';
-import { prepareDetailChat, runDetailChat } from '@tripweaver/agent/detailChatService';
-import { startDetailTurn } from '@tripweaver/services/detailOperationService';
-import { resolveLlmConfig } from '@tripweaver/core/settingsService';
-import { streamErrorPayload } from '@tripweaver/agent/chat/streamError';
+import { PlanningTurnRequestSchema, type ChatStreamEvent } from '@rollinggo-trip/shared';
+import { hasSiteLlm } from '@rollinggo-trip/core/env';
+import { prepareDetailChat, runDetailChat } from '@rollinggo-trip/agent/detailChatService';
+import { startDetailTurn } from '@rollinggo-trip/services/detailOperationService';
+import { resolveLlmConfig } from '@rollinggo-trip/core/settingsService';
+import { streamErrorPayload } from '@rollinggo-trip/agent/chat/streamError';
 import { requireAuth } from '../auth/guard';
 
 const Id = Type.Object({ id: Type.String({ maxLength: 100 }) });

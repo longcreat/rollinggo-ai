@@ -1,5 +1,5 @@
-import type { Activity, ResearchPoi } from '@tripweaver/shared';
-import type { GeocodedPoint } from '@tripweaver/integrations/geoContracts';
+import type { Activity, ResearchPoi } from '@rollinggo-trip/shared';
+import type { GeocodedPoint } from '@rollinggo-trip/integrations/geoContracts';
 
 /** Generation-only hints. They are stripped when DraftTrip becomes a persisted Trip. */
 export interface PlaceHint {

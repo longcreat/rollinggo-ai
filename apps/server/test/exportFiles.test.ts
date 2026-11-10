@@ -17,7 +17,7 @@ function makeFixture(): string {
   write('xhs-places-北京.json', { city: '北京', generatedAt: '2026-09-25', places: [{ id: 'a' }, { id: 'b' }, { id: 'c' }] });
   write('xhs-place-relations-上海.json', { city: '上海', relations: [{ from: 'a', to: 'b' }] });
   write('xhs-place-images-杭州.json', { city: '杭州', generatedAt: '2026-09-27', images: [{ placeId: 'a', key: 'x/y.webp' }] });
-  fs.writeFileSync(path.join(dir, 'tripweaver-backup.dump'), 'not-json', 'utf8');
+  fs.writeFileSync(path.join(dir, 'rollinggo-trip-backup.dump'), 'not-json', 'utf8');
   return dir;
 }
 

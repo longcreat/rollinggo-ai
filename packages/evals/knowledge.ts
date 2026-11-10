@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { Type } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
-import { wgs84ToGcj02 } from '@tripweaver/shared';
+import { wgs84ToGcj02 } from '@rollinggo-trip/shared';
 import type { Pool } from 'pg';
 import { EVAL_DIR, hash } from './artifacts';
 import { readFrozen, seedFrozen, summarizeFrozen } from './frozenKnowledge';

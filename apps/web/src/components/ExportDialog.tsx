@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from 'react';
-import type { Trip, TripShareImageStyle } from '@tripweaver/shared';
+import type { Trip, TripShareImageStyle } from '@rollinggo-trip/shared';
 import { downloadShareImage, isWeChat } from '../lib/export';
 import { clearShareImageError, getShareImageJob, loadShareImage, shareImageSignature, startShareImageJob, subscribeShareImageJobs } from '../lib/shareImageJobs';
 import { Modal } from './Modal';

@@ -11,10 +11,10 @@ import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { fauxAssistantMessage, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
 import { fakeSources, fauxModels, fixtureTrip, gateOf, gatedTool } from './fixtures';
-import { AgentBusyError, closeAgentRuntime, runAgentTurn } from '@tripweaver/agent/chat/agent/runtime';
-import { createTripDraft } from '@tripweaver/agent/chat/agent/tripDraft';
-import { createTripTools, tripSnapshot, webSearchPayload } from '@tripweaver/agent/chat/agent/tools';
-import { SUBAGENT_READ_ONLY_TOOL_NAMES, assertSubagentToolNames } from '@tripweaver/agent/chat/agent/toolPolicy';
+import { AgentBusyError, closeAgentRuntime, runAgentTurn } from '@rollinggo-trip/agent/chat/agent/runtime';
+import { createTripDraft } from '@rollinggo-trip/agent/chat/agent/tripDraft';
+import { createTripTools, tripSnapshot, webSearchPayload } from '@rollinggo-trip/agent/chat/agent/tools';
+import { SUBAGENT_READ_ONLY_TOOL_NAMES, assertSubagentToolNames } from '@rollinggo-trip/agent/chat/agent/toolPolicy';
 
 export interface CaseResult { id: string; name: string; ok: boolean; detail: string }
 
@@ -176,10 +176,10 @@ export async function runLive(only = new Set<string>()): Promise<CaseResult[]> {
     return join(dir, 'runs.sqlite');
   };
 
-  const { env } = await import('@tripweaver/core/env');
-  const { buildAgentModels, agentModelRef } = await import('@tripweaver/agent/chat/agent/models');
-  const { AmapPoiSource } = await import('@tripweaver/integrations/amap/poiSource');
-  const { WebSearchSource } = await import('@tripweaver/integrations/websearch/searchSource');
+  const { env } = await import('@rollinggo-trip/core/env');
+  const { buildAgentModels, agentModelRef } = await import('@rollinggo-trip/agent/chat/agent/models');
+  const { AmapPoiSource } = await import('@rollinggo-trip/integrations/amap/poiSource');
+  const { WebSearchSource } = await import('@rollinggo-trip/integrations/websearch/searchSource');
 
   if (!env.siteLlm.baseUrl || !env.siteLlm.apiKey || !env.siteLlm.model) {
     throw new Error('缺少 SITE_LLM_*（用 doppler run 注入）');

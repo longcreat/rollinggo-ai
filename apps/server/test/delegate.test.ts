@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { PlanningBriefData } from '@tripweaver/shared';
-import { delegateGeneration, type DelegateStore } from '@tripweaver/agent/chat/agent/delegate';
-import type { GenerationTaskInput } from '@tripweaver/agent/generation/generationTask';
-import type { GenerationTaskView } from '@tripweaver/agent/generation/taskStore';
+import type { PlanningBriefData } from '@rollinggo-trip/shared';
+import { delegateGeneration, type DelegateStore } from '@rollinggo-trip/agent/chat/agent/delegate';
+import type { GenerationTaskInput } from '@rollinggo-trip/agent/generation/generationTask';
+import type { GenerationTaskView } from '@rollinggo-trip/agent/generation/taskStore';
 
 const brief: PlanningBriefData = {
   destination: '成都',

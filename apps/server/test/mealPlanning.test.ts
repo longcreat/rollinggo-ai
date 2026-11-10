@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { Activity, GenerateForm, TransitLeg } from '@tripweaver/shared';
-import { DraftTrip } from '@tripweaver/agent/generation/draft';
-import { ensureMealCoverage, isFoodFocused, isMeal, mealCoverageProblems, missingMeals } from '@tripweaver/agent/generation/mealPlanning';
+import type { Activity, GenerateForm, TransitLeg } from '@rollinggo-trip/shared';
+import { DraftTrip } from '@rollinggo-trip/agent/generation/draft';
+import { ensureMealCoverage, isFoodFocused, isMeal, mealCoverageProblems, missingMeals } from '@rollinggo-trip/agent/generation/mealPlanning';
 
 function activity(name: string, startTime: string, category: Activity['category'] = '其他', overrides: Partial<Activity> = {}): Activity {
   return {

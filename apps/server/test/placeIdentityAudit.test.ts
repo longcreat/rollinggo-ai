@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { pool } from '@tripweaver/core/db/client';
-import { captureIdentityImport, recordIdentityImport, rollbackIdentityImport } from '@tripweaver/services/placeIdentityAudit';
-import { resolveImageIdentities } from '@tripweaver/services/placeImageIdentity';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { captureIdentityImport, recordIdentityImport, rollbackIdentityImport } from '@rollinggo-trip/services/placeIdentityAudit';
+import { resolveImageIdentities } from '@rollinggo-trip/services/placeImageIdentity';
 
 after(() => pool.end());
 

@@ -6,7 +6,7 @@
 //
 // 注：追问控件相关的 isIntakeLive / activeIntake / intakeShape 已在 10-17
 // 随「对话式收集 Brief」一起删除。
-import type { TransportMode } from '@tripweaver/shared';
+import type { TransportMode } from '@rollinggo-trip/shared';
 import { ApiError } from '../api/client';
 
 export const TRANSPORT_LABELS: Record<TransportMode, string> = {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { imageGroups, readImageGallery } from '@tripweaver/core/lib/imageGallery';
+import { imageGroups, readImageGallery } from '@rollinggo-trip/core/lib/imageGallery';
 
 test('单封面兼容，多图保持首选顺序、去重并限制三张', () => {
   const group = imageGroups(['first', 'first', 'second', 'third', 'fourth'].map(name => ({ placeId: 'a', key: `${name}.webp` })));

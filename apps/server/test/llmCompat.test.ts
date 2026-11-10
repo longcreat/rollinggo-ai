@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { isBailianDeepSeekModel, isDashScopeBaseUrl, resolveOpenAiCompat } from '@tripweaver/core/lib/llmCompat';
+import { isBailianDeepSeekModel, isDashScopeBaseUrl, resolveOpenAiCompat } from '@rollinggo-trip/core/lib/llmCompat';
 
 const DASHSCOPE = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
 

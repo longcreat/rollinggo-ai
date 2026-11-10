@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Pool } from 'pg';
-import { createServiceQuotaLedger } from '@tripweaver/core/lib/amapQuotaLedger';
-import { amapDay } from '@tripweaver/core/amapServices';
+import { createServiceQuotaLedger } from '@rollinggo-trip/core/lib/amapQuotaLedger';
+import { amapDay } from '@rollinggo-trip/core/amapServices';
 
 /** 只模拟两种 SQL 的语义：带阈值的原子扣减、以及只增不减的计数。 */
 function fakePool() {

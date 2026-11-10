@@ -2,7 +2,7 @@
 
 ## Applicability
 
-React hooks are N/A inside `@tripweaver/shared`. Hooks own React lifecycle, browser subscriptions, data fetching, caching, and component state; those concerns belong to `apps/web`. Shared exports must be callable from plain TypeScript in either runtime.
+React hooks are N/A inside `@rollinggo-trip/shared`. Hooks own React lifecycle, browser subscriptions, data fetching, caching, and component state; those concerns belong to `apps/web`. Shared exports must be callable from plain TypeScript in either runtime.
 
 The intended boundary is represented by shared modules such as `packages/shared/src/budget.ts` and `packages/shared/src/utils.ts`, with React-side consumption in `apps/web/src/api/hooks.ts` and `apps/web/src/pages/PlannerPage.tsx`.
 

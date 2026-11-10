@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { EntryRecord } from '@earendil-works/pi-durable';
-import { normalizeAgentTranscript } from '@tripweaver/agent/generation/agentTranscript';
+import { normalizeAgentTranscript } from '@rollinggo-trip/agent/generation/agentTranscript';
 
 function entries(): EntryRecord[] {
   return [

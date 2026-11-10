@@ -1,4 +1,4 @@
-import { placeNameKey } from '@tripweaver/shared';
+import { placeNameKey } from '@rollinggo-trip/shared';
 
 export interface IdentityPlace {
   id: string;

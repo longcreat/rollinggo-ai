@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { cleanResearchIntro, normalizeReservation, purifiedIntroSources } from '@tripweaver/agent/generation/researchQuality';
+import { cleanResearchIntro, normalizeReservation, purifiedIntroSources } from '@rollinggo-trip/agent/generation/researchQuality';
 
 test('介绍多引文全部保留，模型知识不伪造来源', () => {
   assert.deepEqual(purifiedIntroSources({ content: { version: 1, intro: '景点介绍。', highlights: [

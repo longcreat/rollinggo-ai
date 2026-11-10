@@ -14,7 +14,7 @@
 //   1. 只采纳「不增加原路线长度」的解（ceiling = 原长 + 1m 容差），
 //      否则会为了少一处转角而绕一大圈。
 //   2. 缺坐标的点固定不动（fixed），不会凭空推断它的位置。
-import { FEASIBILITY_THRESHOLDS, haversineMeters } from '@tripweaver/shared';
+import { FEASIBILITY_THRESHOLDS, haversineMeters } from '@rollinggo-trip/shared';
 
 interface Point { name: string; lat?: number; lng?: number }
 interface OrderOptions {

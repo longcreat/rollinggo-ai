@@ -20,7 +20,7 @@ import {
   type PlanningBriefData,
   type TripConstraint,
   type Trip,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 import { asRecord, readStringArray } from './parse';
 
 /** 各文本字段的长度上限，与 shared 的 schema 同源；模型给超长值时截断而不是丢弃 */

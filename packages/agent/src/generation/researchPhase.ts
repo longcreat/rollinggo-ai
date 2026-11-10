@@ -1,4 +1,4 @@
-import type { GenerateForm } from '@tripweaver/shared';
+import type { GenerateForm } from '@rollinggo-trip/shared';
 import type { PhaseAgentRunner, RunAgentOptions } from './agents/phase';
 import { buildResearchTools, type ResearchOutcome, type ResearchToolDeps } from './tools/researchTools';
 import { formBrief, researchSystemPrompt } from './prompts';

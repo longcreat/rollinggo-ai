@@ -4,7 +4,7 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronRight, Compass, ShieldCheck, CloudSun, Route, Sparkles } from 'lucide-react';
-import { getPlannerStageDisplay, type PlannerHighlightTicker } from '@tripweaver/shared';
+import { getPlannerStageDisplay, type PlannerHighlightTicker } from '@rollinggo-trip/shared';
 import { STATUS_LABEL, StatusIcon } from './liveStatus';
 import { SoftRadar } from '../ui/SoftRadar';
 

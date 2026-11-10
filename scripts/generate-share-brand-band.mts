@@ -28,7 +28,7 @@ for (const [style, color] of Object.entries(STYLES)) {
   <rect width="${WIDTH}" height="${HEIGHT}" fill="${color.bg}"/>
   <rect x="0" y="0" width="${WIDTH}" height="2" fill="${color.accent}" opacity="0.4"/>
   <text x="40" y="62" font-family="${FONT}" font-size="30" font-weight="600" fill="${color.ink}">sakiiko.com</text>
-  <text x="40" y="98" font-family="${FONT}" font-size="18" fill="${color.ink}" fill-opacity="0.62">织程 TripWeaver · AI 生成</text>
+  <text x="40" y="98" font-family="${FONT}" font-size="18" fill="${color.ink}" fill-opacity="0.62">rollinggo 旅行 · AI 生成</text>
 </svg>`;
   const file = path.join(OUT_DIR, `share-brand-${style}.png`);
   await sharp(Buffer.from(svg)).png({ compressionLevel: 9 }).toFile(file);

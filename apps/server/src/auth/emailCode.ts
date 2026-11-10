@@ -5,11 +5,11 @@
 //   · 用途隔离：注册码不能拿去重置密码，反之亦然
 //   · 频控三道：同邮箱 60 秒重发间隔、同邮箱每小时 5 次、路由层再叠 IP 限流
 import { randomInt } from 'node:crypto';
-import { and, desc, eq, gte, isNull } from 'drizzle-orm';import { uid } from '@tripweaver/shared';
-import { db } from '@tripweaver/core/db/client';
-import { emailVerificationCodes } from '@tripweaver/core/db/schema';
+import { and, desc, eq, gte, isNull } from 'drizzle-orm';import { uid } from '@rollinggo-trip/shared';
+import { db } from '@rollinggo-trip/core/db/client';
+import { emailVerificationCodes } from '@rollinggo-trip/core/db/schema';
 import { hashPassword, verifyPassword } from './password';
-import { sendVerificationEmail } from '@tripweaver/integrations/resend';
+import { sendVerificationEmail } from '@rollinggo-trip/integrations/resend';
 
 export type EmailCodePurpose = 'register' | 'reset';
 

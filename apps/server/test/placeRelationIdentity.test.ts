@@ -7,14 +7,14 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { pool } from '@tripweaver/core/db/client';
-import { loadPlaceRelations, relatedPairKey, resolveRelatedPairs } from '@tripweaver/agent/generation/scheduling/placeRelations';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { loadPlaceRelations, relatedPairKey, resolveRelatedPairs } from '@rollinggo-trip/agent/generation/scheduling/placeRelations';
 
-import { captureIdentityImport, recordIdentityImport, rollbackIdentityImport } from '@tripweaver/services/placeIdentityAudit';
+import { captureIdentityImport, recordIdentityImport, rollbackIdentityImport } from '@rollinggo-trip/services/placeIdentityAudit';
 import { currentBoundRelations, relationDigest, validateBoundRelations, validateRelationManifest,
-  type BoundRelation, type RelationManifest } from '@tripweaver/services/placeRelationIdentity';
-import type { IdentityPlace } from '@tripweaver/core/lib/placeIdentity';
-import { acceptRelationSource, importRelationSnapshot } from '@tripweaver/services/placeRelationSnapshot';
+  type BoundRelation, type RelationManifest } from '@rollinggo-trip/services/placeRelationIdentity';
+import type { IdentityPlace } from '@rollinggo-trip/core/lib/placeIdentity';
+import { acceptRelationSource, importRelationSnapshot } from '@rollinggo-trip/services/placeRelationSnapshot';
 
 after(() => pool.end());
 

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
-import { LODGING_SENTINEL } from '@tripweaver/shared';
+import { LODGING_SENTINEL } from '@rollinggo-trip/shared';
 import { assessCoverage } from '../coverage';
 import { EVAL_DIR, createManifest, reportMarkdown } from '../artifacts';
 import { GOLDEN_CASES } from '../golden/cases';

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { ResearchPoi } from '@tripweaver/shared';
-import { activityPlaceName, createResearchPlaceLookup, rememberResearchLocation, type ResearchLocation } from '@tripweaver/agent/generation/placeLookup';
-import type { RetrievedPlace } from '@tripweaver/agent/generation/placeRetrieval';
-import { buildResearchTools, type ResearchOutcome } from '@tripweaver/agent/generation/tools/researchTools';
-import type { PoiSource, SourcedPoi } from '@tripweaver/integrations/geoContracts';
+import type { ResearchPoi } from '@rollinggo-trip/shared';
+import { activityPlaceName, createResearchPlaceLookup, rememberResearchLocation, type ResearchLocation } from '@rollinggo-trip/agent/generation/placeLookup';
+import type { RetrievedPlace } from '@rollinggo-trip/agent/generation/placeRetrieval';
+import { buildResearchTools, type ResearchOutcome } from '@rollinggo-trip/agent/generation/tools/researchTools';
+import type { PoiSource, SourcedPoi } from '@rollinggo-trip/integrations/geoContracts';
 
 const point: ResearchLocation = { lat: 39.9, lng: 116.4, adcode: '110101' };
 const candidate: ResearchPoi = { id: 'museum', name: '真实博物馆', category: 'attraction', intro: '', reservation: 'unknown', sourceLinks: [] };

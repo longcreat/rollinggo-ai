@@ -5,7 +5,7 @@ import {randomUUID} from 'node:crypto';
 import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {fileURLToPath} from 'node:url';
-import {pool} from '@tripweaver/core/db/client';
+import {pool} from '@rollinggo-trip/core/db/client';
 
 after(()=>pool.end());
 test('真实向量回填跳过撤回/待审/重定向，等待模型期间失效的地点也不能写回',async()=>{

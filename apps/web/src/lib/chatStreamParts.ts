@@ -1,6 +1,6 @@
 // 流式回合的正文 / 工具 / 思考段归约：对话面板与主 Agent 启动页共用。
 // 思考段按真实事件顺序进入 parts，和 pi 的 assistant content（thinking → text → toolCall）一致。
-import type { AgentPart, ChatStreamEvent } from '@tripweaver/shared';
+import type { AgentPart, ChatStreamEvent } from '@rollinggo-trip/shared';
 import { upsertAgentStep } from './agentActivity';
 
 export interface StreamParts {

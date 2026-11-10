@@ -1,5 +1,5 @@
 import { Button } from '../ui/Button';
-import { dateForDayIndex, type ResearchPoi, type TripDay, type TripWeather } from '@tripweaver/shared';
+import { dateForDayIndex, type ResearchPoi, type TripDay, type TripWeather } from '@rollinggo-trip/shared';
 import { DayWeather } from './DayWeather';
 import { legForPair } from '../../lib/tripDerive';
 import { useEditorStore } from '../../store/editorStore';

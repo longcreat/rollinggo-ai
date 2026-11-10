@@ -1,6 +1,6 @@
 // 正在进行的这一问一答（10-23）：按事件顺序渲染正文段与工具段，HITL 问题卡固定在输入框上方。
 // 单独成组件是为了让流式快照只重渲染这一块，历史消息靠 MessageBubble 的 memo 挡住。
-import type { AgentPart, AgentQuestionAnswer, DetailChatRequest, PendingQuestionView } from '@tripweaver/shared';
+import type { AgentPart, AgentQuestionAnswer, DetailChatRequest, PendingQuestionView } from '@rollinggo-trip/shared';
 import { Button } from '../ui/Button';
 import { AgentActivity } from './AgentActivity';
 import { ChatText } from './ChatText';

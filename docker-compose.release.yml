@@ -1,19 +1,19 @@
 # 纯镜像发布版 —— 无需 clone 仓库，只需要这一个文件 + .env
 # 用法：
-#   curl -fsSL https://raw.githubusercontent.com/aimer-rhythm/trip-weaver/master/docker-compose.release.yml -o docker-compose.yml
+#   curl -fsSL https://raw.githubusercontent.com/longcreat/rollinggo-ai/master/docker-compose.release.yml -o docker-compose.yml
 #   cp 环境变量模板后编辑（见 README 部署章节）
 #   docker compose up -d
 # 本地构建开发请改用仓库根的 docker-compose.yml。
-name: tripweaver
+name: rollinggo-trip
 
 services:
   app:
-    image: ${TRIPWEAVER_IMAGE:-ghcr.io/aimer-rhythm/trip-weaver:latest}
+    image: ${ROLLINGGO_TRIP_IMAGE:-ghcr.io/longcreat/rollinggo-ai:latest}
     pull_policy: always
     restart: unless-stopped
     env_file: .env
     environment:
-      - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/tripweaver
+      - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/rollinggo_trip
     expose:
       - "3001"
     # 库内景点封面：纯镜像部署需先把 data/media 同步到宿主机该目录（容器内 /app/data/media）
@@ -29,7 +29,7 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_DB=tripweaver
+      - POSTGRES_DB=rollinggo_trip
     volumes:
       - pg_data:/var/lib/postgresql/data
     expose:

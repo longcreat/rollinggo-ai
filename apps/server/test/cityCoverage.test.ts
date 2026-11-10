@@ -1,7 +1,7 @@
 // 单测：城市覆盖阈值判定（纯函数边界）；DB 路径由 verify-c2 覆盖
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { CITY_COVERAGE_THRESHOLD, coverageFromCount } from '@tripweaver/services/cityCoverageService';
+import { CITY_COVERAGE_THRESHOLD, coverageFromCount } from '@rollinggo-trip/services/cityCoverageService';
 
 test('阈值为 100（北京 1349 / 成都 411 vs 断层下 ≤21，一个数分开两档）', () => {
   assert.equal(CITY_COVERAGE_THRESHOLD, 100);

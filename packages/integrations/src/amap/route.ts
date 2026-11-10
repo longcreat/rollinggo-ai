@@ -4,9 +4,9 @@
 // 任何故障回 null —— 上层降级 legEstimator 启发式，生成流程永不因此失败。
 // 09-25：对外形状改由 integrations/geoContracts.ts 定义（供天地图同形实现），
 // 任务级熔断器抽到 integrations/routeBreaker.ts（provider 中立），本文只保留高德特有的绑定与前置拦截。
-import type { LegMode } from '@tripweaver/shared';
-import { TtlCache } from '@tripweaver/core/lib/ttlCache';
-import { downsamplePolyline } from '@tripweaver/core/lib/polyline';
+import type { LegMode } from '@rollinggo-trip/shared';
+import { TtlCache } from '@rollinggo-trip/core/lib/ttlCache';
+import { downsamplePolyline } from '@rollinggo-trip/core/lib/polyline';
 import { createRouteBreaker } from '../routeBreaker';
 import type { GeoPoint, RouteBreaker, RouteEstimate, RouteOpts } from '../geoContracts';
 import { amapQueue } from './geocoder';

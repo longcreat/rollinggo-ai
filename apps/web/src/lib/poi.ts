@@ -1,5 +1,5 @@
 // 调研候选与数据源的展示文案 —— 前端唯一来源（概览卡片 / 时间线 / 打印视图共用）
-import type { DataSourceKind, PoiCategory, ReservationStatus } from '@tripweaver/shared';
+import type { DataSourceKind, PoiCategory, ReservationStatus } from '@rollinggo-trip/shared';
 
 export const POI_CATEGORY_LABEL: Record<PoiCategory, string> = { attraction: '景点', food: '美食', hotel: '住宿' };
 export const POI_CATEGORY_ICON: Record<PoiCategory, string> = { attraction: '🏞️', food: '🍜', hotel: '🏨' };

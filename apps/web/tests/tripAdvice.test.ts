@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { makeSampleTrip, personalAdviceIsCurrent, tripAdviceInputSnapshot, type TripWeather, type ResearchPoi } from '@tripweaver/shared';
+import { makeSampleTrip, personalAdviceIsCurrent, tripAdviceInputSnapshot, type TripWeather, type ResearchPoi } from '@rollinggo-trip/shared';
 import { buildTripAdvice } from '../src/lib/tripAdvice';
 
 test('advice uses only matching current weather and booked itinerary places', () => {

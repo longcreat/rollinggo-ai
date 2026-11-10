@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import type { TravelPreferences } from '@tripweaver/shared';
-import { PREFERENCE_OPTIONS, TRANSPORT_MODES } from '@tripweaver/shared';
+import type { TravelPreferences } from '@rollinggo-trip/shared';
+import { PREFERENCE_OPTIONS, TRANSPORT_MODES } from '@rollinggo-trip/shared';
 import { TRANSPORT_LABELS } from '../lib/chatDerive';
 import { useTravelPreferencesDraft } from './TravelPreferencesProvider';
 import { Button } from './ui/Button';

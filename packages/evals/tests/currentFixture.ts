@@ -1,4 +1,4 @@
-import { makeSampleTrip } from '@tripweaver/shared';
+import { makeSampleTrip } from '@rollinggo-trip/shared';
 import type { GoldenCase } from '../golden/cases';
 import type { Snapshot } from '../contracts';
 

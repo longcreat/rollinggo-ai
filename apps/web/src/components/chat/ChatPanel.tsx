@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { TaskCard } from './TaskCard';
-import { suggestionText, uid, type AgentQuestionAnswer, type ChatMessage, type DetailChatRequest, type PendingQuestionView, type SendMessageResult, type Trip, type TripOperationResult } from '@tripweaver/shared';
+import { suggestionText, uid, type AgentQuestionAnswer, type ChatMessage, type DetailChatRequest, type PendingQuestionView, type SendMessageResult, type Trip, type TripOperationResult } from '@rollinggo-trip/shared';
 import { keys, useConversation, useTripVersions } from '../../api/hooks';
 import { answerQuestion, pendingQuestion, recoverChat, rewindVersion, stopChat, streamChat } from '../../api/detailChat';
 import { QuestionCard } from './QuestionCard';

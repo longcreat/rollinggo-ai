@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-/** 默认导出目录（tripweaver/import），两个 seed 脚本与新鲜度检查脚本共用 */
+/** 默认导出目录（rollinggo-trip/import），两个 seed 脚本与新鲜度检查脚本共用 */
 export const IMPORT_DIR = path.resolve(__dirname, '../../../../import');
 
 export type ExportSource = 'xhs_places' | 'xhs_relations' | 'xhs_place_images';

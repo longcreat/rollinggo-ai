@@ -1,6 +1,6 @@
 # Shared Package Frontend-Facing Guidelines
 
-These files describe the frontend-facing contract of `@tripweaver/shared`. They retain the Trellis frontend layer names while documenting the cross-runtime package, not React application conventions.
+These files describe the frontend-facing contract of `@rollinggo-trip/shared`. They retain the Trellis frontend layer names while documenting the cross-runtime package, not React application conventions.
 
 ## Guidelines Index
 
@@ -20,7 +20,7 @@ These files describe the frontend-facing contract of `@tripweaver/shared`. They 
 - [ ] Read [State Management](./state-management.md) before adding a domain transformation or value used by the editor store.
 - [ ] Confirm the concern belongs in cross-runtime shared code rather than a React component, hook, store, API client, or server module.
 - [ ] Search representative web and server consumers, including `apps/web/src/store/editorStore.ts`, `apps/web/src/pages/PlannerPage.tsx`, and `packages/services/src/tripService.ts`.
-- [ ] Plan root-barrel exports and use `@tripweaver/shared`; `packages/shared/package.json` does not expose deep import paths.
+- [ ] Plan root-barrel exports and use `@rollinggo-trip/shared`; `packages/shared/package.json` does not expose deep import paths.
 
 ## Quality Check
 

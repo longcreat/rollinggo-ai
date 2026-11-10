@@ -1,8 +1,8 @@
-import { uid, type Activity, type TransitLeg } from '@tripweaver/shared';
-import { MEAL_RULES, isMeal, toMinutes, type MealKind } from '@tripweaver/services/itinerary/mealRules';
+import { uid, type Activity, type TransitLeg } from '@rollinggo-trip/shared';
+import { MEAL_RULES, isMeal, toMinutes, type MealKind } from '@rollinggo-trip/services/itinerary/mealRules';
 
-export type { MealCandidate, MealKind } from '@tripweaver/services/itinerary/mealRules';
-export { isMeal, mealWindow } from '@tripweaver/services/itinerary/mealRules';
+export type { MealCandidate, MealKind } from '@rollinggo-trip/services/itinerary/mealRules';
+export { isMeal, mealWindow } from '@rollinggo-trip/services/itinerary/mealRules';
 
 /** Deterministic meal insertion keeps a small transfer/settling buffer on both sides. */
 export const MEAL_TRANSIT_BUFFER_MIN = 15;

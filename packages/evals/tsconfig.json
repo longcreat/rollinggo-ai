@@ -5,12 +5,12 @@
     "moduleResolution": "bundler",
     "types": ["node"],
     "paths": {
-      "@tripweaver/shared": ["../shared/src/index.ts"],
-      "@tripweaver/shared/*": ["../shared/src/*"],
-      "@tripweaver/core/*": ["../core/src/*"],
-      "@tripweaver/integrations/*": ["../integrations/src/*"],
-      "@tripweaver/services/*": ["../services/src/*"],
-      "@tripweaver/agent/*": ["../agent/src/*"]
+      "@rollinggo-trip/shared": ["../shared/src/index.ts"],
+      "@rollinggo-trip/shared/*": ["../shared/src/*"],
+      "@rollinggo-trip/core/*": ["../core/src/*"],
+      "@rollinggo-trip/integrations/*": ["../integrations/src/*"],
+      "@rollinggo-trip/services/*": ["../services/src/*"],
+      "@rollinggo-trip/agent/*": ["../agent/src/*"]
     }
   },
   "include": ["."]

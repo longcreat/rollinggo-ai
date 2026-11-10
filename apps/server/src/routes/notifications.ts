@@ -5,10 +5,10 @@
 // `/stream` 只负责「有新通知」的即时提示，客户端收到后回查列表；轮询是兜底。
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
-import { NotificationPageSchema, NotificationQuerySchema, NotificationReadAllSchema } from '@tripweaver/shared';
+import { NotificationPageSchema, NotificationQuerySchema, NotificationReadAllSchema } from '@rollinggo-trip/shared';
 import { requireAuth } from '../auth/guard';
-import { listNotifications, readAllNotifications, readNotification } from '@tripweaver/services/notificationService';
-import { subscribeNotifications } from '@tripweaver/services/notificationStream';
+import { listNotifications, readAllNotifications, readNotification } from '@rollinggo-trip/services/notificationService';
+import { subscribeNotifications } from '@rollinggo-trip/services/notificationStream';
 
 const HEARTBEAT_MS = 15_000;
 

@@ -1,6 +1,6 @@
 // 任务状态视图：实时投影优先（有阶段/步骤），否则读持久任务行（重启后仍可答）。
 // 纯函数，便于单测；不改变行程，也不推断未发生的结果。
-import type { GenerationJobStatus, GenerationWarning } from '@tripweaver/shared';
+import type { GenerationJobStatus, GenerationWarning } from '@rollinggo-trip/shared';
 import type { GenerationTaskView } from './taskStore';
 
 export interface LiveGenerationStatus {

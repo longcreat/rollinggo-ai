@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { after, before, mock, test } from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { pool } from '@tripweaver/core/db/client';
-import { createPlaceRetriever } from '@tripweaver/agent/generation/placeRetrieval';
-import { prepareResearchContext, renderRetrievedPlaces } from '@tripweaver/agent/generation/researchContext';
-import { buildResearchTools, type ResearchOutcome } from '@tripweaver/agent/generation/tools/researchTools';
-import { getNullPoiSource } from '@tripweaver/integrations/nullPoiSource';
-import { getNullSearchSource } from '@tripweaver/integrations/websearch/searchSource';
-import { rankPlaces, type PlaceRow } from '@tripweaver/agent/generation/retrievalRanking';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { createPlaceRetriever } from '@rollinggo-trip/agent/generation/placeRetrieval';
+import { prepareResearchContext, renderRetrievedPlaces } from '@rollinggo-trip/agent/generation/researchContext';
+import { buildResearchTools, type ResearchOutcome } from '@rollinggo-trip/agent/generation/tools/researchTools';
+import { getNullPoiSource } from '@rollinggo-trip/integrations/nullPoiSource';
+import { getNullSearchSource } from '@rollinggo-trip/integrations/websearch/searchSource';
+import { rankPlaces, type PlaceRow } from '@rollinggo-trip/agent/generation/retrievalRanking';
 
 const city = `召回测试-${randomUUID()}`;
 const otherCity = `${city}-外地`;

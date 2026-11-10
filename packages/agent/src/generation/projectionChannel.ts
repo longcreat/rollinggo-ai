@@ -10,7 +10,7 @@ import {
   type ProjectionFrame,
   type ProjectionRowBase,
   type ProjectionSnapshot,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 
 export type ProjectionResume<Row extends ProjectionRowBase, State> =
   | { kind: 'delta'; frames: ProjectionFrame<Row, State>[] }

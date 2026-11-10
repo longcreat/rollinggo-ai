@@ -1,6 +1,6 @@
-import { LEG_MODES, type RouteOptionsRequest, type RouteOptionsResponse } from '@tripweaver/shared';
-import { resolveGeoProvider } from '@tripweaver/integrations/geoProvider';
-import { TtlCache } from '@tripweaver/core/lib/ttlCache';
+import { LEG_MODES, type RouteOptionsRequest, type RouteOptionsResponse } from '@rollinggo-trip/shared';
+import { resolveGeoProvider } from '@rollinggo-trip/integrations/geoProvider';
+import { TtlCache } from '@rollinggo-trip/core/lib/ttlCache';
 import { queryRouteOptions } from './routeOptions';
 
 const activeUsers = new Set<string>();

@@ -5,12 +5,12 @@
 // 切段时更可能落进同一段（＝同一天）。绝不产出先后硬约束（那是 routeOrderSeeds 的事）。
 //
 // 降级纪律（同 placeFacts）：查询失败返回空 Map —— 关联对是增强信息，缺了排程照常跑。
-import { pool } from '@tripweaver/core/db/client';
-import { placeNameKey } from '@tripweaver/shared';
-import { loadPlaceIdentityIndex } from '@tripweaver/services/placeIdentityService';
-import { isScopedPlace } from '@tripweaver/core/lib/placeIdentity';
-import type { IdentityPlace } from '@tripweaver/core/lib/placeIdentity';
-import { currentBoundRelations, validateBoundRelations, validateRelationManifest } from '@tripweaver/services/placeRelationIdentity';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { placeNameKey } from '@rollinggo-trip/shared';
+import { loadPlaceIdentityIndex } from '@rollinggo-trip/services/placeIdentityService';
+import { isScopedPlace } from '@rollinggo-trip/core/lib/placeIdentity';
+import type { IdentityPlace } from '@rollinggo-trip/core/lib/placeIdentity';
+import { currentBoundRelations, validateBoundRelations, validateRelationManifest } from '@rollinggo-trip/services/placeRelationIdentity';
 
 /** 无向 pair key（09-27）：两端用候选池实际名，顺序无关。排程/修复解析关联对时用同一函数。 */
 export function relatedPairKey(a: string, b: string): string {

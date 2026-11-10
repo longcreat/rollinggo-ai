@@ -2,7 +2,7 @@
 
 ## Applicability
 
-Database implementation is N/A inside `@tripweaver/shared`. This package must not import Drizzle, SQLite, migrations, repositories, or database row types. Those concerns belong to `apps/server`.
+Database implementation is N/A inside `@rollinggo-trip/shared`. This package must not import Drizzle, SQLite, migrations, repositories, or database row types. Those concerns belong to `apps/server`.
 
 Relevant separation is visible between shared domain contracts in `packages/shared/src/schemas.ts` and persistence consumers such as `packages/core/src/db/schema.ts` and `packages/services/src/tripService.ts`.
 

@@ -2,7 +2,7 @@
 
 ## Scope
 
-The retained `backend` layer describes how backend consumers use `@tripweaver/shared`; it is not a home for `apps/server` rules. Fastify routes, services, database modules, authentication, and integrations remain outside this package.
+The retained `backend` layer describes how backend consumers use `@rollinggo-trip/shared`; it is not a home for `apps/server` rules. Fastify routes, services, database modules, authentication, and integrations remain outside this package.
 
 ## Canonical Package Layout
 
@@ -29,7 +29,7 @@ Evidence: `packages/shared/package.json`, `packages/shared/src/index.ts`, and `p
 ## Public Boundary
 
 - `package.json` exposes only `.` and points it at `src/index.ts`; therefore every supported public symbol must be re-exported by the root barrel.
-- Consumers import from `@tripweaver/shared`. Do not use deep imports such as `@tripweaver/shared/src/types` or relative paths into `packages/shared`.
+- Consumers import from `@rollinggo-trip/shared`. Do not use deep imports such as `@rollinggo-trip/shared/src/types` or relative paths into `packages/shared`.
 - Internal shared files may use relative imports because they are within the package implementation.
 
 Examples of the intended root import are `apps/server/src/routes/auth.ts`, `packages/services/src/tripService.ts`, and `apps/web/src/components/editor/BudgetPanel.tsx`.

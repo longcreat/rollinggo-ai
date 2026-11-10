@@ -1,6 +1,6 @@
 import { Type } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
-import { placeIdentity, type IdentityPlace } from '@tripweaver/core/lib/placeIdentity';
+import { placeIdentity, type IdentityPlace } from '@rollinggo-trip/core/lib/placeIdentity';
 import { relationDigest } from './placeRelationIdentity';
 
 const OperationalIdentity = Type.Object({

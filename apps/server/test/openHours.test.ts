@@ -1,7 +1,7 @@
 // 单测：营业时间文本的闭馆日检测（09-22-opentime）—— 只做日期维度，不做时间窗（去时间轴后无时刻可校验）
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { dateForDayIndex, isClosedOnDate } from '@tripweaver/shared';
+import { dateForDayIndex, isClosedOnDate } from '@rollinggo-trip/shared';
 
 // 2026-09-21 = 周一，2026-09-22 = 周二（已用 node 核实）
 const MON = '2026-09-21';

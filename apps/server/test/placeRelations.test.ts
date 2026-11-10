@@ -1,7 +1,7 @@
 // 单测：POI 关联对加载（09-27）——归一键双向登记、候选交叉、无数据降级（本地库集成）
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { loadPlaceRelations, relatedPairKey, resolveRelatedPairs } from '@tripweaver/agent/generation/scheduling/placeRelations';
+import { loadPlaceRelations, relatedPairKey, resolveRelatedPairs } from '@rollinggo-trip/agent/generation/scheduling/placeRelations';
 
 
 // ---------- 降级路径（不依赖库数据） ----------

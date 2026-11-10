@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { after, mock, test } from 'node:test';
-import { MAX_OVERVIEW_POIS, type ResearchPoi } from '@tripweaver/shared';
-import { pool } from '@tripweaver/core/db/client';
-import { buildResearchTools, type ResearchOutcome, type ResearchToolDeps } from '@tripweaver/agent/generation/tools/researchTools';
-import type { RetrievedPlace } from '@tripweaver/agent/generation/placeRetrieval';
-import { renderRetrievedPlaces } from '@tripweaver/agent/generation/researchContext';
-import { getNullPoiSource } from '@tripweaver/integrations/nullPoiSource';
-import { getNullSearchSource } from '@tripweaver/integrations/websearch/searchSource';
+import { MAX_OVERVIEW_POIS, type ResearchPoi } from '@rollinggo-trip/shared';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { buildResearchTools, type ResearchOutcome, type ResearchToolDeps } from '@rollinggo-trip/agent/generation/tools/researchTools';
+import type { RetrievedPlace } from '@rollinggo-trip/agent/generation/placeRetrieval';
+import { renderRetrievedPlaces } from '@rollinggo-trip/agent/generation/researchContext';
+import { getNullPoiSource } from '@rollinggo-trip/integrations/nullPoiSource';
+import { getNullSearchSource } from '@rollinggo-trip/integrations/websearch/searchSource';
 
 after(() => pool.end());
 

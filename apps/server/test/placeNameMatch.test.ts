@@ -2,7 +2,7 @@
 // 实体身份判定不在这里（走 placeIdentity.ts 的 samePlaceReference）。
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { placeNameContains, placeNameContainsKey } from '@tripweaver/shared';
+import { placeNameContains, placeNameContainsKey } from '@rollinggo-trip/shared';
 
 describe('placeNameContainsKey（调用方已归一化）', () => {
   it('精确相等永远命中，包括 2 字名', () => {

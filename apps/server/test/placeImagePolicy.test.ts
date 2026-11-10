@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { IdentityPlace } from '@tripweaver/core/lib/placeIdentity';
-import { imageGroups } from '@tripweaver/core/lib/imageGallery';
-import { filterIdentityImages, validateImagePolicy } from '@tripweaver/services/placeImagePolicy';
-import { resolveImageIdentities } from '@tripweaver/services/placeImageIdentity';
+import type { IdentityPlace } from '@rollinggo-trip/core/lib/placeIdentity';
+import { imageGroups } from '@rollinggo-trip/core/lib/imageGallery';
+import { filterIdentityImages, validateImagePolicy } from '@rollinggo-trip/services/placeImagePolicy';
+import { resolveImageIdentities } from '@rollinggo-trip/services/placeImageIdentity';
 
 const sha = 'a'.repeat(64), inputHash = 'b'.repeat(64);
 const binding = { imageKey: 'note_image:1', inputHash, sourceSha256: sha, assignmentRevision: 1, entityId: 'root' };

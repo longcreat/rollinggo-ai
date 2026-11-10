@@ -2,7 +2,7 @@
 //
 // 图片来源已统一为高德 POI：`canonical_places.payload.amapPhoto` 是命中后回写的热链，
 // 同一地点只花一次高德搜索配额；本地图库 key 不再作为展示来源，故这里不再提供 cover/photos。
-import { placeNameKey } from '@tripweaver/shared';
+import { placeNameKey } from '@rollinggo-trip/shared';
 import { loadCityPlaceFacts } from './scheduling/placeFacts';
 
 /** 一次生成共享全城索引：主名、别名、坐标和高德图都从同一份事实读取。 */

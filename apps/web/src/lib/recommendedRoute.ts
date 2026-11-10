@@ -1,4 +1,4 @@
-import { type RouteOptionsResponse, type TransitLeg } from '@tripweaver/shared';
+import { type RouteOptionsResponse, type TransitLeg } from '@rollinggo-trip/shared';
 
 /** Prefer a real walk of at most 1 km, otherwise the fastest available route. */
 export function recommendedRoute(options: RouteOptionsResponse['options']): TransitLeg | undefined {

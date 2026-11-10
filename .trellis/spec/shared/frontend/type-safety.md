@@ -41,7 +41,7 @@ Do not copy that pattern into normal domain code. For unknown input, validate or
 
 ## Import Safety
 
-Import public values and types from `@tripweaver/shared`. The package export map and root barrel are `packages/shared/package.json` and `packages/shared/src/index.ts`. Deep imports are unsupported and create coupling to internal file layout.
+Import public values and types from `@rollinggo-trip/shared`. The package export map and root barrel are `packages/shared/package.json` and `packages/shared/src/index.ts`. Deep imports are unsupported and create coupling to internal file layout.
 
 ## Anti-Patterns
 

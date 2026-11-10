@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { LEG_MODES, type RouteOptionsRequest } from '@tripweaver/shared';
+import { LEG_MODES, type RouteOptionsRequest } from '@rollinggo-trip/shared';
 import { useRouteOptions } from '../../api/routeOptions';
 import { hasValidCoord } from '../../lib/colors';
 import { recommendedRoute } from '../../lib/recommendedRoute';

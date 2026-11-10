@@ -1,8 +1,8 @@
 // 景区细分点位导入：设施点/远点/重复坐标不进候选池。
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { buildSubPoiRows, classifySubPoi, coordinateKey, normalizeName } from '@tripweaver/services/geofenceImport';
-import type { SourcedPoi } from '@tripweaver/integrations/geoContracts';
+import { buildSubPoiRows, classifySubPoi, coordinateKey, normalizeName } from '@rollinggo-trip/services/geofenceImport';
+import type { SourcedPoi } from '@rollinggo-trip/integrations/geoContracts';
 
 const poi = (name: string, lng: number, lat: number, type = '风景名胜;风景名胜;公园'): SourcedPoi => ({
   name, type, address: '', rating: '', cost: '', opentime: '', photoUrls: [], location: { lng, lat }, adcode: '330100',

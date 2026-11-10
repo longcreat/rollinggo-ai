@@ -19,7 +19,7 @@ import {
   type SourceNote,
   type TransitLeg,
   type Trip,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 import { isFoodFocused, mealCoverageProblems } from './mealPlanning';
 import { type DraftActivity, type PlaceHint } from './placeLookup';
 
@@ -240,7 +240,7 @@ export class DraftTrip {
   }
 
   /** 可行性模拟（M0-A）：以当前草稿（含 geoPipeline 已解析的坐标/leg）真算时空违规报告。
-   *  纯函数引擎在 @tripweaver/shared，本方法只做 DraftTrip → Trip 适配。 */
+   *  纯函数引擎在 @rollinggo-trip/shared，本方法只做 DraftTrip → Trip 适配。 */
   feasibility(): FeasibilityReport {
     return simulateTrip(this.toTrip());
   }

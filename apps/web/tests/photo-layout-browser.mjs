@@ -24,7 +24,7 @@ const trip = {
   })),
 };
 trip.overview.push({ ...trip.overview[1], id: 'unused-portrait', name: '候选竖版风景' });
-const credit = i => i === 1 ? { source: 'unsplash', photographer: '摄影师2', photographerUrl: 'https://unsplash.com/@fixture?utm_source=tripweaver&utm_medium=referral', sourceUrl: 'https://unsplash.com/photos/fixture?utm_source=tripweaver&utm_medium=referral', license: 'Unsplash License', licenseUrl: 'https://unsplash.com/license', changes: '模拟署名验证' }
+const credit = i => i === 1 ? { source: 'unsplash', photographer: '摄影师2', photographerUrl: 'https://unsplash.com/@fixture?utm_source=rollinggo-trip&utm_medium=referral', sourceUrl: 'https://unsplash.com/photos/fixture?utm_source=rollinggo-trip&utm_medium=referral', license: 'Unsplash License', licenseUrl: 'https://unsplash.com/license', changes: '模拟署名验证' }
   : i === 2 ? { source: 'pixabay', photographer: '摄影师3', sourceUrl: 'https://pixabay.com/photos/fixture-123/', license: 'Pixabay Content License', licenseUrl: 'https://pixabay.com/service/license-summary/', changes: '模拟署名验证' }
   : { source: 'commons', photographer: `摄影师${i + 1}`, sourceUrl: `https://commons.wikimedia.org/wiki/File:Photo${i}.jpg`, license: 'CC BY 4.0', licenseUrl: 'https://creativecommons.org/licenses/by/4.0/', changes: '测试图片' };
 trip.overview[0].coverAttribution = credit(0);

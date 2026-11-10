@@ -1,6 +1,6 @@
 // 一轮 Agent 的跨工具状态：工具只写这里，turn 在回答结束后统一组装附件、Brief 与生成请求。
 // 参考 openclaw 的 turn state 与 dsh 的 session 事件：工具副作用不直接落库，回合边界统一提交。
-import type { FoodCandidate, PlanningBriefPatch } from '@tripweaver/shared';
+import type { FoodCandidate, PlanningBriefPatch } from '@rollinggo-trip/shared';
 import type { DelegatedTaskRef } from '../../tasks/delegatedTask';
 
 export interface AgentQuestionRecord {

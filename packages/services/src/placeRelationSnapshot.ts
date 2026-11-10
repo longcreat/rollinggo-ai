@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg';
-import type { IdentityPlace } from '@tripweaver/core/lib/placeIdentity';
+import type { IdentityPlace } from '@rollinggo-trip/core/lib/placeIdentity';
 import { currentBoundRelations, relationDigest, validateBoundRelations, validateRelationManifest, validateRelationPlaces,
   type BoundRelation, type RelationManifest } from './placeRelationIdentity';
 

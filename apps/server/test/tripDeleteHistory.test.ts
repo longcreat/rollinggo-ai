@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { makeSampleTrip } from '@tripweaver/shared';
-import { pool } from '@tripweaver/core/db/client';
-import { createTrip, deleteTrip, listTripVersions } from '@tripweaver/services/tripService';
+import { makeSampleTrip } from '@rollinggo-trip/shared';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { createTrip, deleteTrip, listTripVersions } from '@rollinggo-trip/services/tripService';
 
 after(() => pool.end());
 

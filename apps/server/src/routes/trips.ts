@@ -9,26 +9,26 @@
  */
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
-import { RenameTripSchema, RouteOptionsRequestSchema, RouteOptionsResponseSchema, TripExportSchema, TripSchema, TRIP_LIST_PAGE_SIZE, TRIP_LIST_PAGE_SIZE_MAX } from '@tripweaver/shared';
-import { getRouteOptions } from '@tripweaver/services/routeOptionsService';
-import { TripShareImageRequestSchema, TripShareImageQuerySchema, TripShareImageResponseSchema, TripShareImageGeneratedResponseSchema } from '@tripweaver/shared';
-import { recordShareImageNotification } from '@tripweaver/services/notificationService';
-import { createTripShareImageService } from '@tripweaver/services/tripShareImageService';
-import { sharePosterStore } from '@tripweaver/services/sharePosterStore';
+import { RenameTripSchema, RouteOptionsRequestSchema, RouteOptionsResponseSchema, TripExportSchema, TripSchema, TRIP_LIST_PAGE_SIZE, TRIP_LIST_PAGE_SIZE_MAX } from '@rollinggo-trip/shared';
+import { getRouteOptions } from '@rollinggo-trip/services/routeOptionsService';
+import { TripShareImageRequestSchema, TripShareImageQuerySchema, TripShareImageResponseSchema, TripShareImageGeneratedResponseSchema } from '@rollinggo-trip/shared';
+import { recordShareImageNotification } from '@rollinggo-trip/services/notificationService';
+import { createTripShareImageService } from '@rollinggo-trip/services/tripShareImageService';
+import { sharePosterStore } from '@rollinggo-trip/services/sharePosterStore';
 import { requireAuth } from '../auth/guard';
-import { createTrip, deleteTrip, getTrip, listTripsPage, listTripVersions, renameTrip, updateTrip } from '@tripweaver/services/tripService';
-import { findConversationForTrip } from '@tripweaver/services/conversationService';
-import { TripOperationRequestSchema, TripRewindRequestSchema } from '@tripweaver/shared';
-import { enrichTripPhotos } from '@tripweaver/services/tripPhotoService';
-import { createStoredAmapPhotoLookup } from '@tripweaver/agent/generation/storedPlaceLookups';
-import { ensureTripConversation, restoreTrip, rewindTrip } from '@tripweaver/services/tripHistoryService';
-import { TripWeatherSchema } from '@tripweaver/shared';
-import { getTripWeather } from '@tripweaver/services/tripWeatherService';
+import { createTrip, deleteTrip, getTrip, listTripsPage, listTripVersions, renameTrip, updateTrip } from '@rollinggo-trip/services/tripService';
+import { findConversationForTrip } from '@rollinggo-trip/services/conversationService';
+import { TripOperationRequestSchema, TripRewindRequestSchema } from '@rollinggo-trip/shared';
+import { enrichTripPhotos } from '@rollinggo-trip/services/tripPhotoService';
+import { createStoredAmapPhotoLookup } from '@rollinggo-trip/agent/generation/storedPlaceLookups';
+import { ensureTripConversation, restoreTrip, rewindTrip } from '@rollinggo-trip/services/tripHistoryService';
+import { TripWeatherSchema } from '@rollinggo-trip/shared';
+import { getTripWeather } from '@rollinggo-trip/services/tripWeatherService';
 import {
   createHealthCheck, getHealthCheck, getTripVersion, latestHealthCheck, resolveHealthCheck,
-} from '@tripweaver/services/healthCheckService';
-import { verifyFinding } from '@tripweaver/services/healthVerifyService';
-import { HealthCheckViewSchema, HealthDecisionsRequestSchema } from '@tripweaver/shared';
+} from '@rollinggo-trip/services/healthCheckService';
+import { verifyFinding } from '@rollinggo-trip/services/healthVerifyService';
+import { HealthCheckViewSchema, HealthDecisionsRequestSchema } from '@rollinggo-trip/shared';
 
 const IdParams = Type.Object({ id: Type.String() });
 
@@ -83,8 +83,8 @@ export const tripRoutes: FastifyPluginAsyncTypebox = async (app) => {
     const verification = await verifyFinding({ userId, trip, finding });
     // 把核验结果写回 findings（落库，刷新不丢）
     const updated = check.findings.map((f) => f.id === finding.id ? { ...f, verification } : f);
-    const { db } = await import('@tripweaver/core/db/client');
-    const { tripHealthChecks } = await import('@tripweaver/core/db/schema');
+    const { db } = await import('@rollinggo-trip/core/db/client');
+    const { tripHealthChecks } = await import('@rollinggo-trip/core/db/schema');
     const { eq, and } = await import('drizzle-orm');
     await db.update(tripHealthChecks).set({ findings: updated })
       .where(and(eq(tripHealthChecks.id, check.id), eq(tripHealthChecks.userId, userId)));

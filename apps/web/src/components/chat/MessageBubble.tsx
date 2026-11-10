@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import type { ChatMessage } from '@tripweaver/shared';
+import type { ChatMessage } from '@rollinggo-trip/shared';
 import { Button } from '../ui/Button';
 import { ChatText } from './ChatText';
 import { CopyButton } from './CopyButton';

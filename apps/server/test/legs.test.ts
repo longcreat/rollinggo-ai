@@ -4,7 +4,7 @@
 // 重调速度模型时应有意识地更新这些金标，并复核 PRD 校准区间（八达岭段 120-200min）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { LEG_SPEED_MODEL, estimateTransit, haversineMeters } from '@tripweaver/shared';
+import { LEG_SPEED_MODEL, estimateTransit, haversineMeters } from '@rollinggo-trip/shared';
 
 // 北京金集快照 Day3 真实坐标（GCJ-02）
 const LODGING = { lat: 39.897083, lng: 116.398254 };   // 前门-崇文门住宿锚点

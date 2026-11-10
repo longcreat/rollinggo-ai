@@ -5,13 +5,13 @@
     "moduleResolution": "bundler",
     "types": ["node"],
     "paths": {
-      "@tripweaver/shared": ["../../packages/shared/src/index.ts"],
-      "@tripweaver/shared/*": ["../../packages/shared/src/*"],
-      "@tripweaver/core/*": ["../../packages/core/src/*"],
-      "@tripweaver/integrations/*": ["../../packages/integrations/src/*"],
-      "@tripweaver/services/*": ["../../packages/services/src/*"],
-      "@tripweaver/agent/*": ["../../packages/agent/src/*"],
-      "@tripweaver/evals/*": ["../../packages/evals/*"]
+      "@rollinggo-trip/shared": ["../../packages/shared/src/index.ts"],
+      "@rollinggo-trip/shared/*": ["../../packages/shared/src/*"],
+      "@rollinggo-trip/core/*": ["../../packages/core/src/*"],
+      "@rollinggo-trip/integrations/*": ["../../packages/integrations/src/*"],
+      "@rollinggo-trip/services/*": ["../../packages/services/src/*"],
+      "@rollinggo-trip/agent/*": ["../../packages/agent/src/*"],
+      "@rollinggo-trip/evals/*": ["../../packages/evals/*"]
     }
   },
   "include": ["src", "test", "scripts"]

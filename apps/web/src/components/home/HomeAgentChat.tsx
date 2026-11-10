@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import type { KeyboardEvent } from 'react';
 import { useParsePrompt, type ParsedPromptResult } from '../../api/hooks';
 import type { HomeTripDraft } from './HomeCapsule';
-import { type TripPace } from '@tripweaver/shared';
+import { type TripPace } from '@rollinggo-trip/shared';
 import {
   PinIcon,
   SparkleIcon,

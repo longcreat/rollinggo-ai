@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useQueries, useQueryClient } from '@tanstack/react-query';
 import { Value } from '@sinclair/typebox/value';
-import { LEG_MODES, RouteOptionsResponseSchema, type LegMode, type RouteOptionsRequest, type RouteOptionsResponse } from '@tripweaver/shared';
+import { LEG_MODES, RouteOptionsResponseSchema, type LegMode, type RouteOptionsRequest, type RouteOptionsResponse } from '@rollinggo-trip/shared';
 import { api, ApiError } from './client';
 import { useMe } from './hooks';
 import { RouteQueryQueue } from '../lib/routeQueryQueue';

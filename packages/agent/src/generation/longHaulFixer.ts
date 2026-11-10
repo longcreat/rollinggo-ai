@@ -21,7 +21,7 @@ import {
   type DayReport,
   type FeasibilityReport,
   type LegMode,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 import { MIN_LOCATED_POIS, medianCenter } from './longHaul';
 import type { DraftTrip } from './draft';
 

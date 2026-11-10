@@ -1,7 +1,7 @@
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Field';
 import { useState } from 'react';
-import type { Activity, ResearchPoi, TransitLeg, TripDay } from '@tripweaver/shared';
+import type { Activity, ResearchPoi, TransitLeg, TripDay } from '@rollinggo-trip/shared';
 import { hasValidCoord } from '../../lib/colors';
 import { RouteOptions } from './RouteOptions';
 import { useEditorStore } from '../../store/editorStore';

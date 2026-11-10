@@ -6,7 +6,7 @@ import {
   emptyTripProjectionState,
   type TripProjectionFrame,
   type TripProjectionSnapshot,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 import { applyProjectionResume } from '../src/lib/projectionResume';
 
 const empty = (): TripProjectionSnapshot => emptySnapshot(emptyTripProjectionState());

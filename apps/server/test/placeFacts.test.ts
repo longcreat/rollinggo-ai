@@ -1,8 +1,8 @@
 // 单测：placeFacts 实体归一（09-23）——归一键、合并规则、加载集成（本地库）
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadPlaceFacts, mergeFacts, normalizePlaceKey, renderOpenHours, type PlaceFacts } from '@tripweaver/agent/generation/scheduling/placeFacts';
-import { poiScore, scoreMaxima } from '@tripweaver/agent/generation/scheduling/score';
+import { loadPlaceFacts, mergeFacts, normalizePlaceKey, renderOpenHours, type PlaceFacts } from '@rollinggo-trip/agent/generation/scheduling/placeFacts';
+import { poiScore, scoreMaxima } from '@rollinggo-trip/agent/generation/scheduling/score';
 
 // ---------- 归一键 ----------
 

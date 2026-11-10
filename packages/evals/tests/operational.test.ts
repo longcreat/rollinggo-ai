@@ -18,10 +18,10 @@ import { currentFixture } from './currentFixture';
 const gc = GOLDEN_CASES[0]!;
 const load = () => parseSnapshot(JSON.parse(fs.readFileSync(path.join(EVAL_DIR, 'snapshots', `${gc.id}.json`), 'utf8')));
 function temporary(t: TestContext): string {
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'tripweaver-eval-test-'));
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'rollinggo-trip-eval-test-'));
   t.after(() => {
     assert.equal(path.dirname(path.resolve(directory)), path.resolve(os.tmpdir()));
-    assert.match(path.basename(directory), /^tripweaver-eval-test-/);
+    assert.match(path.basename(directory), /^rollinggo-trip-eval-test-/);
     fs.rmSync(directory, { recursive: true, force: true });
   });
   return directory;
@@ -136,7 +136,7 @@ test('基线接纳校验状态与快照完整性，同名拒绝覆盖，副本�
 
 test('管理库地址拒绝应用库/远端/连接重定向参数', () => {
   assert.equal(validateAdminUrl('postgres://postgres@127.0.0.1:5432/postgres').pathname, '/postgres');
-  for (const value of [undefined, 'postgres://localhost/tripweaver', 'postgres://db.example/postgres',
+  for (const value of [undefined, 'postgres://localhost/rollinggo_trip', 'postgres://db.example/postgres',
     'postgres://localhost/postgres?host=db.example', 'postgres://localhost/postgres?options=-csearch_path=public', 'https://localhost/postgres']) {
     assert.throws(() => validateAdminUrl(value));
   }

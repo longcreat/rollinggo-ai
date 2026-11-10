@@ -4,7 +4,7 @@
 //   · 只改活动名（改名为另一个地点）会清空当天 legs，却永远不会被补回；
 //   · 只改出行方式（transit → drive）会清空全行程 legs，同样补不回来。
 // 两种情况下地图动线永久为空。这里把判定改成「相邻对是否齐全 + 方式是否匹配」。
-import { effectiveLegMode, wgs84ToGcj02, type Activity, type LegMode, type Trip, type TripDay } from '@tripweaver/shared';
+import { effectiveLegMode, wgs84ToGcj02, type Activity, type LegMode, type Trip, type TripDay } from '@rollinggo-trip/shared';
 
 /** 当天应存在的相邻通勤对：住宿 → 首活动 → … → 末活动 → 住宿；无坐标的端点跳过。 */
 export interface RoutePair {

@@ -9,9 +9,9 @@ import {
   type GenerateForm,
   type LegMode,
   type TransitLeg,
-} from '@tripweaver/shared';
-import { DraftTrip } from '@tripweaver/agent/generation/draft';
-import { optimizeCrossDayGrouping, repairTransitTiming } from '@tripweaver/agent/generation/routeCoherence';
+} from '@rollinggo-trip/shared';
+import { DraftTrip } from '@rollinggo-trip/agent/generation/draft';
+import { optimizeCrossDayGrouping, repairTransitTiming } from '@rollinggo-trip/agent/generation/routeCoherence';
 
 function form(): GenerateForm {
   return {

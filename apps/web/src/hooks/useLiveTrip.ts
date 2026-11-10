@@ -3,7 +3,7 @@
 // 行程、播报、终态全部来自服务端投影（快照/行），不再由前端重放事件合成，
 // 也不再额外开第二条事件 SSE —— 任务生命周期由持久任务行与投影共同表达。
 import { useMemo } from 'react';
-import { tripFromProjection, type Trip } from '@tripweaver/shared';
+import { tripFromProjection, type Trip } from '@rollinggo-trip/shared';
 import { useGenerationProjection } from './useGenerationProjection';
 import { useCancelGeneration } from '../api/hooks';
 import { buildLiveStreamFromProjection, type LiveStream } from '../lib/liveAgentStream';

@@ -1,8 +1,8 @@
 // 每日景点密度：按节奏取上限，餐次/住宿/交通不计入 —— prompt 与草稿校验共用 DAILY_SIGHT_LIMITS。
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { GenerateForm } from '@tripweaver/shared';
-import { DraftTrip } from '@tripweaver/agent/generation/draft';
+import type { GenerateForm } from '@rollinggo-trip/shared';
+import { DraftTrip } from '@rollinggo-trip/agent/generation/draft';
 
 function draftWith(pace: GenerateForm['pace'], sights: number, meals: number): DraftTrip {
   const form: GenerateForm = {

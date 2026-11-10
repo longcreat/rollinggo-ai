@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { Trip, ResearchPoi } from '@tripweaver/shared';
-import { enrichTripPhotos } from '@tripweaver/services/tripPhotoService';
+import type { Trip, ResearchPoi } from '@rollinggo-trip/shared';
+import { enrichTripPhotos } from '@rollinggo-trip/services/tripPhotoService';
 
 const poi = (name: string, extra: Partial<ResearchPoi> = {}): ResearchPoi => ({
   id: name, name, category: 'attraction', intro: '', reservation: 'unknown', sourceLinks: [], ...extra,

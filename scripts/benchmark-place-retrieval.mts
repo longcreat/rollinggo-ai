@@ -2,8 +2,8 @@
 // node --import tsx scripts/benchmark-place-retrieval.mts
 import { config } from 'dotenv';
 import { Pool } from 'pg';
-import { createPlaceRetriever } from '@tripweaver/agent/generation/placeRetrieval';
-import { prepareResearchContext } from '@tripweaver/agent/generation/researchContext';
+import { createPlaceRetriever } from '@rollinggo-trip/agent/generation/placeRetrieval';
+import { prepareResearchContext } from '@rollinggo-trip/agent/generation/researchContext';
 
 config({ path: 'apps/server/.env', quiet: true });
 const database = new Pool({ connectionString: process.env.DATABASE_URL, max: 2,

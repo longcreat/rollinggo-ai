@@ -14,10 +14,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
-import { env } from '@tripweaver/core/env';
-import { createPlaceIdentityIndex, isScopedPlace, type IdentityPlace } from '@tripweaver/core/lib/placeIdentity';
-import { captureIdentityImport, recordIdentityImport } from '@tripweaver/services/placeIdentityAudit';
-import { importRelationSnapshot } from '@tripweaver/services/placeRelationSnapshot';
+import { env } from '@rollinggo-trip/core/env';
+import { createPlaceIdentityIndex, isScopedPlace, type IdentityPlace } from '@rollinggo-trip/core/lib/placeIdentity';
+import { captureIdentityImport, recordIdentityImport } from '@rollinggo-trip/services/placeIdentityAudit';
+import { importRelationSnapshot } from '@rollinggo-trip/services/placeRelationSnapshot';
 import { IMPORT_DIR, latestExports, readExport, scanExports, type ExportFile } from './lib/exportFiles';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -79,7 +79,7 @@ async function main(): Promise<void> {
   );
 
   const pool = new pg.Pool({ connectionString: env.databaseUrl });
-  const { runMigrations } = await import('@tripweaver/core/db/migrate');
+  const { runMigrations } = await import('@rollinggo-trip/core/db/migrate');
   await runMigrations(pool);
   const client = await pool.connect();
 

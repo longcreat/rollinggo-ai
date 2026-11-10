@@ -5,13 +5,13 @@
 // （「城市 名称」+「名称」），14 个活动 ≈166s 全花在等超时上（实测单地点 22.3s，且全部返回 null）。
 // 因此：① 超时 10s → 2.5s；② 加进程级熔断，连续失败达阈值后不再发请求。
 // 熔断取进程级而非任务级：Nominatim 是全局外部服务，不可达与单次生成无关（对照 amap route 的任务级熔断）。
-import { wgs84ToGcj02 } from '@tripweaver/shared';
-import { createSerialQueue } from '@tripweaver/core/lib/serialQueue';
-import { TtlCache } from '@tripweaver/core/lib/ttlCache';
+import { wgs84ToGcj02 } from '@rollinggo-trip/shared';
+import { createSerialQueue } from '@rollinggo-trip/core/lib/serialQueue';
+import { TtlCache } from '@rollinggo-trip/core/lib/ttlCache';
 import type { GeocodedPoint } from './geoContracts';
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
-const USER_AGENT = 'tripweaver/0.1 (open-source trip planner; https://github.com/tripweaver)';
+const USER_AGENT = 'rollinggo-trip/0.1 (open-source trip planner; https://github.com/longcreat/rollinggo-ai)';
 
 /** 单次请求超时：不可达时应尽快失败，而不是让每个地点吃掉两次 10s */
 const NOMINATIM_TIMEOUT_MS = 2_500;

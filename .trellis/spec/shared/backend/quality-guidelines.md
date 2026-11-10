@@ -21,7 +21,7 @@ Do not duplicate string unions, option arrays, or validators in consumers such a
 
 ## Public Imports
 
-`packages/shared/package.json` exports only the package root, and `packages/shared/src/index.ts` is the public barrel. Export new supported symbols there. Server and web consumers must import from `@tripweaver/shared`, as shown by `packages/core/src/quotaService.ts`, `packages/agent/src/generation/orchestrator.ts`, and `apps/web/src/store/editorStore.ts`. Deep imports are unsupported.
+`packages/shared/package.json` exports only the package root, and `packages/shared/src/index.ts` is the public barrel. Export new supported symbols there. Server and web consumers must import from `@rollinggo-trip/shared`, as shown by `packages/core/src/quotaService.ts`, `packages/agent/src/generation/orchestrator.ts`, and `apps/web/src/store/editorStore.ts`. Deep imports are unsupported.
 
 ## Controlled Assertions
 
@@ -37,7 +37,7 @@ Assertions at JSON, form, database, or third-party boundaries do not validate da
 
 - Duplicating a schema shape as a handwritten interface.
 - Duplicating a literal union separately from its `as const` values.
-- Importing `@tripweaver/shared/src/...` or reaching into the workspace by relative path.
+- Importing `@rollinggo-trip/shared/src/...` or reaching into the workspace by relative path.
 - Adding Fastify plugins, React hooks, persistence, fetch calls, environment access, or logging to shared.
 - Using `any`, broad `as unknown as`, or a cast to make invalid data compile.
 - Assuming TypeBox schemas validate values merely because the values have `Static` types.

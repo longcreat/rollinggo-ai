@@ -1,6 +1,6 @@
-import { pool } from '@tripweaver/core/db/client';
-import { createPlaceIdentityIndex, placeNames } from '@tripweaver/core/lib/placeIdentity';
-import type { RetrievedPlace } from '@tripweaver/shared';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { createPlaceIdentityIndex, placeNames } from '@rollinggo-trip/core/lib/placeIdentity';
+import type { RetrievedPlace } from '@rollinggo-trip/shared';
 
 /** 一次操作读取同城完整身份目录，避免检索 top-k 截断把歧义错误降成唯一命中。 */
 export async function loadPlaceIdentityIndex(city: string) {

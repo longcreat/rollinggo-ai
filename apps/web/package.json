@@ -1,5 +1,5 @@
 {
-  "name": "@tripweaver/web",
+  "name": "@rollinggo-trip/web",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -8,7 +8,7 @@
     "@fontsource-variable/noto-sans-sc": "^5.3.0",
     "@fontsource-variable/noto-serif-sc": "^5.3.0",
     "@tanstack/react-query": "^5.101.2",
-    "@tripweaver/shared": "*",
+    "@rollinggo-trip/shared": "*",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.66.0",
     "react": "^19.2.7",

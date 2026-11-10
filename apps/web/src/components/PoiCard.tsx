@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Modal } from './Modal';
 import { Button } from './ui/Button';
-import type { PoiPhoto, ResearchPoi } from '@tripweaver/shared';
+import type { PoiPhoto, ResearchPoi } from '@rollinggo-trip/shared';
 import { POI_CATEGORY_ICON, POI_CATEGORY_LABEL, RESERVATION_LABEL } from '../lib/poi';
 
 // 预约徽章与封面图导出复用：活动卡片内嵌候选信息（概览并入行程）沿用同一渲染与兜底逻辑

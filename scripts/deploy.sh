@@ -3,7 +3,7 @@
 #   bash scripts/deploy.sh [选项]
 #
 # 纯镜像部署（无需 clone 仓库）时不需要本脚本，直接：
-#   curl -fsSL https://raw.githubusercontent.com/aimer-rhythm/trip-weaver/master/docker-compose.release.yml -o docker-compose.yml
+#   curl -fsSL https://raw.githubusercontent.com/longcreat/rollinggo-ai/master/docker-compose.release.yml -o docker-compose.yml
 #   # 准备 .env（参考 .env.example），然后 docker compose up -d
 #   docker compose up -d
 #
@@ -75,13 +75,13 @@ done
 
 # ---------- 5. 验收 ----------
 echo "== 验收 =="
-docker compose exec -T db psql -U postgres -d tripweaver -tAc \
+docker compose exec -T db psql -U postgres -d rollinggo_trip -tAc \
   "SELECT string_agg(tablename, ',' ORDER BY tablename) FROM pg_tables WHERE schemaname='public'" \
   | grep -q "canonical_places" \
   && echo "✓ RAG 地基表已建（canonical_places / research_evidence）" \
   || { echo "✗ 表结构不完整" >&2; exit 1; }
 
-if docker compose exec -T db psql -U postgres -d tripweaver -tAc \
+if docker compose exec -T db psql -U postgres -d rollinggo_trip -tAc \
   "SELECT count(*) FROM pg_extension WHERE extname='vector'" | grep -q 1; then
   echo "✓ pgvector 扩展可用"
 else
@@ -92,7 +92,7 @@ fi
 # local（默认）：图片在宿主机 ./data/media（只读挂载进容器），不随镜像发布，首次部署或
 #   上游重导后需自行同步：rsync -a --delete data/media/ user@host:/path/to/deploy/data/media/
 # s3：读写都走对象存储（先跑 apps/server/scripts/migrate-media-to-s3.mts，宿主机目录不再需要同步）。
-docker compose exec -T db psql -U postgres -d tripweaver -tAc \
+docker compose exec -T db psql -U postgres -d rollinggo_trip -tAc \
   "SELECT count(*) FROM canonical_places WHERE payload ? 'coverImage'" \
   | { read -r n; echo "✓ 库内景点封面=${n}（0 = 尚未导入）"; }
 if grep -qE '^MEDIA_STORE=s3[[:space:]]*$' .env 2>/dev/null; then
@@ -101,7 +101,7 @@ else
   echo "  媒体存储=宿主机 ./data/media；新增图片需自行 rsync 到部署目录"
 fi
 
-docker compose exec -T db psql -U postgres -d tripweaver -tAc \
+docker compose exec -T db psql -U postgres -d rollinggo_trip -tAc \
   "SELECT count(*) FROM canonical_places WHERE verified" \
   | { read -r n; echo "✓ canonical_places verified=${n}（0 表示尚未回填金集，可执行: docker compose exec app npx tsx apps/server/scripts/seed-canonical-places.ts）"; }
 

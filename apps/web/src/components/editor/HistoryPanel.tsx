@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Value } from '@sinclair/typebox/value';
-import { TripSchema, uid, type Trip, type TripVersionChain, type TripOperationRequest, type TripOperationResult } from '@tripweaver/shared';
+import { TripSchema, uid, type Trip, type TripVersionChain, type TripOperationRequest, type TripOperationResult } from '@rollinggo-trip/shared';
 import { api } from '../../api/client';
 import { rewindVersion } from '../../api/detailChat';
 import { Modal } from '../Modal';

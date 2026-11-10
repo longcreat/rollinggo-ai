@@ -1,4 +1,4 @@
-import { dateForDayIndex, type ResearchPoi, type Trip, type TripWeather } from '@tripweaver/shared';
+import { dateForDayIndex, type ResearchPoi, type Trip, type TripWeather } from '@rollinggo-trip/shared';
 import { buildTripAdvice, type TripAdvice } from '../../lib/tripAdvice';
 import { Button } from '../ui/Button';
 import { DayWeather } from './DayWeather';

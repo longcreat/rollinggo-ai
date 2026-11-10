@@ -1,4 +1,4 @@
-import type { Trip } from '@tripweaver/shared';
+import type { Trip } from '@rollinggo-trip/shared';
 import { NOTE_EXPECTATIONS } from './scenarios';
 
 /** 仅判定可直接观察的必去/避开地点；口味、无障碍等不能靠名称宣布满足。 */

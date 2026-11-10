@@ -1,6 +1,6 @@
 // 行程派生数据（纯函数）：概览候选 ↔ 活动匹配、通勤段查找与展示格式化 —— 编辑器多组件共用
-import type { ResearchPoi, TransitLeg, TripDay } from '@tripweaver/shared';
-import { placeNameContainsKey } from '@tripweaver/shared';
+import type { ResearchPoi, TransitLeg, TripDay } from '@rollinggo-trip/shared';
+import { placeNameContainsKey } from '@rollinggo-trip/shared';
 
 /** 名称归一化：统一小写、去空白与常见中英文标点，供活动与调研候选模糊匹配 */
 function normalizeName(name: string): string {
@@ -15,7 +15,7 @@ export interface OverviewMatch {
 }
 
 /**
- * 包含匹配防误报护栏与 server 同源：见 `@tripweaver/shared` 的 `placeNameContainsKey`
+ * 包含匹配防误报护栏与 server 同源：见 `@rollinggo-trip/shared` 的 `placeNameContainsKey`
  * （2 字名只认精确匹配，缺 3 字以上才做包含匹配）。这里传入的 key 已由 normalizeName 归一化。
  */
 function containsMatch(a: string, b: string): boolean {
@@ -57,7 +57,7 @@ export function legForPair(day: TripDay, fromActivityId: string, toActivityId: s
 }
 
 // 住宿锚点 leg 匹配（ST3 哨兵 id 'lodging'）：纯函数实现放 shared 以便服务端单测复用，此处转出口供编辑器组件使用
-export { LODGING_SENTINEL, lodgingLegsForDay, type LodgingLegs } from '@tripweaver/shared';
+export { LODGING_SENTINEL, lodgingLegsForDay, type LodgingLegs } from '@rollinggo-trip/shared';
 
 export const LEG_MODE_ICON: Record<TransitLeg['mode'], string> = { walk: '🚶', cycle: '🚲', transit: '🚇', drive: '🚗' };
 export const LEG_MODE_LABEL: Record<TransitLeg['mode'], string> = { walk: '步行', cycle: '骑行', transit: '公交/地铁', drive: '驾车' };

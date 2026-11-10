@@ -4,12 +4,12 @@
 // （search_places / web_search / search_food / add_activity / update_brief / delegate_task…）。
 // 这里只保留准入：幂等、会话与行程绑定、乐观锁、额度，然后交给 runAgentAnswer。
 import { Value } from '@sinclair/typebox/value';
-import { SendMessageResultSchema, type DetailChatRequest, type SendMessageResult, type Trip } from '@tripweaver/shared';
-import { findConversationForTrip, getConversationDetail } from '@tripweaver/services/conversationService';
-import { assertLatestTrip, getTrip } from '@tripweaver/services/tripService';
-import { operationFingerprint, readOperation } from '@tripweaver/services/detailOperationService';
+import { SendMessageResultSchema, type DetailChatRequest, type SendMessageResult, type Trip } from '@rollinggo-trip/shared';
+import { findConversationForTrip, getConversationDetail } from '@rollinggo-trip/services/conversationService';
+import { assertLatestTrip, getTrip } from '@rollinggo-trip/services/tripService';
+import { operationFingerprint, readOperation } from '@rollinggo-trip/services/detailOperationService';
 import { runAgentAnswer, type DetailChatEmit } from './chat/agent/turn';
-import type { LlmConfig } from '@tripweaver/core/settingsService';
+import type { LlmConfig } from '@rollinggo-trip/core/settingsService';
 
 export async function prepareDetailChat(userId: string, conversationId: string, input: DetailChatRequest) {
   const fingerprint = operationFingerprint('chat', [conversationId, input]);

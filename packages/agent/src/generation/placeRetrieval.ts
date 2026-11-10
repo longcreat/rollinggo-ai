@@ -16,13 +16,13 @@
 // │ 4. 降级：embedding 服务挂了就只保留关键词结果，不让检索失败拖垮生成。│
 // │ 5. evidence（小红书告警/预约/价格等）最后附加，按 kind+strength 排序。│
 // └────────────────────────────────────────────────────────┘
-import type { PoiCategory } from '@tripweaver/shared';
+import type { PoiCategory } from '@rollinggo-trip/shared';
 import type { QueryResultRow } from 'pg';
 import { categoryValues, preferenceCategories, rankPlaces, rankPlacesByDistance, type PlaceRow, type RankedPlace } from './retrievalRanking';
-import { canonicalPlaceId } from '@tripweaver/core/lib/placeIdentity';
-import { placeNameKey } from '@tripweaver/shared';
+import { canonicalPlaceId } from '@rollinggo-trip/core/lib/placeIdentity';
+import { placeNameKey } from '@rollinggo-trip/shared';
 
-import type { EvidenceItem, RetrievedPlace } from '@tripweaver/shared';
+import type { EvidenceItem, RetrievedPlace } from '@rollinggo-trip/shared';
 export type { EvidenceItem, RetrievedPlace };
 export interface RetrieveOptions {
   city?: string;

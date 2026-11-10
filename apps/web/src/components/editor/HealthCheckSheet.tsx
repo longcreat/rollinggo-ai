@@ -4,7 +4,7 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { HEALTH_ACTIONS, type HealthCheckView, type HealthFinding } from '@tripweaver/shared';
+import { HEALTH_ACTIONS, type HealthCheckView, type HealthFinding } from '@rollinggo-trip/shared';
 import { keys, useResolveHealthCheck, useStartHealthCheck, useVerifyFinding } from '../../api/hooks';
 import { Button } from '../ui/Button';
 import { Modal } from '../Modal';

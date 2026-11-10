@@ -6,9 +6,9 @@
 // 3. 行程自身的上下文（当前天、被点名的地点、近期问题、偏好）
 //
 // 这里的输出只是「素材」，不得直接当成结论 —— 回答阶段由模型基于这些素材组织。
-import type { SourceNote } from '@tripweaver/shared';
+import type { SourceNote } from '@rollinggo-trip/shared';
 import type { RetrievedPlace } from '../generation/placeRetrieval';
-import type { WebSearchHit } from '@tripweaver/integrations/websearch/searchSource';
+import type { WebSearchHit } from '@rollinggo-trip/integrations/websearch/searchSource';
 
 /** 用户明确表态不想联网（“不用联网/只用知识库”）→ 全程禁网 */
 export const allowsWebSearch = (question: string) => !/不要联网|不用联网|无需联网|禁止联网|只[用查看].{0,6}(知识库|本地)|仅.{0,4}(知识库|本地)/.test(question);

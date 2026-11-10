@@ -1,8 +1,8 @@
 // 旧事件流 → 投影：直播的真相变成行与状态，客户端不再重放事件重新合成。
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { GenerationEvent, GenerationEventPayload } from '@tripweaver/shared';
-import { createGenerationProjection } from '@tripweaver/agent/generation/projectionAdapter';
+import type { GenerationEvent, GenerationEventPayload } from '@rollinggo-trip/shared';
+import { createGenerationProjection } from '@rollinggo-trip/agent/generation/projectionAdapter';
 
 const ev = (payload: GenerationEventPayload): GenerationEvent => ({ ...payload, at: 0 });
 

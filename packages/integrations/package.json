@@ -1,5 +1,5 @@
 {
-  "name": "@tripweaver/integrations",
+  "name": "@rollinggo-trip/integrations",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,8 +7,8 @@
     "./*": "./src/*.ts"
   },
   "dependencies": {
-    "@tripweaver/shared": "*",
-    "@tripweaver/core": "*",
+    "@rollinggo-trip/shared": "*",
+    "@rollinggo-trip/core": "*",
     "@sinclair/typebox": "^0.34.49",
     "fastify": "^5.10.0"
   }

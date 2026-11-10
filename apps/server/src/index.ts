@@ -6,13 +6,13 @@ import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import type { TypeBoxTypeProvider } from '@fastify/type-provider-typebox';
-import { env } from '@tripweaver/core/env';
-import { dataStore, mediaObjectKey } from '@tripweaver/core/lib/dataStore';
-import { mediaCacheControl, mediaContentType } from '@tripweaver/core/lib/mediaStore';
-import { setAmapLogger } from '@tripweaver/integrations/amap/request';
-import { setQWeatherLogger } from '@tripweaver/integrations/qweather/client';
-import '@tripweaver/core/lib/proxy';                        // 需在任何出站 fetch 之前接管代理
-import '@tripweaver/core/db/client';                       // 触发建库与迁移
+import { env } from '@rollinggo-trip/core/env';
+import { dataStore, mediaObjectKey } from '@rollinggo-trip/core/lib/dataStore';
+import { mediaCacheControl, mediaContentType } from '@rollinggo-trip/core/lib/mediaStore';
+import { setAmapLogger } from '@rollinggo-trip/integrations/amap/request';
+import { setQWeatherLogger } from '@rollinggo-trip/integrations/qweather/client';
+import '@rollinggo-trip/core/lib/proxy';                        // 需在任何出站 fetch 之前接管代理
+import '@rollinggo-trip/core/db/client';                       // 触发建库与迁移
 import { installApiResponses } from './http/apiResponse';
 import { authRoutes } from './routes/auth';
 import { conversationRoutes } from './routes/conversations';
@@ -23,10 +23,10 @@ import { destinationRoutes } from './routes/destinations';
 import { generationRoutes } from './routes/generations';
 import { notificationRoutes } from './routes/notifications';
 import { promptParseRoutes } from './routes/promptParse';
-import { expireOrphanQuestions } from '@tripweaver/agent/chat/agent/questionStore';
+import { expireOrphanQuestions } from '@rollinggo-trip/agent/chat/agent/questionStore';
 
 /**
- * TripWeaver 服务端进程入口。
+ * RollingGo Trip 服务端进程入口。
  *
  * 启动顺序有依赖关系，改动前先看清：
  * 1. `./lib/proxy`、`./db/client` 是**副作用导入**，必须在读取 env / 出站 fetch 之前完成
@@ -61,7 +61,7 @@ async function main() {
   // 健康检查带 commit/buildDate：容器里 `docker inspect` 之外也能确认跑的是哪个镜像
   app.get('/api/health', async () => ({
     ok: true,
-    name: 'tripweaver',
+    name: 'rollinggo-trip',
     time: Date.now(),
     commit: process.env.COMMIT_SHA ?? 'unknown',
     buildDate: process.env.BUILD_DATE ?? 'unknown',

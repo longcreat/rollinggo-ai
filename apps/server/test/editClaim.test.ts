@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { claimsUnappliedEdit, withEditCorrection } from '@tripweaver/agent/chat/agent/editClaim';
+import { claimsUnappliedEdit, withEditCorrection } from '@rollinggo-trip/agent/chat/agent/editClaim';
 
 test('没有写操作时，完成时表述判为未落地', () => {
   assert.equal(claimsUnappliedEdit('第 1 天的时间安排，我已修好两处关键问题。', false), true);

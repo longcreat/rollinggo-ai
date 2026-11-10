@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { EMAIL_MAX_LENGTH, EMAIL_PATTERN, type EmailCodePurpose } from '@tripweaver/shared';
+import { EMAIL_MAX_LENGTH, EMAIL_PATTERN, type EmailCodePurpose } from '@rollinggo-trip/shared';
 import { ApiError } from '../api/client';
 import { useSendEmailCode } from '../api/hooks';
 import { Button } from './ui/Button';

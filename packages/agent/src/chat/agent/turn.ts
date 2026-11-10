@@ -4,20 +4,20 @@
 // 回答生成后统一提交——一个新版本 + 一次 editResult + 一次 repairChangedRoutes 重算动线。
 // 一轮对话只产生一个版本：中途失败不会留下半成品，历史面板也不会被刷屏。
 import { and, eq } from 'drizzle-orm';
-import { db } from '@tripweaver/core/db/client';
-import { trips } from '@tripweaver/core/db/schema';
+import { db } from '@rollinggo-trip/core/db/client';
+import { trips } from '@rollinggo-trip/core/db/schema';
 import { agentStoragePath, ensureAgentStorageDir } from '../../generation/agentStorage';
-import { appendMessages, getConversationDetail, saveBrief } from '@tripweaver/services/conversationService';
-import { commitOperation } from '@tripweaver/services/detailOperationService';
-import { assertLatestTrip } from '@tripweaver/services/tripService';
-import { getCityWeather, getTripWeather } from '@tripweaver/services/tripWeatherService';
-import type { LlmConfig } from '@tripweaver/core/settingsService';
-import type { AgentPart, AgentStep, ChatAttachment, ChatStreamEvent, DetailChatRequest, SendMessageResult, Trip } from '@tripweaver/shared';
-import { SendMessageResultSchema } from '@tripweaver/shared';
+import { appendMessages, getConversationDetail, saveBrief } from '@rollinggo-trip/services/conversationService';
+import { commitOperation } from '@rollinggo-trip/services/detailOperationService';
+import { assertLatestTrip } from '@rollinggo-trip/services/tripService';
+import { getCityWeather, getTripWeather } from '@rollinggo-trip/services/tripWeatherService';
+import type { LlmConfig } from '@rollinggo-trip/core/settingsService';
+import type { AgentPart, AgentStep, ChatAttachment, ChatStreamEvent, DetailChatRequest, SendMessageResult, Trip } from '@rollinggo-trip/shared';
+import { SendMessageResultSchema } from '@rollinggo-trip/shared';
 import { Value } from '@sinclair/typebox/value';
 import { allowsWebSearch, collectReferences } from '../detailKnowledge';
-import { applyDialogueDecision, briefStatus, syncBriefTripDates } from '@tripweaver/services/brief';
-import { resolveDetailSources } from '@tripweaver/integrations/detailSources';
+import { applyDialogueDecision, briefStatus, syncBriefTripDates } from '@rollinggo-trip/services/brief';
+import { resolveDetailSources } from '@rollinggo-trip/integrations/detailSources';
 import { agentModelRef, agentThinkingLevel, buildAgentModels } from './models';
 import { runAgentTurn, type AgentStreamEvent } from './runtime';
 import type { ConversationId, ToolExecutionApi } from '@earendil-works/pi-durable';
@@ -26,13 +26,13 @@ import { createTripTools } from './tools';
 import { createTripDraft } from './tripDraft';
 import { createPlacePointCache } from './placePoints';
 import { createAgentTurnState } from './turnState';
-import { createAmapPoiPhotoLookup } from '@tripweaver/integrations/amap/poiPhotos';
-import { env } from '@tripweaver/core/env';
+import { createAmapPoiPhotoLookup } from '@rollinggo-trip/integrations/amap/poiPhotos';
+import { env } from '@rollinggo-trip/core/env';
 import { syncOverviewWithActivities } from './overviewSync';
-import { repairChangedRoutes } from '@tripweaver/services/tripHistoryService';
-import { scheduleDays } from '@tripweaver/services/itinerary/schedule';
+import { repairChangedRoutes } from '@rollinggo-trip/services/tripHistoryService';
+import { scheduleDays } from '@rollinggo-trip/services/itinerary/schedule';
 import { createGeoSession } from '../../generation/geoPipeline';
-import { createTrip } from '@tripweaver/services/tripService';
+import { createTrip } from '@rollinggo-trip/services/tripService';
 import { GenerationTask } from '../../generation/generationTask';
 import { delegateGeneration, readGenerationStatus } from './delegate';
 import type { DelegatedTaskKind } from '../../tasks/delegatedTask';
@@ -52,14 +52,14 @@ export type DetailChatEmit = (event: DetailChatEmitEvent) => void;
 
 /** 子代理（探索型）：只读、独立上下文，只回结论。参考出发鸭 explore_sub_*。 */
 const SUBAGENT_INSTRUCTIONS = [
-  '你是「织程」行程助手的探索子代理，只做只读调研，不能修改行程（你也没有写工具）。',
+  '你是「rollinggo 旅行」行程助手的探索子代理，只做只读调研，不能修改行程（你也没有写工具）。',
   '你看不到主代理与用户的对话；任务提示里给出的范围就是你的全部上下文，需要行程事实时先调 get_trip / get_day。',
   '调研纪律：地点信息用 search_places 核实（名称、地址、营业时间），时效与口碑用 web_search，天气用 get_weather；查不到就明确说查不到，不要编。',
   '只输出与本任务有关的事实：地点名、片区、营业/预约、通勤耗时、需要避开的坑。不要寒暄，不要复述任务，不要输出 Markdown 标题。',
   '输出格式（必须严格遵守）：最后只输出一个 JSON 对象，不要代码块、不要解释。kind=places 用 {"places":[{"name","address","lat","lng","category","reason","openTime","rating","cost","sourceUrl"}]}（lat/lng 取自 search_places，最多 6 个）；kind=notes 用 {"notes":[{"topic","detail","sourceUrl"}],"cautions":[{"topic","detail"}]}（各最多 5 条）。没有把握的地点不要放进 places。',
 ].join('\n');
 
-const SYSTEM_INSTRUCTIONS = `你是「织程 TripWeaver」的专属旅行管家（TripAgent），运行在 pi-durable harness 中，扮演用户的旅行向导与全局调度官（Coordinator / Supervisor）。
+const SYSTEM_INSTRUCTIONS = `你是「rollinggo 旅行」的专属旅行管家（TripAgent），运行在 pi-durable harness 中，扮演用户的旅行向导与全局调度官（Coordinator / Supervisor）。
 你负责陪伴用户的旅行全程：探索需求、答疑解惑、轻量微调已有行程，以及在需要从 0 到 1 打造或大规模重构多天行程时，将生成任务派发给专业的行程规划子代理（TripPlannerAgent）。
 
 <architecture>

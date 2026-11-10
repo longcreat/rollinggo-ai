@@ -3,10 +3,10 @@
 // 事实来源是 chat_messages 表当日 role='user' 的行数 —— 不新增计数表。
 // 由于消息在理解成功后才成批落库，「失败/被拒的一轮不计数」自动成立。
 import { and, eq, gte, sql } from 'drizzle-orm';
-import { startOfToday, startOfTomorrow, type UsageView } from '@tripweaver/shared';
-import { db } from '@tripweaver/core/db/client';
-import { chatMessages } from '@tripweaver/core/db/schema';
-import { env } from '@tripweaver/core/env';
+import { startOfToday, startOfTomorrow, type UsageView } from '@rollinggo-trip/shared';
+import { db } from '@rollinggo-trip/core/db/client';
+import { chatMessages } from '@rollinggo-trip/core/db/schema';
+import { env } from '@rollinggo-trip/core/env';
 
 /** 今日已消耗的对话轮数（一轮 = 一条用户消息） */
 export async function chatTurnsToday(userId: string): Promise<number> {

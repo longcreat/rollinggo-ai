@@ -1,7 +1,7 @@
 // 长途点距离情报的几何基元（远郊编排的公共底座，纯函数、无 IO、零外呼）。
 // 参照点 = 候选池有坐标 POI 的坐标中位中心（lat/lng 各取中位数，代表「POI 主体/市区大部队」；
 // 与 eval geo gate 的离群判定同构，城市无关）。标级逻辑由 geoSanity / longHaulFixer 各自消费。
-// 阈值唯一事实源：LONG_HAUL_THRESHOLDS（@tripweaver/shared）。
+// 阈值唯一事实源：LONG_HAUL_THRESHOLDS（@rollinggo-trip/shared）。
 
 interface Coord {
   lat: number;

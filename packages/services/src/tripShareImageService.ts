@@ -1,9 +1,9 @@
 import { createHash } from 'node:crypto';
-import type { GenerationNotification, Trip, TripShareImageGeneratedResponse, TripShareImageResponse } from '@tripweaver/shared';
-import { env } from '@tripweaver/core/env';
-import { generateShareImage, imageError, type GeneratedShareImage } from '@tripweaver/integrations/imageGeneration';
-import { applyShareBrand } from '@tripweaver/core/lib/sharePosterBrand';
-import { buildTripSharePrompt, type TripShareStyle } from '@tripweaver/core/lib/tripSharePrompt';
+import type { GenerationNotification, Trip, TripShareImageGeneratedResponse, TripShareImageResponse } from '@rollinggo-trip/shared';
+import { env } from '@rollinggo-trip/core/env';
+import { generateShareImage, imageError, type GeneratedShareImage } from '@rollinggo-trip/integrations/imageGeneration';
+import { applyShareBrand } from '@rollinggo-trip/core/lib/sharePosterBrand';
+import { buildTripSharePrompt, type TripShareStyle } from '@rollinggo-trip/core/lib/tripSharePrompt';
 import type { SharePosterStore } from './sharePosterStore';
 
 export type ShareImageGenerator = (prompt: string) => Promise<GeneratedShareImage>;

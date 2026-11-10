@@ -4,10 +4,10 @@
 // 建议的执行与验证在 healthRepair（Pass 2）。体检会话落库（trip_health_checks），
 // 同一 trip 版本的最近一次体检可直接复用（不重复跑）。
 import { and, desc, eq } from 'drizzle-orm';
-import { db } from '@tripweaver/core/db/client';
-import { tripHealthChecks, trips } from '@tripweaver/core/db/schema';
-import { uid, type Trip } from '@tripweaver/shared';
-import type { HealthFinding, HealthCheckView, HealthDecision } from '@tripweaver/shared';
+import { db } from '@rollinggo-trip/core/db/client';
+import { tripHealthChecks, trips } from '@rollinggo-trip/core/db/schema';
+import { uid, type Trip } from '@rollinggo-trip/shared';
+import type { HealthFinding, HealthCheckView, HealthDecision } from '@rollinggo-trip/shared';
 
 /** 行程的当前 DB 版本号（Trip JSON 不带 version，体检的乐观锁需要它） */
 export async function getTripVersion(userId: string, tripId: string): Promise<number | null> {
@@ -114,9 +114,9 @@ export async function resolveHealthCheck(options: {
     const committed = await commitOperation(userId, `health-${checkId}`, fingerprint, async (tx) => {
       const latest = await assertLatestTrip(userId, trip.id, updatedAt, tx);
       const saved = await createTrip(userId, outcome.trip, trip.id, tx);
-      await tx.update((await import('@tripweaver/core/db/schema')).trips)
+      await tx.update((await import('@rollinggo-trip/core/db/schema')).trips)
         .set({ changeSummary: `体检修复：${outcome.applied.join('；').slice(0, 150)}` })
-        .where(and(eq((await import('@tripweaver/core/db/schema')).trips.id, saved.id), eq((await import('@tripweaver/core/db/schema')).trips.userId, userId)));
+        .where(and(eq((await import('@rollinggo-trip/core/db/schema')).trips.id, saved.id), eq((await import('@rollinggo-trip/core/db/schema')).trips.userId, userId)));
       result = {
         version: latest.version + 1,
         tripId: saved.id,

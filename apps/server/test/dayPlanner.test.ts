@@ -1,8 +1,8 @@
 // 一天的时距排布：通勤、停留、闭馆都按注入的数值推演，不做地理计算。
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { dwellMinutes, formatClock, parseClock, scheduleDays, walkingMinutes } from '@tripweaver/services/itinerary/schedule';
-import { planDay } from '@tripweaver/agent/generation/scheduling/dayPlanner';
+import { dwellMinutes, formatClock, parseClock, scheduleDays, walkingMinutes } from '@rollinggo-trip/services/itinerary/schedule';
+import { planDay } from '@rollinggo-trip/agent/generation/scheduling/dayPlanner';
 
 const stop = (id: string, name: string, lat = 30.25, lng = 120.15, extra: Record<string, unknown> = {}) => ({
   id, name, lat, lng, ...extra,

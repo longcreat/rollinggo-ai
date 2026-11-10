@@ -1,7 +1,7 @@
 // 单测：游览顺序种子表匹配（09-23）——别名命中、短名防误伤、跨城市不串、两端缺一不生效
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { routeOrderConstraints } from '@tripweaver/core/data/routeOrderSeeds';
+import { routeOrderConstraints } from '@rollinggo-trip/core/data/routeOrderSeeds';
 
 test('两端都命中候选池才产出约束，且返回候选池里的实际名称', () => {
   const constraints = routeOrderConstraints('北京', ['故宫博物院', '景山公园', '天坛公园']);

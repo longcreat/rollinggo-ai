@@ -1,9 +1,9 @@
 // HITL 问答持久化：记录问题与回答，供重启后审计与「孤儿问题」收口。
 // 进程内的 Promise 仍然只在当前回合有效；重启后的 pending 行统一标 expired。
 import { and, desc, eq } from 'drizzle-orm';
-import type { AgentQuestion, AgentQuestionAnswer } from '@tripweaver/shared';
-import { db } from '@tripweaver/core/db/client';
-import { agentQuestions } from '@tripweaver/core/db/schema';
+import type { AgentQuestion, AgentQuestionAnswer } from '@rollinggo-trip/shared';
+import { db } from '@rollinggo-trip/core/db/client';
+import { agentQuestions } from '@rollinggo-trip/core/db/schema';
 
 export type StoredQuestionStatus = 'pending' | 'answered' | 'expired';
 

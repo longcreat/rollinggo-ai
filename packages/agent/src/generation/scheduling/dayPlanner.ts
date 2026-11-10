@@ -4,10 +4,10 @@
 // 通勤时长由调用方注入（高德路径规划或启发式），模型永远不自己做算术。
 // 返回 issues 而不抛错：排不下/闭馆是方案问题，由上层决定修补或重新组线。
 import { dayDate, weekdayOf, type PlanPace } from '../planner/validator';
-import { isClosedOnDate } from '@tripweaver/shared';
-import { dwellMinutes, formatClock, parseClock, walkingMinutes } from '@tripweaver/services/itinerary/schedule';
+import { isClosedOnDate } from '@rollinggo-trip/shared';
+import { dwellMinutes, formatClock, parseClock, walkingMinutes } from '@rollinggo-trip/services/itinerary/schedule';
 
-export { dwellMinutes, formatClock, parseClock, walkingMinutes } from '@tripweaver/services/itinerary/schedule';
+export { dwellMinutes, formatClock, parseClock, walkingMinutes } from '@rollinggo-trip/services/itinerary/schedule';
 
 export interface PlanDayStop {
   id: string;

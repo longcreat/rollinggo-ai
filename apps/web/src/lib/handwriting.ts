@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { missingTitleCharacters } from '@tripweaver/shared';
+import { missingTitleCharacters } from '@rollinggo-trip/shared';
 
 const fallback: CSSProperties = { fontFamily: "'Noto Serif SC Variable', SimSun, serif" };
 

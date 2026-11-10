@@ -6,11 +6,11 @@
 import { createModels, createProvider, type Models } from '@earendil-works/pi-ai/models';
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy';
 import type { Model, ModelThinkingLevel } from '@earendil-works/pi-ai';
-import type { LlmConfig } from '@tripweaver/core/settingsService';
-import { assertSafeBaseUrl } from '@tripweaver/core/ssrfGuard';
-import { resolveOpenAiCompat } from '@tripweaver/core/lib/llmCompat';
+import type { LlmConfig } from '@rollinggo-trip/core/settingsService';
+import { assertSafeBaseUrl } from '@rollinggo-trip/core/ssrfGuard';
+import { resolveOpenAiCompat } from '@rollinggo-trip/core/lib/llmCompat';
 
-export const AGENT_PROVIDER_ID = 'tripweaver';
+export const AGENT_PROVIDER_ID = 'rollinggo-trip';
 
 /** 构造一个带用户 Key 的 Models 集合；每次调用返回独立实例，便于按用户切换配置。 */
 export async function buildAgentModels(cfg: LlmConfig): Promise<Models> {
@@ -32,11 +32,11 @@ export async function buildAgentModels(cfg: LlmConfig): Promise<Models> {
   };
   const provider = createProvider({
     id: AGENT_PROVIDER_ID,
-    name: 'TripWeaver',
+    name: 'RollingGo Trip',
     baseUrl: cfg.baseUrl,
     auth: {
       apiKey: {
-        name: 'TripWeaver LLM key',
+        name: 'RollingGo Trip LLM key',
         resolve: async () => ({
           auth: { apiKey: cfg.apiKey, baseUrl: cfg.baseUrl },
           source: cfg.byok ? 'BYOK' : 'site',

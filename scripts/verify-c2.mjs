@@ -3,7 +3,7 @@ import { readApiResponse } from './lib/api-contract.mjs';
 // 覆盖：SSE 三阶段与 job_done 落库 / candidate 候选池事件 / 预约种子表覆盖 / Last-Event-ID 重放 /
 //       配额 429 / 取消不计数不残留 / BYOK 走自有端点且计次 / 第二轮只局部修订并保留活动 ID
 // 用法：node scripts/verify-c2.mjs
-// 数据库：09-18 起运行态为 PostgreSQL。本脚本独占一个专用测试库（默认 tripweaver_verify_c2，
+// 数据库：09-18 起运行态为 PostgreSQL。本脚本独占一个专用测试库（默认 rollinggo_trip_verify_c2，
 // 可用 VERIFY_C2_DATABASE_URL 覆盖），每次运行先 drop/create 保证干净，结束时 drop 清理。
 import { startMockLlm } from './lib/mock-llm.mjs';
 import { spawn } from 'node:child_process';
@@ -15,7 +15,7 @@ const MOCK_PORT = 18788;
 const API_PORT = 18791;
 const API = `http://127.0.0.1:${API_PORT}`;
 const DATABASE_URL =
-  process.env.VERIFY_C2_DATABASE_URL ?? 'postgres://postgres:postgres@127.0.0.1:5432/tripweaver_verify_c2';
+  process.env.VERIFY_C2_DATABASE_URL ?? 'postgres://postgres:postgres@127.0.0.1:5432/rollinggo_trip_verify_c2';
 const requireFromServer = createRequire(new URL('../apps/server/package.json', import.meta.url));
 const { Client } = requireFromServer('pg');
 

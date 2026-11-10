@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import './helpers/amapQuotaMock';
 import assert from 'node:assert/strict';
-import { geocodeActivity, parseAmapLocation } from '@tripweaver/integrations/amap/geocoder';
+import { geocodeActivity, parseAmapLocation } from '@rollinggo-trip/integrations/amap/geocoder';
 
 const originalFetch = globalThis.fetch;
 

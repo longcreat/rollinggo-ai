@@ -9,7 +9,7 @@ import {
   type TripProjectionRow,
   type TripProjectionSnapshot,
   type TripProjectionState,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 import { api, ApiError } from '../api/client';
 import { applyProjectionResume, type ProjectionResumeMessage } from '../lib/projectionResume';
 

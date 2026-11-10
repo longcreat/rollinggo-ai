@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { foodAlreadyAdded, foodPositionProblem, foodTimes, makeSampleTrip, recommendedFoodPosition, type FoodCandidate } from '@tripweaver/shared';
+import { foodAlreadyAdded, foodPositionProblem, foodTimes, makeSampleTrip, recommendedFoodPosition, type FoodCandidate } from '@rollinggo-trip/shared';
 import { useEditorStore } from '../src/store/editorStore';
 import { streamChat } from '../src/api/detailChat';
 import { mock } from 'node:test';

@@ -13,10 +13,10 @@ import { readFrozen, saveFrozen, summarizeFrozen, validateFrozen, type FrozenDat
 import { buildReport, evaluateCase, saveReport } from '../runner';
 
 function temporary(t: TestContext) {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'tripweaver-frozen-test-'));
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rollinggo-trip-frozen-test-'));
   t.after(() => {
     assert.equal(path.dirname(path.resolve(root)), path.resolve(os.tmpdir()));
-    assert.match(path.basename(root), /^tripweaver-frozen-test-/);
+    assert.match(path.basename(root), /^rollinggo-trip-frozen-test-/);
     fs.rmSync(root, { recursive: true, force: true });
   });
   return root;
@@ -32,7 +32,7 @@ function fixture(): FrozenKnowledge {
       content: '周一闭馆', sourceUrl: 'https://example.test/palace', fetchedAt: '2026-01-01T00:00:00.000Z', embedding: '[0,1,0]' }],
     relations: [{ id: 'relation-a', city: '北京', fromName: '故宫', toName: '景山', strength: 'direct', noteCount: 5, createdAt: '2026-01-01T00:00:00.000Z' }],
   };
-  return { format: 'tripweaver-knowledge', version: 1, name: 'frozen-test', exportedAt: '2026-10-04T00:00:00.000Z', sourceId: 'source-fingerprint', contentHash: hash(data), data };
+  return { format: 'rollinggo-trip-knowledge', version: 1, name: 'frozen-test', exportedAt: '2026-10-04T00:00:00.000Z', sourceId: 'source-fingerprint', contentHash: hash(data), data };
 }
 
 test('冻结副本压缩往返保留 ID、证据、关系与向量，同名拒绝覆盖', (t) => {

@@ -21,8 +21,8 @@ import {
   type Trip,
   type TripDay,
   type TripPace,
-} from '@tripweaver/shared';
-import { scheduleDay } from '@tripweaver/services/itinerary/schedule';
+} from '@rollinggo-trip/shared';
+import { scheduleDay } from '@rollinggo-trip/services/itinerary/schedule';
 
 /** 工具返回值：给模型看的结论 + 该操作的 result 契约（提交时汇总进 editResult）。 */
 export interface DraftResult {

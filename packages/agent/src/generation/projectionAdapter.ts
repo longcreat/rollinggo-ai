@@ -14,7 +14,7 @@ import {
   type TripProjectionFrame,
   type TripProjectionRow,
   type TripProjectionState,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 import { ProjectionChannel } from './projectionChannel';
 
 const PHASE_LABEL: Record<string, string> = {

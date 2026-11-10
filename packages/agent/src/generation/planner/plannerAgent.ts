@@ -2,7 +2,7 @@
 //
 // 与 research 阶段的边界：research 只产出候选池与简介；这里决定每天去哪、按什么顺序、
 // 几点到几点，并在提交前用 validate_plan 自检。失败处理沿用 runPhaseAgent 的 completion 语义。
-import type { GenerateForm } from '@tripweaver/shared';
+import type { GenerateForm } from '@rollinggo-trip/shared';
 import type { PhaseAgentRunner, RunAgentOptions, RunAgentResult } from '../agents/phase';
 import type { DraftTrip } from '../draft';
 import { buildPlannerToolsWithStatus, type PlannerArea, type PlannerDeps, type PlannerSeed } from './tools';

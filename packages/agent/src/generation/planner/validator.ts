@@ -2,8 +2,8 @@
 //
 // 这里只做纯计算，不读数据库、不发请求；生成链路用它验收，eval 用同一份实现，
 // 避免「线上判定」和「评测口径」两套标准。阈值按节奏给默认值，调用方可覆盖。
-import { closedWeekdaysOf, haversineMeters, isClosedOnDate, type Trip } from '@tripweaver/shared';
-import { DEFAULT_SUB_POI_POLICY } from '@tripweaver/services/geofenceImport';
+import { closedWeekdaysOf, haversineMeters, isClosedOnDate, type Trip } from '@rollinggo-trip/shared';
+import { DEFAULT_SUB_POI_POLICY } from '@rollinggo-trip/services/geofenceImport';
 
 export type PlanPace = 'relaxed' | 'moderate' | 'tight';
 

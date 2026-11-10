@@ -8,13 +8,13 @@ import { after, test } from 'node:test';
 import { promisify } from 'node:util';
 
 process.env.MASTER_KEY = 'a'.repeat(64);
-const { pool } = await import('@tripweaver/core/db/client');
+const { pool } = await import('@rollinggo-trip/core/db/client');
 after(() => pool.end());
 const run = promisify(execFile);
 const root = fileURLToPath(new URL('../../../..', import.meta.url));
 
 test('地点重导保留独立图片字段，多图导入采用首张且重复运行保持一致', async () => {
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'tripweaver-image-import-'));
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'rollinggo-trip-image-import-'));
   const id = 'image-import-regression';
   const city = '图片导入测试城';
   const places = path.join(dir, 'xhs-places-test.json');

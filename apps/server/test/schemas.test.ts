@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Value } from '@sinclair/typebox/value';
-import { ActivitySchema, GenerateFormSchema, LodgingSchema, TransitLegSchema, TripDaySchema } from '@tripweaver/shared';
+import { ActivitySchema, GenerateFormSchema, LodgingSchema, TransitLegSchema, TripDaySchema } from '@rollinggo-trip/shared';
 
 const oldActivity = {
   id: 'a1',

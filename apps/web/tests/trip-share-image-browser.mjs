@@ -8,7 +8,7 @@ import path from 'node:path';
 
 const port = 18796;
 const base = `http://127.0.0.1:${port}`;
-const screenshots = process.env.SHARE_TEST_OUTPUT ?? path.join(os.tmpdir(), 'tripweaver-share-image');
+const screenshots = process.env.SHARE_TEST_OUTPUT ?? path.join(os.tmpdir(), 'rollinggo-trip-share-image');
 const vite = spawn(process.execPath, ['../../node_modules/vite/bin/vite.js', '--host', '127.0.0.1', '--port', String(port)], { cwd: 'apps/web', windowsHide: true, stdio: 'ignore' });
 let browser;
 try {
@@ -21,7 +21,8 @@ try {
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   const trip = { id: 'share-test', title: '杭州春日漫游', destination: '杭州', startDate: '2026-10-01', partySize: 1, preferences: [], budgetLevel: '舒适', totalBudget: 0, extraNotes: '', createdAt: 0, updatedAt: 0, meta: { usedXhs: false, reviewNotes: [] }, days: [{ id: 'd1', dayIndex: 1, title: '湖畔慢行', activities: [{ id: 'a1', name: '西湖', lat: 30.24, lng: 120.15, coordSource: 'manual', coordSystem: 'gcj02', category: '自然', description: '', startTime: '', endTime: '', sourceNotes: [] }], legs: [] }] };
-  const png = (await fs.readFile('apps/web/public/share-styles/journal.png')).toString('base64');
+  // 1x1 透明 PNG：测试只校验下载/落盘链路，不依赖产品示例图
+  const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
   // 成品已落盘：POST 写入 stored，GET 用它模拟「刷新后仍能回显」
   const posterUrl = `/media/share-posters/${'a'.repeat(64)}.png`;
   const stored = new Map();

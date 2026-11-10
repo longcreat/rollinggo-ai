@@ -1,10 +1,10 @@
 // 工具输出契约：不按字数截断内容（上下文交给 pi-durable compaction），也不丢命中条数。
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { Trip } from '@tripweaver/shared';
-import { searchPlacesPayload, tripSnapshot, webSearchPayload } from '@tripweaver/agent/chat/agent/tools';
-import type { WebSearchHit } from '@tripweaver/integrations/websearch/searchSource';
-import type { SourcedPoi } from '@tripweaver/integrations/geoContracts';
+import type { Trip } from '@rollinggo-trip/shared';
+import { searchPlacesPayload, tripSnapshot, webSearchPayload } from '@rollinggo-trip/agent/chat/agent/tools';
+import type { WebSearchHit } from '@rollinggo-trip/integrations/websearch/searchSource';
+import type { SourcedPoi } from '@rollinggo-trip/integrations/geoContracts';
 
 const LONG_SUMMARY = '预约说明：需提前三天在官方小程序实名预约，节假日名额紧张，现场不售票。'.repeat(40);
 

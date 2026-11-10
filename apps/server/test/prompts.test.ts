@@ -2,8 +2,8 @@
 // 原 planner / reviewer prompt 用例随其调用点消失一并删除（09-25）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import type { GenerateForm } from '@tripweaver/shared';
-import { researchSystemPrompt, WRITER_SYSTEM_PROMPT, formBrief, writerUserPrompt } from '@tripweaver/agent/generation/prompts';
+import type { GenerateForm } from '@rollinggo-trip/shared';
+import { researchSystemPrompt, WRITER_SYSTEM_PROMPT, formBrief, writerUserPrompt } from '@rollinggo-trip/agent/generation/prompts';
 
 const form: GenerateForm = {
   destination: '测试市',

@@ -2,7 +2,7 @@
 // 数据源：国办发明电〔2025〕7 号《国务院办公厅关于 2026 年部分节假日安排的通知》
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { findHoliday, isClosedOnDate, isPublicHoliday } from '@tripweaver/shared';
+import { findHoliday, isClosedOnDate, isPublicHoliday } from '@rollinggo-trip/shared';
 
 test('节假日表：2026 年七个节日区间首尾都命中', () => {
   const cases: [string, string][] = [

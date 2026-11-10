@@ -1,4 +1,4 @@
-import { dateForDayIndex, personalAdviceIsCurrent, weatherForDate, WEATHER_FORECAST_DAYS, type PersonalAdviceItem, type ResearchPoi, type Trip, type TripWeather } from '@tripweaver/shared';
+import { dateForDayIndex, personalAdviceIsCurrent, weatherForDate, WEATHER_FORECAST_DAYS, type PersonalAdviceItem, type ResearchPoi, type Trip, type TripWeather } from '@rollinggo-trip/shared';
 
 export interface TripAdvice { id: string; title: string; text: string; sources?: PersonalAdviceItem['sources'] }
 

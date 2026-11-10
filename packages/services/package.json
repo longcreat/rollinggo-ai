@@ -1,5 +1,5 @@
 {
-  "name": "@tripweaver/services",
+  "name": "@rollinggo-trip/services",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -7,9 +7,9 @@
     "./*": "./src/*.ts"
   },
   "dependencies": {
-    "@tripweaver/shared": "*",
-    "@tripweaver/core": "*",
-    "@tripweaver/integrations": "*",
+    "@rollinggo-trip/shared": "*",
+    "@rollinggo-trip/core": "*",
+    "@rollinggo-trip/integrations": "*",
     "@sinclair/typebox": "^0.34.49",
     "drizzle-orm": "^0.45.2",
     "pg": "^8.13.1"

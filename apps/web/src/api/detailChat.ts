@@ -1,5 +1,5 @@
 import { Value } from '@sinclair/typebox/value';
-import { ChatStreamEventSchema, SendMessageResultSchema, TripOperationResultSchema, type AgentQuestionAnswer, type ChatStreamEvent, type DetailChatRequest, type PendingQuestionView, type PlanningTurnRequest, type SendMessageResult, type AddFoodRequest, type TripOperationRequest, type TripRewindRequest } from '@tripweaver/shared';
+import { ChatStreamEventSchema, SendMessageResultSchema, TripOperationResultSchema, type AgentQuestionAnswer, type ChatStreamEvent, type DetailChatRequest, type PendingQuestionView, type PlanningTurnRequest, type SendMessageResult, type AddFoodRequest, type TripOperationRequest, type TripRewindRequest } from '@rollinggo-trip/shared';
 import { api, ApiError, requestStream } from './client';
 
 /** POST SSE 支持跨 chunk 的 UTF-8 与帧边界；校验、按序去重、EOF 必须有终态。 */

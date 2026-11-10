@@ -20,7 +20,7 @@ import {
   type PersonalAdviceItem,
   type PersonalTripAdvice,
   type Trip,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 import { defineTool } from './tools/defineTool';
 import type { PhaseAgentRunner, RunAgentOptions } from './agents/phase';
 import type { RetrievedPlace, RetrieveOptions } from './placeRetrieval';

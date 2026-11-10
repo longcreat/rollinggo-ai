@@ -1,9 +1,9 @@
 // 片区检索：多边形 / 周边两种走法共用 place 配额，返回形状与文本检索一致。
 import assert from 'node:assert/strict';
 import { test, mock, afterEach } from 'node:test';
-import { amapQuotaGate } from '@tripweaver/integrations/amap/request';
-import { circlePolygon, closeRing, searchAreaPois } from '@tripweaver/integrations/amap/placeArea';
-import { amapDay } from '@tripweaver/core/amapServices';
+import { amapQuotaGate } from '@rollinggo-trip/integrations/amap/request';
+import { circlePolygon, closeRing, searchAreaPois } from '@rollinggo-trip/integrations/amap/placeArea';
+import { amapDay } from '@rollinggo-trip/core/amapServices';
 
 afterEach(() => { mock.restoreAll(); });
 

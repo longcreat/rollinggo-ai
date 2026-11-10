@@ -24,9 +24,9 @@ The roles are demonstrated by `packages/shared/src/index.ts`, `packages/shared/s
 
 ## Public Entry Point
 
-`packages/shared/package.json` exports only `.`. The complete supported API must therefore be re-exported from `packages/shared/src/index.ts`. Web and server code imports from `@tripweaver/shared`, as seen in `apps/web/src/components/editor/ActivityCard.tsx`, `apps/web/src/store/editorStore.ts`, and `apps/server/src/routes/trips.ts`.
+`packages/shared/package.json` exports only `.`. The complete supported API must therefore be re-exported from `packages/shared/src/index.ts`. Web and server code imports from `@rollinggo-trip/shared`, as seen in `apps/web/src/components/editor/ActivityCard.tsx`, `apps/web/src/store/editorStore.ts`, and `apps/server/src/routes/trips.ts`.
 
-Do not add or use deep imports such as `@tripweaver/shared/src/constants`. Deep imports bypass the package boundary, couple consumers to file layout, and are not declared by the current export map.
+Do not add or use deep imports such as `@rollinggo-trip/shared/src/constants`. Deep imports bypass the package boundary, couple consumers to file layout, and are not declared by the current export map.
 
 ## Placement Rules
 

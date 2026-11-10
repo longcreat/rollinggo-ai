@@ -10,7 +10,7 @@ Write code that passes this configuration without weakening it. Handle possibly 
 
 ## Shared Types and Schemas
 
-Domain contracts come from `@tripweaver/shared`. The TypeBox schemas are the runtime source of truth, and TypeScript domain types are derived from them with `Static`. Shared constants define literal unions and limits used by both server and web.
+Domain contracts come from `@rollinggo-trip/shared`. The TypeBox schemas are the runtime source of truth, and TypeScript domain types are derived from them with `Static`. Shared constants define literal unions and limits used by both server and web.
 
 Evidence: `packages/shared/src/schemas.ts`, `packages/shared/src/types.ts`, `packages/shared/src/constants.ts`.
 

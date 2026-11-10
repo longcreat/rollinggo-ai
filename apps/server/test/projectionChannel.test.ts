@@ -1,8 +1,8 @@
 // 投影信道：水位分配连续；重订阅要么补增量、要么整体重发快照，绝不猜。
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { emptySnapshot, type ProjectionDelta } from '@tripweaver/shared';
-import { ProjectionChannel } from '@tripweaver/agent/generation/projectionChannel';
+import { emptySnapshot, type ProjectionDelta } from '@rollinggo-trip/shared';
+import { ProjectionChannel } from '@rollinggo-trip/agent/generation/projectionChannel';
 
 type Row = { rowId: number; label: string };
 type State = { phase: string };

@@ -1,10 +1,10 @@
 // HITL 注册表：暂停/回答/超时/取消/校验。纯内存，不连模型。
 import assert from 'node:assert/strict';
 import { describe, it, mock } from 'node:test';
-import type { AgentQuestion, PendingQuestionView } from '@tripweaver/shared';
+import type { AgentQuestion, PendingQuestionView } from '@rollinggo-trip/shared';
 import {
   answerPendingQuestion, cancelPendingQuestions, createHitlSession, pendingQuestion, startHardTimeout,
-} from '@tripweaver/agent/chat/agent/humanInLoop';
+} from '@rollinggo-trip/agent/chat/agent/humanInLoop';
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 

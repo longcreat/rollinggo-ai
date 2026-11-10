@@ -1,5 +1,5 @@
-import { chinaDate, dateForDayIndex, validWeatherDate, WEATHER_FORECAST_DAYS, type Trip, type TripWeather } from '@tripweaver/shared';
-import { lookupQWeather } from '@tripweaver/integrations/qweather/weather';
+import { chinaDate, dateForDayIndex, validWeatherDate, WEATHER_FORECAST_DAYS, type Trip, type TripWeather } from '@rollinggo-trip/shared';
+import { lookupQWeather } from '@rollinggo-trip/integrations/qweather/weather';
 
 /** Lazy env binding keeps pure date/no-date paths independent of credentials and DB. */
 export async function getTripWeather(trip: Trip): Promise<TripWeather> {
@@ -11,7 +11,7 @@ export async function getTripWeather(trip: Trip): Promise<TripWeather> {
     return date >= today && Date.parse(date) - Date.parse(today) <= (WEATHER_FORECAST_DAYS - 1) * 86400_000;
   });
   if (!inRange) return { ...base, status: 'not_needed' };
-  const { env, qweatherCredential } = await import('@tripweaver/core/env');
+  const { env, qweatherCredential } = await import('@rollinggo-trip/core/env');
   const auth = qweatherCredential();
   if (!env.qweatherApiHost || !auth) return { ...base, status: 'not_configured' };
   const forecast = await lookupQWeather(env.qweatherApiHost, auth, trip.destination);
@@ -24,7 +24,7 @@ export async function getCityWeather(city: string): Promise<TripWeather> {
   const destination = city.trim();
   const base = { destination, checkedAt };
   if (!destination) return { ...base, status: 'unavailable' };
-  const { env, qweatherCredential } = await import('@tripweaver/core/env');
+  const { env, qweatherCredential } = await import('@rollinggo-trip/core/env');
   const auth = qweatherCredential();
   if (!env.qweatherApiHost || !auth) return { ...base, status: 'not_configured' };
   const forecast = await lookupQWeather(env.qweatherApiHost, auth, destination);

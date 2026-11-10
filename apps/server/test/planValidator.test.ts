@@ -1,7 +1,7 @@
 // 方案验收：稀薄、跨区、重复坐标、杂项、闭馆都要能被量化并给出可读违规。
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { closedWeekdays, dayDate, measurePlan, percentile, planViolations, PLAN_POLICY, weekdayOf } from '@tripweaver/agent/generation/planner/validator';
+import { closedWeekdays, dayDate, measurePlan, percentile, planViolations, PLAN_POLICY, weekdayOf } from '@rollinggo-trip/agent/generation/planner/validator';
 
 const activity = (id: string, name: string, lat: number, lng: number, extra: Record<string, unknown> = {}) => ({
   id, name, lat, lng, startTime: '', endTime: '', description: '', coordSource: 'geocoded', category: '文化', sourceNotes: [], ...extra,

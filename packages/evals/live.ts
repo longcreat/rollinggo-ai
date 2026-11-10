@@ -2,14 +2,14 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { parse } from 'dotenv';
-import { MAX_OVERVIEW_POIS, type GenerationEvent, type ResearchPoi } from '@tripweaver/shared';
+import { MAX_OVERVIEW_POIS, type GenerationEvent, type ResearchPoi } from '@rollinggo-trip/shared';
 import { EVAL_DIR, ROOT, hash, writeJson } from './artifacts';
 import { createEvaluationDatabase, validateAdminUrl } from './isolation';
 import { loadKnowledge, seedKnowledge, type KnowledgeMode } from './knowledge';
 import { summarizeFrozen } from './frozenKnowledge';
 import type { Execution, Manifest, Snapshot } from './contracts';
 import type { GoldenCase } from './golden/cases';
-import type { GenerationRunOptions } from '@tripweaver/agent/generation/orchestrator';
+import type { GenerationRunOptions } from '@rollinggo-trip/agent/generation/orchestrator';
 
 // 仅加载评估所需配置；不加载应用数据库、主密钥、用户凭据或后台图片/天气服务。
 const CREDENTIAL_KEYS = ['SITE_LLM_BASE_URL', 'SITE_LLM_API_KEY', 'SITE_LLM_MODEL', 'AMAP_KEY',
@@ -107,13 +107,13 @@ export async function startLive(options: {
       'AMAP_CYCLE_DAILY_BUDGET', 'AMAP_DRIVE_DAILY_BUDGET', 'AMAP_TRANSIT_DAILY_BUDGET', 'SEARCH_DAILY_BUDGET']) {
       options.manifest.configuration[key] = process.env[key]!;
     }
-    await import('@tripweaver/core/lib/proxy');
-    ({ pool } = await import('@tripweaver/core/db/client'));
+    await import('@rollinggo-trip/core/lib/proxy');
+    ({ pool } = await import('@rollinggo-trip/core/db/client'));
     await seedKnowledge(pool, knowledge);
     await pool.query(`INSERT INTO users (id,email,password_hash,created_at) VALUES ('eval-user','eval@invalid.local','disabled',NOW())`);
-    const { runGeneration } = await import('@tripweaver/agent/generation/orchestrator');
-    const { createLiveRun, observeLiveRun } = await import('@tripweaver/agent/generation/liveRun');
-    const { getTrip } = await import('@tripweaver/services/tripService');
+    const { runGeneration } = await import('@rollinggo-trip/agent/generation/orchestrator');
+    const { createLiveRun, observeLiveRun } = await import('@rollinggo-trip/agent/generation/liveRun');
+    const { getTrip } = await import('@rollinggo-trip/services/tripService');
     const config = { baseUrl: process.env.SITE_LLM_BASE_URL!, apiKey: process.env.SITE_LLM_API_KEY!, model: process.env.SITE_LLM_MODEL!, byok: false };
     console.log(`live：专用 PostgreSQL｜知识库 ${knowledge.places.length} 地点`);
     return {
@@ -164,9 +164,9 @@ export async function startLive(options: {
         try {
           // durable 是唯一执行路径：宿主创建失败即失败该用例。
           const [{ getAgentRuntime }, { buildAgentModels }, { agentStoragePath }, { BACKGROUND_CONTEXT }] = await Promise.all([
-            import('@tripweaver/agent/chat/agent/runtime'),
-            import('@tripweaver/agent/chat/agent/models'),
-            import('@tripweaver/agent/generation/agentStorage'),
+            import('@rollinggo-trip/agent/chat/agent/runtime'),
+            import('@rollinggo-trip/agent/chat/agent/models'),
+            import('@rollinggo-trip/agent/generation/agentStorage'),
             import('@earendil-works/chord/context'),
           ]);
           const runtime = await getAgentRuntime(agentStoragePath('eval-user'));
@@ -192,7 +192,7 @@ export async function startLive(options: {
       },
     };
   } catch (error) {
-    try { await close(); } catch { throw new Error(`${sanitizeError(error)}；评估库清理失败，请检查本机 tripweaver_eval_* 库`); }
+    try { await close(); } catch { throw new Error(`${sanitizeError(error)}；评估库清理失败，请检查本机 rollinggo_trip_eval_* 库`); }
     throw error;
   }
 }

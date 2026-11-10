@@ -1,8 +1,8 @@
 // 详情对话流式错误映射：事件码决定前端如何呈现，不能把并发/额度/故障混成一个「回答中断」。
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { streamErrorPayload } from '@tripweaver/agent/chat/streamError';
-import { AgentBusyError } from '@tripweaver/agent/chat/agent/runtime';
+import { streamErrorPayload } from '@rollinggo-trip/agent/chat/streamError';
+import { AgentBusyError } from '@rollinggo-trip/agent/chat/agent/runtime';
 
 test('同一用户的并发回合：busy 码 + 可操作文案', () => {
   const payload = streamErrorPayload(new AgentBusyError(), { timedOut: false, stopped: false });

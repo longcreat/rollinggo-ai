@@ -1,9 +1,9 @@
 // LLM 模型构造：settingsService.resolveLlmConfig 的双轨结果 → pi-ai 自定义 Model
 // BYOK baseUrl 在使用时二次过 ssrfGuard（防 DNS 重绑定，架构 §5.1/§9）
 import type { Model } from '@earendil-works/pi-ai/compat';
-import type { LlmConfig } from '@tripweaver/core/settingsService';
-import { assertSafeBaseUrl } from '@tripweaver/core/ssrfGuard';
-import { resolveOpenAiCompat } from '@tripweaver/core/lib/llmCompat';
+import type { LlmConfig } from '@rollinggo-trip/core/settingsService';
+import { assertSafeBaseUrl } from '@rollinggo-trip/core/ssrfGuard';
+import { resolveOpenAiCompat } from '@rollinggo-trip/core/lib/llmCompat';
 
 export class NoLlmConfiguredError extends Error {
   constructor() {
@@ -25,7 +25,7 @@ export async function buildModel(cfg: LlmConfig): Promise<Model<'openai-completi
     id: cfg.model,
     name: cfg.model,
     api: 'openai-completions',
-    provider: cfg.byok ? 'tripweaver-byok' : 'tripweaver-site',
+    provider: cfg.byok ? 'rollinggo-trip-byok' : 'rollinggo-trip-site',
     baseUrl: cfg.baseUrl,
     // 能力标志与实际开关分离：runner 的 off 经 compat 才会真的发出去。
     // 其他模型保留历史行为，避免向任意兼容服务发送不支持的参数。

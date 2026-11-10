@@ -6,11 +6,11 @@ import {
   type Activity,
   type LegMode,
   type TransitLeg,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 import type { DraftTrip } from './draft';
 import { isMeal, mealWindow } from './mealPlanning';
 import { optimizeRouteOrder } from './scheduling/routeOrder';
-import { routeOrderConstraints } from '@tripweaver/core/data/routeOrderSeeds';
+import { routeOrderConstraints } from '@rollinggo-trip/core/data/routeOrderSeeds';
 
 type DraftDay = ReturnType<DraftTrip['mutableDays']>[number];
 

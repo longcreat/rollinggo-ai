@@ -13,7 +13,7 @@ import {
   type ProjectionFrame,
   type ProjectionSnapshot,
   type TripProjectionSnapshot,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 
 type Row = { rowId: number; label: string; text?: string };
 type State = { trip: { days: string[] }; cursor: number; phase: string };

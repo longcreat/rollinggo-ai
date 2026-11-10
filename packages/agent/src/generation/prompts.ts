@@ -1,7 +1,7 @@
 // 调研与文案 prompt：步骤编号、工具纪律、token 节制（R2/R8）
 // 原 planner / reviewer prompt 随 09-21 确定性排程改造失去调用点（结构与审校已由代码承担），09-25 清理。
-import type { GenerateForm, TransportMode, TripPace } from '@tripweaver/shared';
-import { PACE_LABELS } from '@tripweaver/shared';
+import type { GenerateForm, TransportMode, TripPace } from '@rollinggo-trip/shared';
+import { PACE_LABELS } from '@rollinggo-trip/shared';
 
 const TRANSPORT_LABEL: Record<TransportMode, string> = { transit: '公共交通', drive: '自驾', walk: '步行优先' };
 

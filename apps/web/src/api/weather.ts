@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Value } from '@sinclair/typebox/value';
-import { TripWeatherSchema, type Trip, type TripWeather } from '@tripweaver/shared';
+import { TripWeatherSchema, type Trip, type TripWeather } from '@rollinggo-trip/shared';
 import { api, shouldRetryQuery } from './client';
 import { keys } from './hooks';
 

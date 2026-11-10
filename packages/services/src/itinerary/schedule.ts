@@ -4,7 +4,7 @@
 //   - 顺序由结构操作决定（add/move/reorder）；时刻只能由本模块写出。
 //   - 模型不能直接写 startTime/endTime，只能表达停留时长与先后关系。
 //   - 没有真实 legs 时用步行估算；提交前重算 legs 后再跑一次，得到最终时刻。
-import type { TripPace } from '@tripweaver/shared';
+import type { TripPace } from '@rollinggo-trip/shared';
 import { isMeal, mealWindow } from './mealRules';
 
 export interface ScheduleActivity {

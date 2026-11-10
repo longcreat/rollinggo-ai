@@ -1,7 +1,7 @@
 // 邮件发信（10-18）：Resend API。
 // 只用一个接口 POST /emails —— 验证码是固定格式纯文本，不值得引入模板系统或 SDK，原生 fetch 足够。
 // 为什么要独立成模块：注册与找回密码共用；以后再加通知类邮件也只改这里。
-import { env } from '@tripweaver/core/env';
+import { env } from '@rollinggo-trip/core/env';
 
 const RESEND_ENDPOINT = 'https://api.resend.com/emails';
 const TIMEOUT_MS = 10_000;

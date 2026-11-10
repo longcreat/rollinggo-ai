@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { createPlaceRetriever, type RetrievedPlace } from '@tripweaver/agent/generation/placeRetrieval';
-import { rankPlaces } from '@tripweaver/agent/generation/retrievalRanking';
-import { createDetailSources } from '@tripweaver/integrations/detailSources';
-import { allowsWebSearch, collectReferences } from '@tripweaver/agent/chat/detailKnowledge';
+import { createPlaceRetriever, type RetrievedPlace } from '@rollinggo-trip/agent/generation/placeRetrieval';
+import { rankPlaces } from '@rollinggo-trip/agent/generation/retrievalRanking';
+import { createDetailSources } from '@rollinggo-trip/integrations/detailSources';
+import { allowsWebSearch, collectReferences } from '@rollinggo-trip/agent/chat/detailKnowledge';
 
 const place = (id: string, name = id): RetrievedPlace => ({ id, name, city: '北京', category: '文化', source: 'manual', verified: true, lat: 39.9, lng: 116.4, payload: {}, evidence: [], aliases: [] });
 const signal = () => new AbortController().signal;

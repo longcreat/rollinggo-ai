@@ -1,8 +1,8 @@
 // 单测：WGS-84 → GCJ-02 转换 / Haversine / 通勤启发式估算（node:test，经 tsx 运行）
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { gcj02ToWgs84, haversineMeters, wgs84ToGcj02 } from '@tripweaver/shared';
-import { estimateLeg } from '@tripweaver/agent/generation/legEstimator';
+import { gcj02ToWgs84, haversineMeters, wgs84ToGcj02 } from '@rollinggo-trip/shared';
+import { estimateLeg } from '@rollinggo-trip/agent/generation/legEstimator';
 
 test('wgs84ToGcj02：已知基准点误差 < 1e-4 度（上海，eviltransform 测试向量）', () => {
   const { lat, lng } = wgs84ToGcj02(31.1774276, 121.5272106);

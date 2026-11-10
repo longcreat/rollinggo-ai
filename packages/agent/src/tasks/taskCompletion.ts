@@ -5,7 +5,7 @@
 // 再把回答写回业务会话；失败时退回固定完成文案，不阻断已经成功的任务。
 // 提示词只描述「任务结果」，不包含任何行程生成专属规则。
 import type { ConversationId } from '@earendil-works/pi-durable';
-import type { LlmConfig } from '@tripweaver/core/settingsService';
+import type { LlmConfig } from '@rollinggo-trip/core/settingsService';
 import { readBinding, saveBinding } from '../chat/agent/binding';
 import { agentModelRef, buildAgentModels } from '../chat/agent/models';
 import { runAgentTurn } from '../chat/agent/runtime';

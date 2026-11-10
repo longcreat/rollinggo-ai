@@ -1,10 +1,10 @@
 // 规划工具：片区聚簇、逐日排点（含时刻写入）、验收与提交状态。
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { DraftTrip } from '@tripweaver/agent/generation/draft';
-import { buildAreas, buildPlannerToolsWithStatus } from '@tripweaver/agent/generation/planner/tools';
-import { plannerSeeds } from '@tripweaver/agent/generation/planner/plannerAgent';
-import type { SourcedPoi } from '@tripweaver/integrations/geoContracts';
+import { DraftTrip } from '@rollinggo-trip/agent/generation/draft';
+import { buildAreas, buildPlannerToolsWithStatus } from '@rollinggo-trip/agent/generation/planner/tools';
+import { plannerSeeds } from '@rollinggo-trip/agent/generation/planner/plannerAgent';
+import type { SourcedPoi } from '@rollinggo-trip/integrations/geoContracts';
 
 const form = {
   destination: '杭州', days: 2, startDate: '2026-11-09', pace: 'moderate', transportMode: 'transit',

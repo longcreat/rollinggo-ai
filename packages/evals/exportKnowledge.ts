@@ -22,7 +22,7 @@ export async function exportKnowledge(options: { url: string; name: string; citi
   const sourceUrl = new URL(options.url);
   if (!['postgres:', 'postgresql:'].includes(sourceUrl.protocol)) throw new Error('知识库源必须是 PostgreSQL');
   const client = new Client({ connectionString: options.url, options: '-c default_transaction_read_only=on',
-    connectionTimeoutMillis: 8000, statement_timeout: 60000, application_name: 'tripweaver-eval-knowledge-export' });
+    connectionTimeoutMillis: 8000, statement_timeout: 60000, application_name: 'rollinggo-trip-eval-knowledge-export' });
   try {
     await client.connect();
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
@@ -53,7 +53,7 @@ export async function exportKnowledge(options: { url: string; name: string; citi
     const data: FrozenData = { version: 1, cities, places, evidence, relations,
       vectors: { included: options.includeVectors, configuredModel: options.configuredModel,
         placeDimensions: placeVector ? columns.places : null, evidenceDimensions: evidenceVector ? columns.evidence : null } };
-    return validateFrozen({ format: 'tripweaver-knowledge', version: 1, name: options.name, exportedAt: new Date().toISOString(),
+    return validateFrozen({ format: 'rollinggo-trip-knowledge', version: 1, name: options.name, exportedAt: new Date().toISOString(),
       sourceId: hash({ host: sourceUrl.hostname, port: sourceUrl.port || '5432', database: sourceUrl.pathname }), contentHash: hash(data), data });
   } finally { await client.end(); }
 }

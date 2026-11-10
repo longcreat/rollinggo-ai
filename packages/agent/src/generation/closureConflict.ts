@@ -1,7 +1,7 @@
 // 闭馆冲突契约与检测（自 scheduling/schedule.ts 与 dateRepair.ts 下沉）：
 // 排程与后处理共用同一份「哪天哪些景点闭馆」的判定与错误类型，
 // orchestrator 在排程后、落库前用它做最终闸门（conflicts 非空即失败，不落库）。
-import { dateForDayIndex, findHoliday, isClosedOnDate } from '@tripweaver/shared';
+import { dateForDayIndex, findHoliday, isClosedOnDate } from '@rollinggo-trip/shared';
 
 export interface ClosureConflict {
   /** 当前日期仍闭馆的成员名 */

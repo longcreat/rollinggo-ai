@@ -2,9 +2,9 @@
 //   · 路线规划 + 地理编码 + POI 搜索 → 全部高德；高德凭据缺失时各自降级为 Null。
 // 高德内部按服务分别记账（amap_service_usage：geocode/place/walk/…），互不挤占。
 // 坐标系契约不变：门面进出的坐标**一律 GCJ-02**。
-import { env, type MapProvider } from '@tripweaver/core/env';
-import { resolveAmapCredential } from '@tripweaver/core/settingsService';
-import { amapBudgetRemaining, amapPlaceBudgetRemaining } from '@tripweaver/core/quotaService';
+import { env, type MapProvider } from '@rollinggo-trip/core/env';
+import { resolveAmapCredential } from '@rollinggo-trip/core/settingsService';
+import { amapBudgetRemaining, amapPlaceBudgetRemaining } from '@rollinggo-trip/core/quotaService';
 import { geocodeFallbackGcj02 } from './geocode';
 import { geocodeActivity as amapGeocodeActivity } from './amap/geocoder';
 import { createAmapRouteBreaker } from './amap/route';

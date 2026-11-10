@@ -2,15 +2,16 @@
 # 模式 1（推荐）：默认拉取 GitHub Container Registry 预构建镜像
 #   docker compose up -d
 # 模式 2（兜底）：镜像不可用时本地构建
-#   TRIPWEAVER_IMAGE='' docker compose up --build -d
-# 也可显式指定镜像版本：TRIPWEAVER_IMAGE=ghcr.io/aimer-rhythm/trip-weaver:v1.2.3 docker compose up -d
+#   ROLLINGGO_TRIP_IMAGE='' docker compose up --build -d
+# 也可显式指定镜像版本：ROLLINGGO_TRIP_IMAGE=ghcr.io/longcreat/rollinggo-ai:v1.2.3 docker compose up -d
 #
 # 反代约定：app 只绑 127.0.0.1:${APP_PORT:-3001}，由宿主机 Nginx 转发（复用现有证书体系）。
 # 宿主机 Nginx 站点配置参考 nginx.host.conf（含 SSE 关键参数）。
 # 独立内置反代（容器化 nginx，自动占 80/443）的场景用 docker-compose.release.yml。
+name: rollinggo-trip
 services:
   app:
-    image: ${TRIPWEAVER_IMAGE:-ghcr.io/aimer-rhythm/trip-weaver:latest}
+    image: ${ROLLINGGO_TRIP_IMAGE:-ghcr.io/longcreat/rollinggo-ai:latest}
     pull_policy: always
     build:
       context: .
@@ -20,7 +21,7 @@ services:
     restart: unless-stopped
     env_file: .env
     environment:
-      - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/tripweaver
+      - DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/rollinggo_trip
     # 绑定 127.0.0.1：由宿主机 Nginx（或其他前置反代）转发，容器不直接对公网暴露
     ports:
       - "127.0.0.1:${APP_PORT:-3001}:3001"
@@ -39,7 +40,7 @@ services:
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_DB=tripweaver
+      - POSTGRES_DB=rollinggo_trip
     volumes:
       - pg_data:/var/lib/postgresql/data
     ports:

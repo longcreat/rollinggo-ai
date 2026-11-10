@@ -10,18 +10,18 @@ import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { fauxAssistantMessage, fauxProvider, fauxText, fauxThinking, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
 import { defineExtension, defineTask, defineTool } from '@earendil-works/pi-durable';
 import { obj } from '@earendil-works/pi-schema';
-import type { Trip } from '@tripweaver/shared';
-import { AgentBusyError, closeAgentRuntime, getAgentRuntime, runAgentTurn, type AgentStreamEvent } from '@tripweaver/agent/chat/agent/runtime';
-import { createTripTools } from '@tripweaver/agent/chat/agent/tools';
-import { createTripDraft } from '@tripweaver/agent/chat/agent/tripDraft';
-import { createAgentTurnState } from '@tripweaver/agent/chat/agent/turnState';
-import type { DetailSources } from '@tripweaver/integrations/detailSources';
+import type { Trip } from '@rollinggo-trip/shared';
+import { AgentBusyError, closeAgentRuntime, getAgentRuntime, runAgentTurn, type AgentStreamEvent } from '@rollinggo-trip/agent/chat/agent/runtime';
+import { createTripTools } from '@rollinggo-trip/agent/chat/agent/tools';
+import { createTripDraft } from '@rollinggo-trip/agent/chat/agent/tripDraft';
+import { createAgentTurnState } from '@rollinggo-trip/agent/chat/agent/turnState';
+import type { DetailSources } from '@rollinggo-trip/integrations/detailSources';
 
 const directories: string[] = [];
 const paths: string[] = [];
 
 async function storage(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'tripweaver-agent-'));
+  const dir = await mkdtemp(join(tmpdir(), 'rollinggo-trip-agent-'));
   directories.push(dir);
   const path = join(dir, 'runs.sqlite');
   paths.push(path);

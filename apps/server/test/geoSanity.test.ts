@@ -8,15 +8,15 @@
 // 金标坐标与 longHaul.test.ts 同源（金集快照 GCJ-02）；chengdu 案例即 live 实证的异地错配形态。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { haversineMeters } from '@tripweaver/shared';
-import { MIN_LOCATED_POIS, medianCenter } from '@tripweaver/agent/generation/longHaul';
+import { haversineMeters } from '@rollinggo-trip/shared';
+import { MIN_LOCATED_POIS, medianCenter } from '@rollinggo-trip/agent/generation/longHaul';
 import {
   GEOCODE_SANITY_MAX_KM,
   LODGING_SANITY_MAX_KM,
   REFERENCE_CONFLICT_KM,
   rejectFarGeocodes,
   type GeoSanityCheck,
-} from '@tripweaver/agent/generation/geoSanity';
+} from '@rollinggo-trip/agent/generation/geoSanity';
 
 const CHENGDU_CENTER = { lat: 30.657, lng: 104.0658 };     // 成都天府广场一带（城市级 geocode 参照）
 const BEIJING_CENTER = { lat: 39.9042, lng: 116.4074 };

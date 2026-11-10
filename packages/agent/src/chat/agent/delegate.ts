@@ -7,7 +7,7 @@ import {
   requiredBriefFields,
   uid,
   type PlanningBriefData,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 import { createLiveRun, emitLive, getActiveLiveRunForUser } from '../../generation/liveRun';
 import {
   beginGenerationTask,

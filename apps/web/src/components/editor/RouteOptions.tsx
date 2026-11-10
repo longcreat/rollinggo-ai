@@ -1,6 +1,6 @@
 import { Button } from '../ui/Button';
 import { useEffect, useRef, useState } from 'react';
-import { LEG_MODES, type LegMode, type RouteOptionsRequest, type TransitLeg } from '@tripweaver/shared';
+import { LEG_MODES, type LegMode, type RouteOptionsRequest, type TransitLeg } from '@rollinggo-trip/shared';
 import { useRouteOptions } from '../../api/routeOptions';
 import { routePairKey } from '../../lib/routePair';
 import { hasValidCoord } from '../../lib/colors';

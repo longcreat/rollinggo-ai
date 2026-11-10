@@ -1,4 +1,4 @@
-import { dateForDayIndex, lodgingLegsForDay, type GenerateForm, type Trip } from '@tripweaver/shared';
+import { dateForDayIndex, lodgingLegsForDay, type GenerateForm, type Trip } from '@rollinggo-trip/shared';
 
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
 const minutes = (value: string) => TIME.test(value) ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3)) : null;

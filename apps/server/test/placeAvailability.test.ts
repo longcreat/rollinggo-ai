@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { createPlaceIdentityIndex } from '@tripweaver/core/lib/placeIdentity';
-import { validateWithdrawal } from '@tripweaver/services/placeAvailability';
+import { createPlaceIdentityIndex } from '@rollinggo-trip/core/lib/placeIdentity';
+import { validateWithdrawal } from '@rollinggo-trip/services/placeAvailability';
 
 function active(id: string, name = id, revision = 2) {
   return { id, name, city: '测试城', verified: true, payload: {

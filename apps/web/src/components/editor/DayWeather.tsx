@@ -1,4 +1,4 @@
-import { weatherForDate, type TripWeather } from '@tripweaver/shared';
+import { weatherForDate, type TripWeather } from '@rollinggo-trip/shared';
 
 function WeatherIcon({ condition, className = 'size-5' }: { condition: string; className?: string }) {
   const path = /雪/.test(condition) ? 'M12 2v20M3.3 7l17.4 10M3.3 17 20.7 7M8 4l4 3 4-3M8 20l4-3 4 3'

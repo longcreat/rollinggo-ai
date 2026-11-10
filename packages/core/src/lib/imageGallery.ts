@@ -1,7 +1,7 @@
 // 离线图片清单与库内三图契约；来源审核记录留在 payload，展示只读取已校验字段。
 import { Type, type Static } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
-import { PhotoAttributionSchema } from '@tripweaver/shared';
+import { PhotoAttributionSchema } from '@rollinggo-trip/shared';
 
 export const StoredImageSchema = Type.Object({
   key: Type.String({ minLength: 1, maxLength: 240 }),

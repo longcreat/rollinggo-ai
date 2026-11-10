@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
-import type { TravelPreferences } from '@tripweaver/shared';
+import type { TravelPreferences } from '@rollinggo-trip/shared';
 import { useSaveTravelPreferences, useTravelPreferences } from '../api/hooks';
 
 interface PreferencesContext {

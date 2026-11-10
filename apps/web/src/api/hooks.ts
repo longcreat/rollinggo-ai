@@ -22,8 +22,8 @@ import type {
   TripVersionChain,
   TravelPreferences,
   UsageView,
-} from '@tripweaver/shared';
-import { TRIP_LIST_PAGE_SIZE, TravelPreferencesSchema, NotificationPageSchema, GenerationJobViewSchema, type HealthCheckView, type HealthDecisionsRequest } from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
+import { TRIP_LIST_PAGE_SIZE, TravelPreferencesSchema, NotificationPageSchema, GenerationJobViewSchema, type HealthCheckView, type HealthDecisionsRequest } from '@rollinggo-trip/shared';
 import { Value } from '@sinclair/typebox/value';
 import { api, resetAuthState, shouldRetryQuery } from './client';
 

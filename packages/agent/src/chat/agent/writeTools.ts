@@ -9,7 +9,7 @@
 //     提交时由 repairChangedRoutes 重算动线，前端刷新到新版本即看到新标记与新折线。
 import { arr, int, num, obj, opt, str } from '@earendil-works/pi-schema';
 import { defineTool, type ToolRegistration } from '@earendil-works/pi-durable';
-import { haversineMeters } from '@tripweaver/shared';
+import { haversineMeters } from '@rollinggo-trip/shared';
 import type { TripDraft, DraftResult } from './tripDraft';
 
 export interface TripWriteToolDeps {

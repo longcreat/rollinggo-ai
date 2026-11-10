@@ -6,7 +6,7 @@ import {
   publishNotification,
   subscribeNotifications,
   type NotificationEvent,
-} from '@tripweaver/services/notificationStream';
+} from '@rollinggo-trip/services/notificationStream';
 
 test('订阅后能收到该用户的通知，退订后不再收到', () => {
   const got: NotificationEvent[] = [];

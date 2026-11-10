@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { applyTrimRemovals, daySpanMinutes, planOverpackedTrim } from '@tripweaver/agent/generation/dayTrim';
+import { applyTrimRemovals, daySpanMinutes, planOverpackedTrim } from '@rollinggo-trip/agent/generation/dayTrim';
 
 const day = (activities: { id: string; name: string; category?: string; startTime: string; endTime: string }[]) => ({ activities });
 

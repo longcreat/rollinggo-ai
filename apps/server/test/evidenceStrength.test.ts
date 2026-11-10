@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { evidenceStrength } from '@tripweaver/services/evidenceStrength';
+import { evidenceStrength } from '@rollinggo-trip/services/evidenceStrength';
 
 test('语料强度：上游值优先，无来源的预约/价格不顶格', () => {
   assert.equal(evidenceStrength({ kind: 'xhs_reservation', sourceUrl: 'https://example.com/a' }), 'direct');

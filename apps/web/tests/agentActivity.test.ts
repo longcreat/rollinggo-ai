@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Value } from '@sinclair/typebox/value';
-import { AgentStepSchema, ChatAttachmentSchema, ChatStreamEventSchema, type AgentStep } from '@tripweaver/shared';
+import { AgentStepSchema, ChatAttachmentSchema, ChatStreamEventSchema, type AgentStep } from '@rollinggo-trip/shared';
 import { stepsFromSummary, upsertAgentStep } from '../src/lib/agentActivity';
 
 const step = (id: string, name: string, status: AgentStep['status'], durationMs?: number): AgentStep => ({

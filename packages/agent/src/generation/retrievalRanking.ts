@@ -21,13 +21,13 @@
 // │   N 个就扣 min(24, N*8)。否则搜「美食」会返回某个商圈里 8 家餐厅，      │
 // │   对「一天要跑多个地方」的行程毫无用处。                                │
 // └───────────────────────────────────────────────────────────────┘
-import type { PoiCategory } from '@tripweaver/shared';
-import { normalizePlaceKey } from '@tripweaver/core/lib/placeKey';
-import { canonicalPlaceId, placeNames } from '@tripweaver/core/lib/placeIdentity';
-import { placeNameKey } from '@tripweaver/shared';
+import type { PoiCategory } from '@rollinggo-trip/shared';
+import { normalizePlaceKey } from '@rollinggo-trip/core/lib/placeKey';
+import { canonicalPlaceId, placeNames } from '@rollinggo-trip/core/lib/placeIdentity';
+import { placeNameKey } from '@rollinggo-trip/shared';
 import { poiScore, scoreMaxima } from './scheduling/score';
 
-import type { PlaceRow, RankedPlace } from '@tripweaver/shared';
+import type { PlaceRow, RankedPlace } from '@rollinggo-trip/shared';
 export type { PlaceRow, RankedPlace };
 
 export function stringList(value: unknown): string[] {

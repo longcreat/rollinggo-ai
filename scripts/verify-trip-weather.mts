@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import Fastify from 'fastify';
 import cookie from '@fastify/cookie';
 import { Client } from 'pg';
-import { makeSampleTrip, chinaDate, WEATHER_FORECAST_DAYS } from '@tripweaver/shared';
+import { makeSampleTrip, chinaDate, WEATHER_FORECAST_DAYS } from '@rollinggo-trip/shared';
 
 dotenv.config({ path: 'apps/server/.env', quiet: true });
 const name = `weather_verify_${Date.now()}`;
@@ -23,13 +23,13 @@ Object.assign(process.env, { DATABASE_URL: dbUrl.toString(), MASTER_KEY: 'a'.rep
   QWEATHER_JWT_KEY_ID: 'VERIFY-KEY', QWEATHER_JWT_DEVELOPER_ID: 'Q12345ABCD', QWEATHER_JWT_PROJECT_ID: 'VERIFY-PROJECT',
   QWEATHER_JWT_PRIVATE_KEY: privateKey.export({ type: 'pkcs8', format: 'pem' }).toString(),
   SEARCH_API_KEY: '', SITE_LLM_API_KEY: '', GITHUB_CLIENT_ID: '', GITHUB_CLIENT_SECRET: '' });
-const { db, pool } = await import('@tripweaver/core/db/client');
-const { users } = await import('@tripweaver/core/db/schema');
+const { db, pool } = await import('@rollinggo-trip/core/db/client');
+const { users } = await import('@rollinggo-trip/core/db/schema');
 const { createSession } = await import('../apps/server/src/auth/session');
-const { createTrip, getTrip } = await import('@tripweaver/services/tripService');
-const { getTripWeather } = await import('@tripweaver/services/tripWeatherService');
+const { createTrip, getTrip } = await import('@rollinggo-trip/services/tripService');
+const { getTripWeather } = await import('@rollinggo-trip/services/tripWeatherService');
 const { tripRoutes } = await import('../apps/server/src/routes/trips');
-const { env } = await import('@tripweaver/core/env');
+const { env } = await import('@rollinggo-trip/core/env');
 const { installApiResponses } = await import('../apps/server/src/http/apiResponse');
 const app = Fastify();
 installApiResponses(app);

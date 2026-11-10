@@ -7,11 +7,11 @@
 //   2. 模型真的会发 tool_call（详情页 Agent 与生成链路都依赖它）。
 import 'dotenv/config';
 import { Type } from 'typebox';
-import { buildModel } from '@tripweaver/agent/generation/model';
+import { buildModel } from '@rollinggo-trip/agent/generation/model';
 import { runPhaseAgent } from '../apps/server/src/generation/agents/runner';
-import { defineTool } from '@tripweaver/agent/generation/tools/defineTool';
-import { isDashScopeBaseUrl } from '@tripweaver/core/lib/llmCompat';
-import type { LlmConfig } from '@tripweaver/core/settingsService';
+import { defineTool } from '@rollinggo-trip/agent/generation/tools/defineTool';
+import { isDashScopeBaseUrl } from '@rollinggo-trip/core/lib/llmCompat';
+import type { LlmConfig } from '@rollinggo-trip/core/settingsService';
 
 const baseUrl = process.env.SITE_LLM_BASE_URL?.trim() ?? '';
 const apiKey = process.env.SITE_LLM_API_KEY?.trim() ?? '';

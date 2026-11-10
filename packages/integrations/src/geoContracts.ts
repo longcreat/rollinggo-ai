@@ -2,7 +2,7 @@
 // 上层（geoPipeline / orchestrator / researchTools）只认这里的形状 —— 坐标系契约是 GCJ-02，
 // 各适配器负责在调用外部服务前后自行做 WGS-84 ↔ GCJ-02 转换，上层感知不到 provider 差异。
 // types only：本文件不引入任何 provider 实现，避免 geoProvider ↔ 适配器的循环依赖。
-import type { LegMode, PoiCategory } from '@tripweaver/shared';
+import type { LegMode, PoiCategory } from '@rollinggo-trip/shared';
 import type { SourceStatus } from './sourceStatus';
 
 /** 经纬度点（本仓库内一律 GCJ-02，除非字段名显式说明） */

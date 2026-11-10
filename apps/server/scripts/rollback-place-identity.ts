@@ -1,6 +1,6 @@
 // 只预览回滚条件；显式 --apply 才恢复审计快照，现状变化则拒绝。
-import { pool } from '@tripweaver/core/db/client';
-import { rollbackIdentityImport } from '@tripweaver/services/placeIdentityAudit';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { rollbackIdentityImport } from '@rollinggo-trip/services/placeIdentityAudit';
 
 const id = process.argv[2];
 if (!id || id.startsWith('--')) throw new Error('用法：tsx apps/server/scripts/rollback-place-identity.ts <审计ID> [--apply]');

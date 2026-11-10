@@ -1,11 +1,11 @@
 import type { FastifyBaseLogger } from 'fastify';
-import type { ServiceQuotaDecision } from '@tripweaver/core/lib/amapQuotaLedger';
-import { AMAP_PATHS, amapDay, type AmapService } from '@tripweaver/core/amapServices';
+import type { ServiceQuotaDecision } from '@rollinggo-trip/core/lib/amapQuotaLedger';
+import { AMAP_PATHS, amapDay, type AmapService } from '@rollinggo-trip/core/amapServices';
 
 // Lazy production binding keeps adapters importable without starting a DB connection.
 export const amapQuotaGate = {
   async acquire(service: AmapService): Promise<ServiceQuotaDecision> {
-    const { amapQuotaLedger } = await import('@tripweaver/core/amapQuotaService');
+    const { amapQuotaLedger } = await import('@rollinggo-trip/core/amapQuotaService');
     return amapQuotaLedger.acquire(service);
   },
 };

@@ -5,7 +5,7 @@
 // - 问题有超时（默认 120s），超时后工具返回 pending 并结束本轮；
 // - 用户回答后 Promise 在同一次 Agent run 内 resolve，模型拿到真实 tool result 继续；
 // - 问题注册在进程内（单实例部署与现有 detail turn 锁一致）；GET pending 供刷新后恢复。
-import { uid, type AgentQuestion, type AgentQuestionAnswer, type PendingQuestionView } from '@tripweaver/shared';
+import { uid, type AgentQuestion, type AgentQuestionAnswer, type PendingQuestionView } from '@rollinggo-trip/shared';
 
 export type QuestionExpiryReason = 'timeout' | 'cancelled';
 

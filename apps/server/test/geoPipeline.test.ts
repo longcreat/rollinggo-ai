@@ -3,16 +3,16 @@ import { mkdtempSync, rmSync, rmdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import type { GenerateForm, ResearchPoi } from '@tripweaver/shared';
-import { DraftTrip, type DraftActivityInput } from '@tripweaver/agent/generation/draft';
-import { rememberResearchLocation, type ResearchLocation } from '@tripweaver/agent/generation/placeLookup';
+import type { GenerateForm, ResearchPoi } from '@rollinggo-trip/shared';
+import { DraftTrip, type DraftActivityInput } from '@rollinggo-trip/agent/generation/draft';
+import { rememberResearchLocation, type ResearchLocation } from '@rollinggo-trip/agent/generation/placeLookup';
 
 // geoPipeline loads settings/quota storage. Isolate env BEFORE importing that boundary;
 // every provider request below is intercepted, including the Nominatim fallback.
-const ownedDir = mkdtempSync(join(tmpdir(), 'tripweaver-geo-p0-'));
+const ownedDir = mkdtempSync(join(tmpdir(), 'rollinggo-trip-geo-p0-'));
 const testEnv = {
   DOTENV_CONFIG_PATH: join(ownedDir, 'absent.env'),
-  DATABASE_URL: process.env.DATABASE_URL || 'postgres://postgres:postgres@127.0.0.1:5432/tripweaver_test',
+  DATABASE_URL: process.env.DATABASE_URL || 'postgres://postgres:postgres@127.0.0.1:5432/rollinggo_trip_test',
   MASTER_KEY: 'a'.repeat(64),
   AMAP_KEY: 'geo-p0-mock-key',
   AMAP_DAILY_BUDGET: '10000',
@@ -27,8 +27,8 @@ Object.assign(process.env, testEnv);
 const originalFetch = globalThis.fetch;
 let unexpectedRequests: string[] = [];
 globalThis.fetch = async () => { throw new Error('Test provider mock must be installed'); };
-const { createGeoSession } = await import('@tripweaver/agent/generation/geoPipeline');
-const { pool } = await import('@tripweaver/core/db/client');
+const { createGeoSession } = await import('@rollinggo-trip/agent/generation/geoPipeline');
+const { pool } = await import('@rollinggo-trip/core/db/client');
 
 test.afterEach(() => {
   assert.deepEqual(unexpectedRequests, [], '所有外呼必须经过已知的模拟适配器');

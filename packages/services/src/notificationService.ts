@@ -1,7 +1,7 @@
 import { and, desc, eq, isNull, lt, lte } from 'drizzle-orm';
-import { uid, type GenerationJobView, type GenerationNotification, type NotificationPage, type Trip, type TripShareImageStyle } from '@tripweaver/shared';
-import { db } from '@tripweaver/core/db/client';
-import { generationNotifications as notifications } from '@tripweaver/core/db/schema';
+import { uid, type GenerationJobView, type GenerationNotification, type NotificationPage, type Trip, type TripShareImageStyle } from '@rollinggo-trip/shared';
+import { db } from '@rollinggo-trip/core/db/client';
+import { generationNotifications as notifications } from '@rollinggo-trip/core/db/schema';
 import { publishNotification, type NotificationEvent } from './notificationStream';
 
 type NewNotification = Omit<typeof notifications.$inferInsert, 'id' | 'sequence' | 'createdAt' | 'readAt'>;

@@ -1,7 +1,7 @@
 // 一轮 Agent 的处理过程：单步一行，多步可折叠；运行中展开，完成后收成「已完成」，失败/停止保持展开。
 // 只展示工具动作标签，不展示参数、结果、耗时或模型思维链。
 import { useEffect, useId, useRef, useState } from 'react';
-import type { AgentStep } from '@tripweaver/shared';
+import type { AgentStep } from '@rollinggo-trip/shared';
 import { AlertCircle, Check, ChevronDown, MinusCircle } from 'lucide-react';
 import type { AgentActivityState } from '../../lib/agentActivity';
 import { Button } from '../ui/Button';

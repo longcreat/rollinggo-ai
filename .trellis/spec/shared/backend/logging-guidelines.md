@@ -2,7 +2,7 @@
 
 ## Applicability
 
-Logging infrastructure is N/A inside `@tripweaver/shared`. The package has no request context, logger dependency, or ownership of operational policy. Fastify/Pino rules belong to `apps/server`, and UI telemetry rules belong to `apps/web`.
+Logging infrastructure is N/A inside `@rollinggo-trip/shared`. The package has no request context, logger dependency, or ownership of operational policy. Fastify/Pino rules belong to `apps/server`, and UI telemetry rules belong to `apps/web`.
 
 This boundary is consistent with the side-effect-light modules `packages/shared/src/budget.ts`, `packages/shared/src/constants.ts`, and `packages/shared/src/utils.ts`.
 

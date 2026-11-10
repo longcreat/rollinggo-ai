@@ -1,4 +1,4 @@
-# 织程 TripWeaver · 确定性排程算法
+# rollinggo 旅行 · RollingGo Trip · 确定性排程算法
 
 > **⚠️ 现状注记（2026-11-07）**：生成主链路已切换为「规划 Agent 选点/分天/排序/时刻（`generation/planner/`）+ 确定性校准层」（见 [技术架构 §5.1](./TECHNICAL_ARCHITECTURE.md)）。
 > 本文描述的 `buildSchedule` 排程引擎**已退出生成主链**，目前仅剩详情对话「再加 N 天」路径（`chat/researchAddedDays.ts`）在消费，待迁移到规划引擎。

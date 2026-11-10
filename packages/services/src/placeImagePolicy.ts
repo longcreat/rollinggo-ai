@@ -1,8 +1,8 @@
 import { Type, type Static } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
-import type { IdentityPlace } from '@tripweaver/core/lib/placeIdentity';
-import { placeIdentity } from '@tripweaver/core/lib/placeIdentity';
-import type { StoredImage } from '@tripweaver/core/lib/imageGallery';
+import type { IdentityPlace } from '@rollinggo-trip/core/lib/placeIdentity';
+import { placeIdentity } from '@rollinggo-trip/core/lib/placeIdentity';
+import type { StoredImage } from '@rollinggo-trip/core/lib/imageGallery';
 
 const BindingSchema = Type.Object({
   imageKey: Type.String({ minLength: 1, maxLength: 200 }),

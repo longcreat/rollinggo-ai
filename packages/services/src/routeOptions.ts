@@ -1,5 +1,5 @@
-import { LEG_MODES, wgs84ToGcj02, type Activity, type RouteOptionsRequest, type RouteOptionsResponse } from '@tripweaver/shared';
-import type { GeoProvider } from '@tripweaver/integrations/geoProvider';
+import { LEG_MODES, wgs84ToGcj02, type Activity, type RouteOptionsRequest, type RouteOptionsResponse } from '@rollinggo-trip/shared';
+import type { GeoProvider } from '@rollinggo-trip/integrations/geoProvider';
 
 export const ROUTE_OPTIONS_MAX_CALLS = 8;
 

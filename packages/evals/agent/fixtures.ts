@@ -3,8 +3,8 @@ import { createModels } from '@earendil-works/pi-ai/models';
 import { fauxProvider } from '@earendil-works/pi-ai/providers/faux';
 import { defineTool } from '@earendil-works/pi-durable';
 import { obj } from '@earendil-works/pi-schema';
-import type { Trip } from '@tripweaver/shared';
-import type { DetailSources } from '@tripweaver/integrations/detailSources';
+import type { Trip } from '@rollinggo-trip/shared';
+import type { DetailSources } from '@rollinggo-trip/integrations/detailSources';
 
 const DESCRIPTION = ('人民公园是成都老牌市民公园，早晨有大量本地人喝茶、打太极。公园内有鹤鸣茶社，可体验盖碗茶。'
   + '东门自 2026 年 11 月起封闭施工，请从南门或西门进入。').repeat(4).slice(0, 500);

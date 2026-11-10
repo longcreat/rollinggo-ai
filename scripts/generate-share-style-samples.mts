@@ -8,10 +8,10 @@ import dotenv from 'dotenv';
 dotenv.config({ path: 'apps/server/.env', quiet: true });
 process.env.MASTER_KEY ||= 'a'.repeat(64);
 
-const { makeSampleTrip } = await import('@tripweaver/shared');
-const { buildTripSharePrompt, TRIP_SHARE_STYLES } = await import('@tripweaver/core/lib/tripSharePrompt');
-const { readImageProviders } = await import('@tripweaver/core/env');
-const { generateShareImage } = await import('@tripweaver/integrations/imageGeneration');
+const { makeSampleTrip } = await import('@rollinggo-trip/shared');
+const { buildTripSharePrompt, TRIP_SHARE_STYLES } = await import('@rollinggo-trip/core/lib/tripSharePrompt');
+const { readImageProviders } = await import('@rollinggo-trip/core/env');
+const { generateShareImage } = await import('@rollinggo-trip/integrations/imageGeneration');
 
 const providers = readImageProviders(process.env);
 if (!providers.length) throw new Error('IMAGE_API_KEY 未配置：无法产出示例缩略图');

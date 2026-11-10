@@ -102,9 +102,9 @@ export type DetailSources = ReturnType<typeof createDetailSources>;
 export async function resolveDetailSources(userId: string, signal: AbortSignal, allowWeb = true) {
   const { resolvePoiSourceForUser } = await import('./geoProvider');
   const { resolveSearchSourceForUser } = await import('./websearch/searchSource');
-  const { reserveEditorGeoBudget } = await import('@tripweaver/core/quotaService');
+  const { reserveEditorGeoBudget } = await import('@rollinggo-trip/core/quotaService');
   const { searchAreaPois } = await import('./amap/placeArea');
-  const { env } = await import('@tripweaver/core/env');
+  const { env } = await import('@rollinggo-trip/core/env');
   const { source: search } = await resolveSearchSourceForUser(userId);
   const poi = await resolvePoiSourceForUser(userId);
   // 高德 POI 的配额在适配器内部原子扣（amap_service_usage.place），editor 账本只管 search。

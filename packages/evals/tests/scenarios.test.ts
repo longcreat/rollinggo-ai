@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { Value } from '@sinclair/typebox/value';
-import { GenerateFormSchema } from '@tripweaver/shared';
+import { GenerateFormSchema } from '@rollinggo-trip/shared';
 import { ALL_CASES, MATRIX_CASES, MATRIX_CITIES, NOTE_CASES } from '../scenarios';
 import { currentFixture } from './currentFixture';
 import { checkNotePlaces } from '../noteChecks';

@@ -1,8 +1,8 @@
 {
-  "name": "tripweaver",
+  "name": "rollinggo-trip",
   "version": "0.1.0",
   "private": true,
-  "description": "织程 TripWeaver — 多 Agent 协作的开源智能旅行助手",
+  "description": "rollinggo 旅行 · RollingGo Trip — 多 Agent 协作的开源智能旅行助手",
   "license": "MIT",
   "workspaces": [
     "packages/*",

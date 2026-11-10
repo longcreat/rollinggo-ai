@@ -2,7 +2,7 @@
 //
 // 子 Agent 以阶段为单位呈现：每张卡片只给状态/步数/结果摘要，完整工具流程留在 lines 里，
 // 由页面在用户点击卡片时展开。这样默认界面是结论，而不是内部工作流。
-import type { DataSourceKind, ProjectionTaskNode, ResearchPoi, TripProjectionSnapshot, TripProjectionState } from '@tripweaver/shared';
+import type { DataSourceKind, ProjectionTaskNode, ResearchPoi, TripProjectionSnapshot, TripProjectionState } from '@rollinggo-trip/shared';
 
 export interface LiveLine {
   id: string;

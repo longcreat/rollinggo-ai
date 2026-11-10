@@ -1,9 +1,9 @@
 // 生成 durable 任务：终态映射（纯函数）与进程重启后的直播层重建。
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { createLiveRun, emitLive, getLiveRun } from '@tripweaver/agent/generation/liveRun';
-import { taskOutcome } from '@tripweaver/agent/generation/generationTask';
-import { serializeResearch } from '@tripweaver/agent/generation/checkpoint';
+import { createLiveRun, emitLive, getLiveRun } from '@rollinggo-trip/agent/generation/liveRun';
+import { taskOutcome } from '@rollinggo-trip/agent/generation/generationTask';
+import { serializeResearch } from '@rollinggo-trip/agent/generation/checkpoint';
 
 describe('生成任务终态映射', () => {
   it('done → completed 带 tripId 与任务摘要', () => {

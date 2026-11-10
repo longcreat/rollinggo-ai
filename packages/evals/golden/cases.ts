@@ -1,7 +1,7 @@
 // 历史兼容的固定请求：多城 × 天数 × 出行方式 × 偏好/可选住宿。
 // budgetLevel / totalBudget 与旧 ID 仅为快照兼容；预算不参与当前生成与评估。
 // 上线门槛口径：全部用例 hard violation = 0（见 .trellis/spec/server/backend/generation-guidelines.md）
-import type { GenerateForm } from '@tripweaver/shared';
+import type { GenerateForm } from '@rollinggo-trip/shared';
 
 export interface GoldenCase {
   id: string;        // 快照文件名（eval/snapshots/<id>.json）

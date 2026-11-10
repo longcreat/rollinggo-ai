@@ -1,6 +1,6 @@
 # Shared Package Backend-Facing Guidelines
 
-These files describe the backend-facing contract of `@tripweaver/shared`. They do not define Fastify application architecture. The package is cross-runtime and is consumed by both `apps/server` and `apps/web`.
+These files describe the backend-facing contract of `@rollinggo-trip/shared`. They do not define Fastify application architecture. The package is cross-runtime and is consumed by both `apps/server` and `apps/web`.
 
 ## Guidelines Index
 
@@ -21,13 +21,13 @@ These files describe the backend-facing contract of `@tripweaver/shared`. They d
 - [ ] Read [Error Handling](./error-handling.md) when data crosses an HTTP, JSON, storage, or third-party boundary.
 - [ ] Read [Database Guidelines](./database-guidelines.md) if a contract change affects persisted trip data.
 - [ ] Search server and web consumers before changing an exported name or value. Representative consumers include `packages/services/src/tripService.ts`, `apps/server/src/routes/trips.ts`, and `apps/web/src/pages/PlannerPage.tsx`.
-- [ ] Import from `@tripweaver/shared`, not a package-internal path. The public surface is defined by `packages/shared/package.json` and `packages/shared/src/index.ts`.
+- [ ] Import from `@rollinggo-trip/shared`, not a package-internal path. The public surface is defined by `packages/shared/package.json` and `packages/shared/src/index.ts`.
 
 ## Quality Check
 
 - [ ] Runtime contracts are TypeBox schemas and corresponding TypeScript types use `Static<typeof Schema>` where a schema exists (`packages/shared/src/schemas.ts`, `packages/shared/src/types.ts`).
 - [ ] Closed value sets are readonly `as const` constants with unions derived from them (`packages/shared/src/constants.ts`, `packages/shared/src/types.ts`).
-- [ ] New public symbols are exported through `packages/shared/src/index.ts`; consumers use only `@tripweaver/shared` imports.
+- [ ] New public symbols are exported through `packages/shared/src/index.ts`; consumers use only `@rollinggo-trip/shared` imports.
 - [ ] Runtime code remains deterministic or explicitly depends only on cross-runtime globals; it imports no Fastify, React, database, DOM, or Node-only application modules (`packages/shared/src/budget.ts`, `packages/shared/src/utils.ts`).
 - [ ] Any type assertion is narrow, explained by a library boundary, and not used to replace validation (`packages/shared/src/schemas.ts`).
 - [ ] Validation behavior was checked at every affected boundary; a TypeBox schema or TypeScript type does not validate arbitrary values by itself (`apps/server/src/routes/trips.ts`, `apps/web/src/pages/PlannerPage.tsx`).

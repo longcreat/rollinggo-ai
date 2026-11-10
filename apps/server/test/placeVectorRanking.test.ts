@@ -2,8 +2,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { QueryResultRow } from 'pg';
-import { createPlaceRetriever, type RetrievalDiagnostics } from '@tripweaver/agent/generation/placeRetrieval';
-import { groupPlaces, rankPlaces, rankPlacesByDistance, type PlaceRow } from '@tripweaver/agent/generation/retrievalRanking';
+import { createPlaceRetriever, type RetrievalDiagnostics } from '@rollinggo-trip/agent/generation/placeRetrieval';
+import { groupPlaces, rankPlaces, rankPlacesByDistance, type PlaceRow } from '@rollinggo-trip/agent/generation/retrievalRanking';
 
 const place = (over: Partial<PlaceRow> & Pick<PlaceRow, 'id' | 'name'>): PlaceRow => ({
   city: '测试市', category: '文化', verified: true, source: 'xhs', lat: 30, lng: 120, payload: {}, ...over,

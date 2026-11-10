@@ -1,7 +1,7 @@
 // 投影 → 播报模型：阶段/工具进度来自 state.taskGraph，终态来自 state.control。
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { TripProjectionSnapshot, TripProjectionState } from '@tripweaver/shared';
+import type { TripProjectionSnapshot, TripProjectionState } from '@rollinggo-trip/shared';
 import { buildLiveStreamFromProjection } from '../src/lib/liveAgentStream';
 
 function snapshot(state: Partial<TripProjectionState>, taskGraph: TripProjectionState['taskGraph'] = []): TripProjectionSnapshot {

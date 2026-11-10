@@ -1,5 +1,5 @@
 import { bigserial, boolean, doublePrecision, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, vector } from 'drizzle-orm/pg-core';
-import type { AgentQuestion, AgentQuestionAnswer, DataSourceKind, GenerationWarning, TripShareImageStyle } from '@tripweaver/shared';
+import type { AgentQuestion, AgentQuestionAnswer, DataSourceKind, GenerationWarning, TripShareImageStyle } from '@rollinggo-trip/shared';
 
 export const amapServiceUsage = pgTable('amap_service_usage', {
   day: text('day').notNull(),

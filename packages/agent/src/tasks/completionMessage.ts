@@ -1,8 +1,8 @@
 // 任务结束后往来源会话补一条完成消息：用户回到对话能看到结果与任务卡，而不是只有一条通知。
 // 用 commitOperation((userId, jobId)) 幂等：重启重跑、重复回调都不会产生第二条消息。
-import type { ChatAttachment } from '@tripweaver/shared';
-import { appendMessages } from '@tripweaver/services/conversationService';
-import { commitOperation } from '@tripweaver/services/detailOperationService';
+import type { ChatAttachment } from '@rollinggo-trip/shared';
+import { appendMessages } from '@rollinggo-trip/services/conversationService';
+import { commitOperation } from '@rollinggo-trip/services/detailOperationService';
 import type { DelegatedTaskResult } from './delegatedTask';
 
 export interface TaskCompletionMessageInput {

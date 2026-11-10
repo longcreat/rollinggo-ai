@@ -4,7 +4,7 @@
 // 极简：只有返回、标题、状态和步骤列表，不放大按钮、摘要或候选。
 import { useQuery } from '@tanstack/react-query';
 import { ArrowLeft } from 'lucide-react';
-import { getPlannerStageDisplay } from '@tripweaver/shared';
+import { getPlannerStageDisplay } from '@rollinggo-trip/shared';
 import { api } from '../../api/client';
 import type { LivePhase, LiveStream } from '../../lib/liveAgentStream';
 import { Button } from '../ui/Button';

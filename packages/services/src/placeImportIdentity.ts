@@ -1,8 +1,8 @@
 import type { QueryResultRow } from 'pg';
-import { placeNameKey } from '@tripweaver/shared';
-import { identityStrings, placeIdentity, type IdentityPlace } from '@tripweaver/core/lib/placeIdentity';
-import { readImageGallery, safeImageKey } from '@tripweaver/core/lib/imageGallery';
-import { placeEmbeddingText } from '@tripweaver/core/lib/placeEmbeddingText';
+import { placeNameKey } from '@rollinggo-trip/shared';
+import { identityStrings, placeIdentity, type IdentityPlace } from '@rollinggo-trip/core/lib/placeIdentity';
+import { readImageGallery, safeImageKey } from '@rollinggo-trip/core/lib/imageGallery';
+import { placeEmbeddingText } from '@rollinggo-trip/core/lib/placeEmbeddingText';
 import { filterIdentityImages, validateImagePolicy } from './placeImagePolicy';
 import { readWithdrawal, validateWithdrawal } from './placeAvailability';
 import { validateRecommendationIdentity } from './placeRecommendationIdentity';

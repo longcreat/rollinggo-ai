@@ -1,9 +1,9 @@
 // 会话：随机 256bit token 下发 Cookie，库中仅存 sha256 哈希；30 天滑动续期
 import { createHash, randomBytes } from 'node:crypto';
 import { and, eq, gt, lt } from 'drizzle-orm';
-import { db } from '@tripweaver/core/db/client';
-import { sessions, users } from '@tripweaver/core/db/schema';
-import { uid } from '@tripweaver/shared';
+import { db } from '@rollinggo-trip/core/db/client';
+import { sessions, users } from '@rollinggo-trip/core/db/schema';
+import { uid } from '@rollinggo-trip/shared';
 
 export const SESSION_COOKIE = 'tw_session';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;

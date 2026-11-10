@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import type { SettingsPut } from '@tripweaver/shared';
+import type { SettingsPut } from '@rollinggo-trip/shared';
 import { db } from './db/client';
 import { userSettings } from './db/schema';
 import { decryptSecret, encryptSecret } from './crypto/secretBox';

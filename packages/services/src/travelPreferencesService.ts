@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { Value } from '@sinclair/typebox/value';
-import { TravelPreferencesSchema, type TravelPreferences } from '@tripweaver/shared';
-import { db } from '@tripweaver/core/db/client';
-import { userTravelPreferences } from '@tripweaver/core/db/schema';
+import { TravelPreferencesSchema, type TravelPreferences } from '@rollinggo-trip/shared';
+import { db } from '@rollinggo-trip/core/db/client';
+import { userTravelPreferences } from '@rollinggo-trip/core/db/schema';
 
 export async function getTravelPreferences(userId: string): Promise<TravelPreferences> {
   const [row] = await db.select().from(userTravelPreferences).where(eq(userTravelPreferences.userId, userId));

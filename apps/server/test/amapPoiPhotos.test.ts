@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import './helpers/amapQuotaMock';
-import { createAmapPoiPhotoLookup, pickPhotos } from '@tripweaver/integrations/amap/poiPhotos';
+import { createAmapPoiPhotoLookup, pickPhotos } from '@rollinggo-trip/integrations/amap/poiPhotos';
 
 const PHOTO = 'https://store.is.autonavi.com/showpic/78e3e7b400e9290d0000003670488183';
 const PHOTO_2 = 'https://store.is.autonavi.com/showpic/78e3e7b400e9290d0000003670488184';

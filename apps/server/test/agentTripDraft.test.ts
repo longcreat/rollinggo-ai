@@ -2,8 +2,8 @@
 // 无需数据库与环境变量：这一层刻意做成纯函数，便于把「模型能怎么改行程」钉死在测试里。
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { Trip } from '@tripweaver/shared';
-import { createTripDraft } from '@tripweaver/agent/chat/agent/tripDraft';
+import type { Trip } from '@rollinggo-trip/shared';
+import { createTripDraft } from '@rollinggo-trip/agent/chat/agent/tripDraft';
 
 function baseTrip(): Trip {
   return {

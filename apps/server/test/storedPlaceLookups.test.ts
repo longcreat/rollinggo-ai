@@ -2,12 +2,12 @@
 // env 在模块加载时校验 MASTER_KEY，必须先备好环境再动态 import（同 geoPipeline.test.ts 的做法）。
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
-import type { PlaceFacts } from '@tripweaver/agent/generation/scheduling/placeFacts';
+import type { PlaceFacts } from '@rollinggo-trip/agent/generation/scheduling/placeFacts';
 
 process.env.MASTER_KEY = 'a'.repeat(64);
 
-const { createStoredAmapPhotoLookup, createStoredPlaceLookups } = await import('@tripweaver/agent/generation/storedPlaceLookups');
-const { pool } = await import('@tripweaver/core/db/client');
+const { createStoredAmapPhotoLookup, createStoredPlaceLookups } = await import('@rollinggo-trip/agent/generation/storedPlaceLookups');
+const { pool } = await import('@rollinggo-trip/core/db/client');
 after(() => pool.end());
 
 const facts = (extra: Partial<PlaceFacts> = {}): PlaceFacts => ({

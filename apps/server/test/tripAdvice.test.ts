@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Value } from '@sinclair/typebox/value';
-import { makeSampleTrip, personalAdviceIsCurrent, PersonalTripAdviceSchema, TripSchema, type PersonalTripAdvice } from '@tripweaver/shared';
-import { buildTripAdviceTool, prepareTripAdviceEvidence, runTripAdviceWriter, tripAdviceUserPrompt } from '@tripweaver/agent/generation/tripAdvice';
-import type { RetrievedPlace } from '@tripweaver/agent/generation/placeRetrieval';
-import type { RunAgentOptions } from '@tripweaver/agent/generation/agents/phase';
+import { makeSampleTrip, personalAdviceIsCurrent, PersonalTripAdviceSchema, TripSchema, type PersonalTripAdvice } from '@rollinggo-trip/shared';
+import { buildTripAdviceTool, prepareTripAdviceEvidence, runTripAdviceWriter, tripAdviceUserPrompt } from '@rollinggo-trip/agent/generation/tripAdvice';
+import type { RetrievedPlace } from '@rollinggo-trip/agent/generation/placeRetrieval';
+import type { RunAgentOptions } from '@rollinggo-trip/agent/generation/agents/phase';
 
 const signal = () => new AbortController().signal;
 const sample = () => {

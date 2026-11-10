@@ -7,10 +7,10 @@
 // 围栏来源不在本文件：高德不提供 POI 级 boundary，多边形由调用方给出
 // （策展坐标 / 行政区边界），否则退化为「中心点 + 半径」。
 import { amapQueue } from './geocoder';
-import { TtlCache } from '@tripweaver/core/lib/ttlCache';
+import { TtlCache } from '@rollinggo-trip/core/lib/ttlCache';
 import { mapPoi } from './poiSource';
 import { amapRequest } from './request';
-import { AMAP_SEARCH_PATHS } from '@tripweaver/core/amapServices';
+import { AMAP_SEARCH_PATHS } from '@rollinggo-trip/core/amapServices';
 import type { GeoPoint, SourcedPoi } from '../geoContracts';
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000;

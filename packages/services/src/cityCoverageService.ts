@@ -5,8 +5,8 @@
 // 上海 13、其余 ≤9），100 一个数即可把两档干净分开。
 // 结果按城市进程内缓存：城市数据只在离线采集导入时变化，运行期内不会变，无需 TTL。
 import { and, count, desc, eq, gte, ne } from 'drizzle-orm';
-import { db } from '@tripweaver/core/db/client';
-import { canonicalPlaces } from '@tripweaver/core/db/schema';
+import { db } from '@rollinggo-trip/core/db/client';
+import { canonicalPlaces } from '@rollinggo-trip/core/db/schema';
 
 /** 已验证条数达到该值即视为「充分覆盖」；调整采集策略时改这里 */
 export const CITY_COVERAGE_THRESHOLD = 100;

@@ -1,10 +1,10 @@
 // 餐次充实测试：锚点识别、2km 约束、闭馆日约束、真实候选不动。
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { GenerateForm, PoiCategory } from '@tripweaver/shared';
-import { DraftTrip } from '@tripweaver/agent/generation/draft';
-import { enrichMealAnchors } from '@tripweaver/agent/generation/mealEnrichment';
-import type { PoiSource, SourcedPoi } from '@tripweaver/integrations/geoContracts';
+import type { GenerateForm, PoiCategory } from '@rollinggo-trip/shared';
+import { DraftTrip } from '@rollinggo-trip/agent/generation/draft';
+import { enrichMealAnchors } from '@rollinggo-trip/agent/generation/mealEnrichment';
+import type { PoiSource, SourcedPoi } from '@rollinggo-trip/integrations/geoContracts';
 
 const ANCHOR_DESC = '就近就餐的片区锚点；具体门店、价格与营业情况请到大众点评或美团确认。';
 

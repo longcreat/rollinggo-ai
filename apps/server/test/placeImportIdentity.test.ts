@@ -7,16 +7,16 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { pool } from '@tripweaver/core/db/client';
-import { prepareImportedPlaces, reconcileImportedPlaces } from '@tripweaver/services/placeImportIdentity';
-import { createPlaceRetriever } from '@tripweaver/agent/generation/placeRetrieval';
-import { renderRetrievedPlaces } from '@tripweaver/agent/generation/researchContext';
-import { buildResearchTools, type ResearchOutcome } from '@tripweaver/agent/generation/tools/researchTools';
-import { getNullPoiSource } from '@tripweaver/integrations/nullPoiSource';
-import { getNullSearchSource } from '@tripweaver/integrations/websearch/searchSource';
-import { loadCityPlaceFacts } from '@tripweaver/agent/generation/scheduling/placeFacts';
-import { createPlaceIdentityIndex } from '@tripweaver/core/lib/placeIdentity';
-import { captureIdentityImport, recordIdentityImport, rollbackIdentityImport } from '@tripweaver/services/placeIdentityAudit';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { prepareImportedPlaces, reconcileImportedPlaces } from '@rollinggo-trip/services/placeImportIdentity';
+import { createPlaceRetriever } from '@rollinggo-trip/agent/generation/placeRetrieval';
+import { renderRetrievedPlaces } from '@rollinggo-trip/agent/generation/researchContext';
+import { buildResearchTools, type ResearchOutcome } from '@rollinggo-trip/agent/generation/tools/researchTools';
+import { getNullPoiSource } from '@rollinggo-trip/integrations/nullPoiSource';
+import { getNullSearchSource } from '@rollinggo-trip/integrations/websearch/searchSource';
+import { loadCityPlaceFacts } from '@rollinggo-trip/agent/generation/scheduling/placeFacts';
+import { createPlaceIdentityIndex } from '@rollinggo-trip/core/lib/placeIdentity';
+import { captureIdentityImport, recordIdentityImport, rollbackIdentityImport } from '@rollinggo-trip/services/placeIdentityAudit';
 
 after(() => pool.end());
 

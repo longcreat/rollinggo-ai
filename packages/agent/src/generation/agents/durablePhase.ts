@@ -15,7 +15,7 @@ import {
 } from '@earendil-works/pi-durable';
 import type { Context } from '@earendil-works/chord/context';
 import type { AgentTool } from '@earendil-works/pi-agent-core';
-import { uid } from '@tripweaver/shared';
+import { uid } from '@rollinggo-trip/shared';
 import type { PhaseEventSink, RunAgentOptions, RunAgentResult } from './phase';
 
 export interface DurablePhaseHost {

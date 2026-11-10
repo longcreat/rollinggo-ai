@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { LegMode, RouteOptionsResponse } from '@tripweaver/shared';
+import type { LegMode, RouteOptionsResponse } from '@rollinggo-trip/shared';
 import { recommendedRoute } from '../src/lib/recommendedRoute.ts';
 
 const option = (mode: LegMode, distanceM: number, durationMin: number): RouteOptionsResponse['options'][number] => ({ status: 'available', leg: { fromActivityId: 'a', toActivityId: 'b', source: 'amap', mode, distanceM, durationMin } });

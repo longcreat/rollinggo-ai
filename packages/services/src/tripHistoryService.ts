@@ -1,8 +1,8 @@
 import { and, eq, gt } from 'drizzle-orm';
 import { Value } from '@sinclair/typebox/value';
-import { foodAlreadyAdded, foodPositionProblem, foodTimes, ChatAttachmentSchema, TripOperationResultSchema, TripSchema, MEAL_LABELS, effectiveLegMode, estimateTransit, wgs84ToGcj02, uid, type AddFoodRequest, type FoodCandidate, type Trip, type TripOperationRequest, type TripRewindRequest } from '@tripweaver/shared';
-import { db } from '@tripweaver/core/db/client';
-import { chatMessages, trips } from '@tripweaver/core/db/schema';
+import { foodAlreadyAdded, foodPositionProblem, foodTimes, ChatAttachmentSchema, TripOperationResultSchema, TripSchema, MEAL_LABELS, effectiveLegMode, estimateTransit, wgs84ToGcj02, uid, type AddFoodRequest, type FoodCandidate, type Trip, type TripOperationRequest, type TripRewindRequest } from '@rollinggo-trip/shared';
+import { db } from '@rollinggo-trip/core/db/client';
+import { chatMessages, trips } from '@rollinggo-trip/core/db/schema';
 import { appendMessages, createConversation, findConversationForRoot, findConversationForTrip, saveBrief, syncConversationTripDates } from './conversationService';
 import { assertLatestTrip, createTrip, getTrip, lockTripWriter } from './tripService';
 import { commitOperation, operationFingerprint, readOperation } from './detailOperationService';

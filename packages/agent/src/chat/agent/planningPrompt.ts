@@ -1,5 +1,5 @@
 // 行前回合的提示词：只依赖类型，便于单测（不拉起 runtime/DB）。
-import type { PlanningBriefData } from '@tripweaver/shared';
+import type { PlanningBriefData } from '@rollinggo-trip/shared';
 
 export const PLANNING_INSTRUCTIONS = [
   '你是 RollingGo 的行前规划助手。用户刚在表单里给出出行条件，你负责确认条件并委派整份行程生成。',

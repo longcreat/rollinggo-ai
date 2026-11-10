@@ -31,7 +31,7 @@ const model = {
   id: modelId,
   name: modelId,
   api: 'openai-completions',
-  provider: 'tripweaver-site',
+  provider: 'rollinggo-trip-site',
   baseUrl,
   reasoning: false,
   input: ['text'],

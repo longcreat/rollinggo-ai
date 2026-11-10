@@ -9,22 +9,22 @@ import {
   uid,
   type PoiCategory,
   type ResearchPoi,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 import { defineTool } from './defineTool';
-import type { PoiSource } from '@tripweaver/integrations/geoContracts';
-import type { SearchSource } from '@tripweaver/integrations/websearch/searchSource';
-import { matchReservationSeed } from '@tripweaver/core/data/reservationSeeds';
-import { findXhsEvidence, findXhsPlace } from '@tripweaver/services/xhsPlaceService';
+import type { PoiSource } from '@rollinggo-trip/integrations/geoContracts';
+import type { SearchSource } from '@rollinggo-trip/integrations/websearch/searchSource';
+import { matchReservationSeed } from '@rollinggo-trip/core/data/reservationSeeds';
+import { findXhsEvidence, findXhsPlace } from '@rollinggo-trip/services/xhsPlaceService';
 import { isUsableResearchLocation, rememberResearchLocation, type ResearchLocation } from '../placeLookup';
 import { retrieveContext, type RetrievedPlace } from '../retrieveContext';
 import { renderRetrievedPlaces } from '../researchContext';
 import { placeCategory } from '../retrievalRanking';
 import { cleanResearchIntro, normalizeReservation, purifiedIntro, purifiedIntroSources } from '../researchQuality';
 import { renderOpenHours, normalizePlaceKey } from '../scheduling/placeFacts';
-import { createPlaceIdentityIndex, canonicalPlaceId } from '@tripweaver/core/lib/placeIdentity';
-import { samePlaceReference, uniquePlaceReferences } from '@tripweaver/shared';
-import { loadPlaceIdentityIndex } from '@tripweaver/services/placeIdentityService';
-import type { AmapPoiPhotoLookup } from '@tripweaver/integrations/amap/poiPhotos';
+import { createPlaceIdentityIndex, canonicalPlaceId } from '@rollinggo-trip/core/lib/placeIdentity';
+import { samePlaceReference, uniquePlaceReferences } from '@rollinggo-trip/shared';
+import { loadPlaceIdentityIndex } from '@rollinggo-trip/services/placeIdentityService';
+import type { AmapPoiPhotoLookup } from '@rollinggo-trip/integrations/amap/poiPhotos';
 
 function text(t: string) {
   return [{ type: 'text' as const, text: t }];

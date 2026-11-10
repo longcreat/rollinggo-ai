@@ -9,12 +9,12 @@
  * 输出按到最近锚点的直线距离排序，只取 3 条。
  */
 import { createHash } from 'node:crypto';
-import { FoodCandidateSchema, haversineMeters, recommendedFoodPosition, uid, wgs84ToGcj02, type FoodCandidate, type Trip } from '@tripweaver/shared';
+import { FoodCandidateSchema, haversineMeters, recommendedFoodPosition, uid, wgs84ToGcj02, type FoodCandidate, type Trip } from '@rollinggo-trip/shared';
 import { Value } from '@sinclair/typebox/value';
-import type { DetailSources } from '@tripweaver/integrations/detailSources';
+import type { DetailSources } from '@rollinggo-trip/integrations/detailSources';
 import type { DetailKnowledge } from './detailKnowledge';
 import { renderOpenHours } from '../generation/scheduling/placeFacts';
-import { asRecord } from '@tripweaver/services/parse';
+import { asRecord } from '@rollinggo-trip/services/parse';
 
 export async function searchFood(knowledge: DetailKnowledge, sources: DetailSources, trip: Trip, dayId: string | undefined, query: string, excluded: Set<string>, signal: AbortSignal, meal: FoodCandidate['meal'] = 'lunch') {
   const days = dayId ? trip.days.filter((d) => d.id === dayId) : trip.days;

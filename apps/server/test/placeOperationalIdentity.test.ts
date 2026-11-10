@@ -1,11 +1,11 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { randomUUID } from 'node:crypto';
-import { pool } from '@tripweaver/core/db/client';
-import { prepareImportedPlaces, reconcileImportedPlaces } from '@tripweaver/services/placeImportIdentity';
-import { relationDigest } from '@tripweaver/services/placeRelationIdentity';
-import { validateOperationalIdentity } from '@tripweaver/services/placeOperationalIdentity';
-import type { IdentityPlace } from '@tripweaver/core/lib/placeIdentity';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { prepareImportedPlaces, reconcileImportedPlaces } from '@rollinggo-trip/services/placeImportIdentity';
+import { relationDigest } from '@rollinggo-trip/services/placeRelationIdentity';
+import { validateOperationalIdentity } from '@rollinggo-trip/services/placeOperationalIdentity';
+import type { IdentityPlace } from '@rollinggo-trip/core/lib/placeIdentity';
 
 after(() => pool.end());
 

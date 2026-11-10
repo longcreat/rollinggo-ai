@@ -13,8 +13,8 @@ import {
   type ResearchPoi,
   type Trip,
   type Violation,
-} from '@tripweaver/shared';
-import { PLAN_POLICY, measurePlan, planViolations, type PlanMetrics, type PlanViolation } from '@tripweaver/agent/generation/planner/validator';
+} from '@rollinggo-trip/shared';
+import { PLAN_POLICY, measurePlan, planViolations, type PlanMetrics, type PlanViolation } from '@rollinggo-trip/agent/generation/planner/validator';
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
 

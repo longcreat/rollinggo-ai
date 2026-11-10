@@ -6,11 +6,11 @@ import Fastify from 'fastify';
 import { eq } from 'drizzle-orm';
 
 const created: string[] = [];
-const { db, pool } = await import('@tripweaver/core/db/client');
-const { users } = await import('@tripweaver/core/db/schema');
+const { db, pool } = await import('@rollinggo-trip/core/db/client');
+const { users } = await import('@rollinggo-trip/core/db/schema');
 const { authRoutes } = await import('../src/routes/auth');
 const { installApiResponses } = await import('../src/http/apiResponse');
-const { runMigrations } = await import('@tripweaver/core/db/migrate');
+const { runMigrations } = await import('@rollinggo-trip/core/db/migrate');
 
 await runMigrations(pool);
 

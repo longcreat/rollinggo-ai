@@ -12,10 +12,10 @@
 //   行程内对话的唯一入口是读写主 Agent harness（/:id/messages/stream → chat/agent/）。
 import type { FastifyPluginAsyncTypebox } from '@fastify/type-provider-typebox';
 import { Type } from '@sinclair/typebox';
-import { ConversationCreateSchema, PlanningBriefPatchSchema } from '@tripweaver/shared';
+import { ConversationCreateSchema, PlanningBriefPatchSchema } from '@rollinggo-trip/shared';
 import { requireAuth } from '../auth/guard';
-import { applyDialogueDecision, briefStatus } from '@tripweaver/services/brief';
-import { createConversation, getConversationDetail, saveBrief } from '@tripweaver/services/conversationService';
+import { applyDialogueDecision, briefStatus } from '@rollinggo-trip/services/brief';
+import { createConversation, getConversationDetail, saveBrief } from '@rollinggo-trip/services/conversationService';
 import { detailChatRoutes } from './detailChat';
 import { planningRoutes } from './planning';
 

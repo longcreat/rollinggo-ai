@@ -2,8 +2,8 @@
 // 纪律沿用四道闸中的前两道：与路径规划共用串行队列（350ms）+ 24h TTL 缓存；
 // 任务级上限与日额度闸门由调用方（generation/geoPipeline）通过 tryAcquire 回调把关。
 // 任何故障不抛错到上层 —— 各级回 null，链路整体失败由上层标注 estimated 降级。
-import { createSerialQueue } from '@tripweaver/core/lib/serialQueue';
-import { TtlCache } from '@tripweaver/core/lib/ttlCache';
+import { createSerialQueue } from '@rollinggo-trip/core/lib/serialQueue';
+import { TtlCache } from '@rollinggo-trip/core/lib/ttlCache';
 import type { GeocodedPlace, GeocodedPoint, GeoPoint } from '../geoContracts';
 import { geocodeFallbackGcj02 } from '../geocode';
 import { amapRequest } from './request';

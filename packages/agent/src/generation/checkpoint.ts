@@ -2,7 +2,7 @@
 //
 // 当前只有一个边界：调研完成后保存「候选池 + 坐标旁路 + 知识库事实」。
 // 进程崩溃后重跑任务时复用该 checkpoint，跳过最耗时的 LLM 调研；规划/校准/落库仍在同一 phase 内重跑。
-import type { DataSourceKind, ResearchPoi } from '@tripweaver/shared';
+import type { DataSourceKind, ResearchPoi } from '@rollinggo-trip/shared';
 import type { ResearchLocation } from './placeLookup';
 import type { PlaceFacts } from './scheduling/placeFacts';
 

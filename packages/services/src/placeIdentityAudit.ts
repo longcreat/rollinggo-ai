@@ -1,5 +1,5 @@
 import { isDeepStrictEqual } from 'node:util';
-import { uid } from '@tripweaver/shared';
+import { uid } from '@rollinggo-trip/shared';
 import type { PoolClient } from 'pg';
 
 interface ImportState {

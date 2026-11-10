@@ -1,12 +1,12 @@
 import type { FastifyBaseLogger } from 'fastify';
-import type { ServiceQuotaDecision } from '@tripweaver/core/lib/amapQuotaLedger';
-import { qweatherAuthHeader, type QWeatherAuth } from '@tripweaver/core/qweatherAuth';
-import { QWEATHER_SERVICE, qweatherDay } from '@tripweaver/core/qweatherServices';
+import type { ServiceQuotaDecision } from '@rollinggo-trip/core/lib/amapQuotaLedger';
+import { qweatherAuthHeader, type QWeatherAuth } from '@rollinggo-trip/core/qweatherAuth';
+import { QWEATHER_SERVICE, qweatherDay } from '@rollinggo-trip/core/qweatherServices';
 
 // Lazy production binding keeps adapters importable without starting a DB connection.
 export const qweatherQuotaGate = {
   async acquire(): Promise<ServiceQuotaDecision> {
-    const { qweatherQuotaLedger } = await import('@tripweaver/core/qweatherQuotaService');
+    const { qweatherQuotaLedger } = await import('@rollinggo-trip/core/qweatherQuotaService');
     return qweatherQuotaLedger.acquire(QWEATHER_SERVICE);
   },
 };

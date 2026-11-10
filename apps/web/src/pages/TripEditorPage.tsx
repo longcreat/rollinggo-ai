@@ -14,7 +14,7 @@ import { ChatPanel } from '../components/chat/ChatPanel';
 import { DaySection } from '../components/editor/DaySection';
 import { AutoRoutePlanner } from '../components/editor/AutoRoutePlanner';
 import { MapView } from '../components/editor/MapView';
-import { TripSchema, dateForDayIndex, uid, type Trip, type TripOperationResult } from '@tripweaver/shared';
+import { TripSchema, dateForDayIndex, uid, type Trip, type TripOperationResult } from '@rollinggo-trip/shared';
 import { EditorIcon } from '../components/editor/EditorIcon';
 import { ExportMenu } from '../components/ExportMenu';
 import { matchOverview } from '../lib/tripDerive';

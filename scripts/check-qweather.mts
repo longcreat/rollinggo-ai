@@ -8,8 +8,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import dotenv from 'dotenv';
 dotenv.config({ path: 'apps/server/.env', quiet: true });
-const { qweatherAuthHeader, normalizePem } = await import('@tripweaver/core/qweatherAuth');
-const { env, qweatherCredential } = await import('@tripweaver/core/env');
+const { qweatherAuthHeader, normalizePem } = await import('@rollinggo-trip/core/qweatherAuth');
+const { env, qweatherCredential } = await import('@rollinggo-trip/core/env');
 
 const auth = qweatherCredential();
 if (!auth || auth.mode !== 'jwt') { console.log('不是 JWT 模式:', auth?.mode); process.exit(0); }
@@ -33,8 +33,8 @@ console.log('  提示无效 → 公钥/凭据问题；提示有效 → API Host 
 console.log('');
 // 第 2 步走完整生产链路（额度账本 + 解析 + 状态），需要数据库可用。
 try {
-  const { makeSampleTrip, chinaDate, weatherForDate } = await import('@tripweaver/shared');
-  const { getTripWeather } = await import('@tripweaver/services/tripWeatherService');
+  const { makeSampleTrip, chinaDate, weatherForDate } = await import('@rollinggo-trip/shared');
+  const { getTripWeather } = await import('@rollinggo-trip/services/tripWeatherService');
   const weather = await getTripWeather({ ...makeSampleTrip(), destination: '北京', startDate: chinaDate() });
   console.log('第 2 步（生产链路 getTripWeather）status:', weather.status);
   const forecast = weather.forecast;
@@ -48,5 +48,5 @@ try {
 } catch (error) {
   console.log('第 2 步跳过（多半是本地数据库没启动）:', error instanceof Error ? error.message : error);
 }
-try { await (await import('@tripweaver/core/db/client')).pool.end(); } catch { /* 未建池则无所谓 */ }
+try { await (await import('@rollinggo-trip/core/db/client')).pool.end(); } catch { /* 未建池则无所谓 */ }
 // 不强制 process.exit：Windows 上带着未关闭句柄退出会抛 uv 断言，自然退出即可。

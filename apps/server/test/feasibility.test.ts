@@ -1,5 +1,5 @@
 // 单测：可行性引擎（时空模拟器）—— 每类违规正例/反例 + 降级边界（node:test，经 tsx 运行）
-// 引擎为纯函数（@tripweaver/shared/feasibility），本文件同时覆盖 submit_plan 硬门槛的耗尽降级路径。
+// 引擎为纯函数（@rollinggo-trip/shared/feasibility），本文件同时覆盖 submit_plan 硬门槛的耗尽降级路径。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
@@ -13,7 +13,7 @@ import {
   type TransitLeg,
   type Trip,
   type TripDay,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 
 // ---------- 夹具 ----------
 

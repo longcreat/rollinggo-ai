@@ -8,7 +8,7 @@ on:
       - 'v*'
 
 env:
-  IMAGE: ghcr.io/aimer-rhythm/trip-weaver
+  IMAGE: ghcr.io/longcreat/rollinggo-ai
 
 jobs:
   build-and-push:

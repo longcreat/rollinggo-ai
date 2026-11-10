@@ -15,7 +15,7 @@ globalThis.fetch = (input, init) => {
 const connect = Client.prototype.connect;
 Client.prototype.connect = function (...args) {
   const database = this.connectionParameters.database;
-  if (database !== 'postgres' && !/^tripweaver_eval_[a-f0-9]{24}$/.test(database)) {
+  if (database !== 'postgres' && !/^rollinggo_trip_eval_[a-f0-9]{24}$/.test(database)) {
     throw new Error('验证检测到非评估数据库连接');
   }
   fs.appendFileSync(process.env.EVAL_CONNECTION_AUDIT, `${database}\n`);

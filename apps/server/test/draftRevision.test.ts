@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import type { GenerateForm, TransitLeg } from '@tripweaver/shared';
-import { DraftTrip } from '@tripweaver/agent/generation/draft';
+import type { GenerateForm, TransitLeg } from '@rollinggo-trip/shared';
+import { DraftTrip } from '@rollinggo-trip/agent/generation/draft';
 
 const form: GenerateForm = { destination: '北京', days: 2, startDate: '', budgetLevel: '舒适', totalBudget: 0, preferences: [], partySize: 2, extraNotes: '' };
 

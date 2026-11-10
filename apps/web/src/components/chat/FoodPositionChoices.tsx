@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { dateForDayIndex, foodPositionProblem, MEAL_KINDS, MEAL_LABELS, type FoodCandidate, type MealPosition, type Trip } from '@tripweaver/shared';
+import { dateForDayIndex, foodPositionProblem, MEAL_KINDS, MEAL_LABELS, type FoodCandidate, type MealPosition, type Trip } from '@rollinggo-trip/shared';
 import { Button } from '../ui/Button';
 
 interface Props {

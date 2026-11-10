@@ -2,9 +2,9 @@
 // 2026-11 实测：同一把个人 Key 传 show_fields=business 能拿到 rating/cost/opentime_week/tel。
 import assert from 'node:assert/strict';
 import { test, mock, afterEach } from 'node:test';
-import { amapQuotaGate } from '@tripweaver/integrations/amap/request';
-import { AmapPoiSource, mapPoi } from '@tripweaver/integrations/amap/poiSource';
-import { amapDay } from '@tripweaver/core/amapServices';
+import { amapQuotaGate } from '@rollinggo-trip/integrations/amap/request';
+import { AmapPoiSource, mapPoi } from '@rollinggo-trip/integrations/amap/poiSource';
+import { amapDay } from '@rollinggo-trip/core/amapServices';
 
 afterEach(() => { mock.restoreAll(); });
 

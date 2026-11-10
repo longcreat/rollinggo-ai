@@ -2,7 +2,7 @@ import { apiFailure } from './lib/api-contract.mjs';
 // C3 浏览器自动化验收：首页城市选择 → 结构化表单 → SSE 时间线三阶段（含候选卡片实时长出）→ 完成跳编辑器（含备选抽屉）
 //                     → 编辑器内嵌对话修订 → 刷新恢复 → 取消 → 配额文案 → 旧行程（无 overview）兼容
 // 走生产模式静态托管（同源 SSE），mock LLM 驱动。运行：node scripts/verify-c3.mjs
-// 数据库：09-26 起与 verify-c2 同例——独占专用测试库（默认 tripweaver_verify_c3，
+// 数据库：09-26 起与 verify-c2 同例——独占专用测试库（默认 rollinggo_trip_verify_c3，
 // 可用 VERIFY_C3_DATABASE_URL 覆盖），每次运行先 drop/create 保证干净，结束时 drop 清理。
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
@@ -17,9 +17,9 @@ const API_PORT = 18791;
 const BASE = `http://127.0.0.1:${API_PORT}`;
 const SHOTS = 'verify-shots';
 const DATABASE_URL =
-  process.env.VERIFY_C3_DATABASE_URL ?? 'postgres://postgres:postgres@127.0.0.1:5432/tripweaver_verify_c3';
+  process.env.VERIFY_C3_DATABASE_URL ?? 'postgres://postgres:postgres@127.0.0.1:5432/rollinggo_trip_verify_c3';
 const DATABASE_URL_NOKEY =
-  process.env.VERIFY_C3_NOKEY_DATABASE_URL ?? 'postgres://postgres:postgres@127.0.0.1:5432/tripweaver_verify_c3_nokey';
+  process.env.VERIFY_C3_NOKEY_DATABASE_URL ?? 'postgres://postgres:postgres@127.0.0.1:5432/rollinggo_trip_verify_c3_nokey';
 const requireFromServer = createRequire(new URL('../apps/server/package.json', import.meta.url));
 const { Client } = requireFromServer('pg');
 

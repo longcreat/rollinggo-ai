@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { eq } from 'drizzle-orm';
-import { db, pool } from '@tripweaver/core/db/client';
-import { agentQuestions } from '@tripweaver/core/db/schema';
-import { expireConversationQuestions, getQuestion, markQuestionAnswered, markQuestionExpired, recordQuestion } from '@tripweaver/agent/chat/agent/questionStore';
+import { db, pool } from '@rollinggo-trip/core/db/client';
+import { agentQuestions } from '@rollinggo-trip/core/db/schema';
+import { expireConversationQuestions, getQuestion, markQuestionAnswered, markQuestionExpired, recordQuestion } from '@rollinggo-trip/agent/chat/agent/questionStore';
 
 const userIds: string[] = [];
 function userId(): string {

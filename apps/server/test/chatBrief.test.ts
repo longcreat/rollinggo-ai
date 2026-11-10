@@ -9,7 +9,7 @@ import {
   isBriefReady,
   requiredBriefFields,
   type PlanningBriefData,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 
 const base: PlanningBriefData = { destination: '成都', startDate: '2026-11-05', days: 3, pace: 'moderate', constraints: [] };
 

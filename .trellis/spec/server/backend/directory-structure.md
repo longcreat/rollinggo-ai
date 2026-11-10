@@ -66,7 +66,7 @@ Do not copy that exception into ordinary resource routes; use the pattern in
 ## Package References
 
 - Cross-package imports use workspace subpaths such as
-  `@tripweaver/core/db/client` or `@tripweaver/services/tripService`; do not reach into a
+  `@rollinggo-trip/core/db/client` or `@rollinggo-trip/services/tripService`; do not reach into a
   sibling package with `../../`.
 - Lower layers never import upper layers. In particular, `shared`, `core`, and
   `integrations` must not import `services` or `agent`.

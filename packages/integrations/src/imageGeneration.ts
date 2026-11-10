@@ -1,6 +1,6 @@
-import type { TripShareImageResponse } from '@tripweaver/shared';
-import type { ImageGenerationConfig } from '@tripweaver/core/configTypes';
-import { assertSafeBaseUrl } from '@tripweaver/core/ssrfGuard';
+import type { TripShareImageResponse } from '@rollinggo-trip/shared';
+import type { ImageGenerationConfig } from '@rollinggo-trip/core/configTypes';
+import { assertSafeBaseUrl } from '@rollinggo-trip/core/ssrfGuard';
 
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_JSON_BYTES = 15 * 1024 * 1024;

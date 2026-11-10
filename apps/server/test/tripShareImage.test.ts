@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { test, mock, afterEach } from 'node:test';
-import { makeSampleTrip, SHARE_POSTER_URL_PATTERN, type GenerationNotification } from '@tripweaver/shared';
-import { buildTripSharePrompt } from '@tripweaver/core/lib/tripSharePrompt';
-import { encodeShareImage, generateShareImage } from '@tripweaver/integrations/imageGeneration';
-import { readImageProviders } from '@tripweaver/core/env';
-import { createTripShareImageService } from '@tripweaver/services/tripShareImageService';
-import { sharePosterUrl, type SharePosterStore } from '@tripweaver/services/sharePosterStore';
+import { makeSampleTrip, SHARE_POSTER_URL_PATTERN, type GenerationNotification } from '@rollinggo-trip/shared';
+import { buildTripSharePrompt } from '@rollinggo-trip/core/lib/tripSharePrompt';
+import { encodeShareImage, generateShareImage } from '@rollinggo-trip/integrations/imageGeneration';
+import { readImageProviders } from '@rollinggo-trip/core/env';
+import { createTripShareImageService } from '@rollinggo-trip/services/tripShareImageService';
+import { sharePosterUrl, type SharePosterStore } from '@rollinggo-trip/services/sharePosterStore';
 
 type GeneratedPoster = Awaited<ReturnType<typeof generateShareImage>>;
 

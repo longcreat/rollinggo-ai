@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { GenerateForm } from '@tripweaver/shared';
-import { DraftTrip } from '@tripweaver/agent/generation/draft';
-import { orderUntimedDayRoutes } from '@tripweaver/agent/generation/routeCoherence';
-import { optimizeRouteOrder, routeBacktracks, routeDistanceMeters } from '@tripweaver/agent/generation/scheduling/routeOrder';
+import type { GenerateForm } from '@rollinggo-trip/shared';
+import { DraftTrip } from '@rollinggo-trip/agent/generation/draft';
+import { orderUntimedDayRoutes } from '@rollinggo-trip/agent/generation/routeCoherence';
+import { optimizeRouteOrder, routeBacktracks, routeDistanceMeters } from '@rollinggo-trip/agent/generation/scheduling/routeOrder';
 
 // 来源：用户北京三日行程 Day 2 的真实坐标；不依赖在线数据库或地图。
 const beijing = [

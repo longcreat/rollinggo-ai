@@ -1,7 +1,7 @@
 import { Button, buttonClassName } from './ui/Button';
 import { useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { Trip } from '@tripweaver/shared';
+import type { Trip } from '@rollinggo-trip/shared';
 import { PrintView } from './PrintView';
 import { ExportDialog } from './ExportDialog';
 import { Dropdown } from './ui/Dropdown';

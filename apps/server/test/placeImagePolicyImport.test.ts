@@ -7,9 +7,9 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { pool } from '@tripweaver/core/db/client';
-import { createPlaceIdentityIndex } from '@tripweaver/core/lib/placeIdentity';
-import { loadCityPlaceFacts, saveAmapPhoto } from '@tripweaver/agent/generation/scheduling/placeFacts';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { createPlaceIdentityIndex } from '@rollinggo-trip/core/lib/placeIdentity';
+import { loadCityPlaceFacts, saveAmapPhoto } from '@rollinggo-trip/agent/generation/scheduling/placeFacts';
 
 after(() => pool.end());
 

@@ -1,5 +1,5 @@
 // 处理过程时间线的纯函数：旧 summary 回退与步骤 upsert。
-import type { AgentStep } from '@tripweaver/shared';
+import type { AgentStep } from '@rollinggo-trip/shared';
 
 export type AgentActivityState = 'running' | 'stopped' | 'error' | 'completed';
 

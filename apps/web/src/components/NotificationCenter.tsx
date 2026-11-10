@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { skipToken, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Value } from '@sinclair/typebox/value';
-import { TripSchema, TripShareImageResponseSchema, type GenerationNotification, type Trip, type TripShareImageResponse } from '@tripweaver/shared';
+import { TripSchema, TripShareImageResponseSchema, type GenerationNotification, type Trip, type TripShareImageResponse } from '@rollinggo-trip/shared';
 import { api, ApiError } from '../api/client';
 import { keys, useNotifications, useReadNotifications } from '../api/hooks';
 import { useNotificationStream } from '../hooks/useNotificationStream';

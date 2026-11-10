@@ -17,8 +17,8 @@
 // status=0 / infocode=10021（CUQPS_HAS_EXCEEDED_THE_LIMIT）。因此与 geocode/route/图片
 // 共用同一把 350ms 串行队列，而不是各自的 100ms 队列——分开排队会在多来源并发时超限。
 import { amapQueue } from './geocoder';
-import { TtlCache } from '@tripweaver/core/lib/ttlCache';
-import type { PoiCategory } from '@tripweaver/shared';
+import { TtlCache } from '@rollinggo-trip/core/lib/ttlCache';
+import type { PoiCategory } from '@rollinggo-trip/shared';
 import type { PoiSource, SourcedPoi } from '../geoContracts';
 import type { SourceStatus } from '../sourceStatus';
 import { amapRequest } from './request';

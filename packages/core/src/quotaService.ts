@@ -1,5 +1,5 @@
 import { and, eq, gte, sql } from 'drizzle-orm';
-import { startOfToday, startOfTomorrow, type UsageView } from '@tripweaver/shared';
+import { startOfToday, startOfTomorrow, type UsageView } from '@rollinggo-trip/shared';
 import { db } from './db/client';
 import { editorGeoUsage, generations } from './db/schema';
 import { env } from './env';

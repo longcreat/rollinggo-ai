@@ -3,13 +3,13 @@
 // 存储与数据库都通过 createSharePosterStore 注入，单测用内存实现即可避开副作用。
 import { createHash } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
-import type { TripShareImageResponse, TripShareImageStyle } from '@tripweaver/shared';
-import { db } from '@tripweaver/core/db/client';
-import { tripShareImages } from '@tripweaver/core/db/schema';
-import { env } from '@tripweaver/core/env';
-import { dataStore } from '@tripweaver/core/lib/dataStore';
-import { mediaCacheControl, type MediaStore } from '@tripweaver/core/lib/mediaStore';
-import { createSerialQueue } from '@tripweaver/core/lib/serialQueue';
+import type { TripShareImageResponse, TripShareImageStyle } from '@rollinggo-trip/shared';
+import { db } from '@rollinggo-trip/core/db/client';
+import { tripShareImages } from '@rollinggo-trip/core/db/schema';
+import { env } from '@rollinggo-trip/core/env';
+import { dataStore } from '@rollinggo-trip/core/lib/dataStore';
+import { mediaCacheControl, type MediaStore } from '@rollinggo-trip/core/lib/mediaStore';
+import { createSerialQueue } from '@rollinggo-trip/core/lib/serialQueue';
 
 type MimeType = TripShareImageResponse['mimeType'];
 

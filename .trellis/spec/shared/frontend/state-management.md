@@ -2,7 +2,7 @@
 
 ## Applicability
 
-Application state containers are N/A inside `@tripweaver/shared`. Zustand stores, React state, query caches, persistence scheduling, and UI revisions belong to `apps/web`. Shared code defines the domain shapes and pure operations those state layers use.
+Application state containers are N/A inside `@rollinggo-trip/shared`. Zustand stores, React state, query caches, persistence scheduling, and UI revisions belong to `apps/web`. Shared code defines the domain shapes and pure operations those state layers use.
 
 Examples of the boundary are `packages/shared/src/types.ts`, `packages/shared/src/budget.ts`, and the consuming store `apps/web/src/store/editorStore.ts`.
 

@@ -35,28 +35,28 @@ import {
   type GenerationJobStatus,
   type GenerationPhase,
   type GenerationWarning,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 import type { FastifyBaseLogger } from 'fastify';
-import { db } from '@tripweaver/core/db/client';
-import { getTripWeather } from '@tripweaver/services/tripWeatherService';
+import { db } from '@rollinggo-trip/core/db/client';
+import { getTripWeather } from '@rollinggo-trip/services/tripWeatherService';
 import { finalizeGenerationTask } from './taskStore';
 import { appendTaskCompletion } from '../tasks/completionMessage';
 import { deliverTaskResult } from '../tasks/taskCompletion';
 import type { DelegatedTaskResult } from '../tasks/delegatedTask';
-import type { LlmConfig } from '@tripweaver/core/settingsService';
-import { searchBudgetRemaining } from '@tripweaver/core/quotaService';
-import { createTrip, getTrip } from '@tripweaver/services/tripService';
-import { recordGenerationNotification, getGenerationResult } from '@tripweaver/services/notificationService';
-import { publishNotification, type NotificationEvent } from '@tripweaver/services/notificationStream';
-import { poiBudgetRemaining, resolvePoiSourceForUser } from '@tripweaver/integrations/geoProvider';
-import { getNullPoiSource } from '@tripweaver/integrations/nullPoiSource';
-import { POI_MAX_PER_TASK, createTaskPoiGate, createTaskPoiSource, type TaskPoiStats } from '@tripweaver/integrations/poiTaskSource';
+import type { LlmConfig } from '@rollinggo-trip/core/settingsService';
+import { searchBudgetRemaining } from '@rollinggo-trip/core/quotaService';
+import { createTrip, getTrip } from '@rollinggo-trip/services/tripService';
+import { recordGenerationNotification, getGenerationResult } from '@rollinggo-trip/services/notificationService';
+import { publishNotification, type NotificationEvent } from '@rollinggo-trip/services/notificationStream';
+import { poiBudgetRemaining, resolvePoiSourceForUser } from '@rollinggo-trip/integrations/geoProvider';
+import { getNullPoiSource } from '@rollinggo-trip/integrations/nullPoiSource';
+import { POI_MAX_PER_TASK, createTaskPoiGate, createTaskPoiSource, type TaskPoiStats } from '@rollinggo-trip/integrations/poiTaskSource';
 import {
   SEARCH_MAX_PER_TASK,
   createTaskSearchSource,
   getNullSearchSource,
   resolveSearchSourceForUser,
-} from '@tripweaver/integrations/websearch/searchSource';
+} from '@rollinggo-trip/integrations/websearch/searchSource';
 import { DraftTrip } from './draft';
 import { ensureMealCoverage, isFoodFocused } from './mealPlanning';
 import { createGeoSession } from './geoPipeline';
@@ -77,8 +77,8 @@ import { createStoredPlaceLookups } from './storedPlaceLookups';
 import { serializeResearch, type ResearchCheckpoint } from './checkpoint';
 import type { ResearchOutcome } from './tools/researchTools';
 import type { PlaceFacts } from './scheduling/placeFacts';
-import { createAmapPoiPhotoLookup } from '@tripweaver/integrations/amap/poiPhotos';
-import { env } from '@tripweaver/core/env';
+import { createAmapPoiPhotoLookup } from '@rollinggo-trip/integrations/amap/poiPhotos';
+import { env } from '@rollinggo-trip/core/env';
 
 import { buildTitleTool } from './tools/titleTool';
 import { retrieveContext } from './retrieveContext';
@@ -86,15 +86,15 @@ import { prepareResearchContext } from './researchContext';
 import { prepareTripAdviceEvidence, runTripAdviceWriter } from './tripAdvice';
 import { runPlannerAgent, plannerSeeds } from './planner/plannerAgent';
 import { buildAreas } from './planner/tools';
-import { searchAreaPois } from '@tripweaver/integrations/amap/placeArea';
+import { searchAreaPois } from '@rollinggo-trip/integrations/amap/placeArea';
 import { ScheduleDateConflictError, scheduleClosureConflicts } from './closureConflict';
-import { scheduleDays } from '@tripweaver/services/itinerary/schedule';
+import { scheduleDays } from '@rollinggo-trip/services/itinerary/schedule';
 import { applyTrimRemovals, planOverpackedTrim } from './dayTrim';
 import {
   WRITER_SYSTEM_PROMPT,
   writerUserPrompt,
 } from './prompts';
-import { cityCoverage, searchWebMaxFor } from '@tripweaver/services/cityCoverageService';
+import { cityCoverage, searchWebMaxFor } from '@rollinggo-trip/services/cityCoverageService';
 
 const JOB_TIMEOUT_MS = GENERATION_TIMEOUT_MINUTES * 60 * 1000;   // 整任务兜底超时（与前端提示文案同源）
 

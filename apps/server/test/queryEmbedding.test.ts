@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createQueryEmbedder } from '@tripweaver/integrations/queryEmbedding';
+import { createQueryEmbedder } from '@rollinggo-trip/integrations/queryEmbedding';
 
 const config = { baseUrl: 'https://embedding.test/v1', apiKey: 'site-test-key', model: 'test', dims: 1024 };
 const response = () => new Response(JSON.stringify({ data: [{ embedding: Array(1024).fill(0.1) }] }));

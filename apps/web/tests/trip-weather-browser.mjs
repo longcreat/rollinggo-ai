@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir } from 'node:fs/promises';
 import { chromium } from 'playwright';
-import { makeSampleTrip, chinaDate, dateForDayIndex, tripAdviceInputSnapshot } from '@tripweaver/shared';
+import { makeSampleTrip, chinaDate, dateForDayIndex, tripAdviceInputSnapshot } from '@rollinggo-trip/shared';
 import { apiSuccess, apiFailure } from '../../../scripts/lib/api-contract.mjs';
 
 const base = process.env.BASE ?? 'http://127.0.0.1:5173';

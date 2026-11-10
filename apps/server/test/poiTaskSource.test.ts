@@ -1,9 +1,9 @@
 // 任务级 POI 记账：调研 / 片区 / 补餐共用统计，额度各自独立 —— 防止 amapCalls 少计、dataSources 漏标。
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { PoiSource, SourcedPoi } from '@tripweaver/integrations/geoContracts';
-import { createTaskPoiGate, createTaskPoiSource, POI_MAX_PER_TASK, type TaskPoiStats } from '@tripweaver/integrations/poiTaskSource';
-import { getNullPoiSource } from '@tripweaver/integrations/nullPoiSource';
+import type { PoiSource, SourcedPoi } from '@rollinggo-trip/integrations/geoContracts';
+import { createTaskPoiGate, createTaskPoiSource, POI_MAX_PER_TASK, type TaskPoiStats } from '@rollinggo-trip/integrations/poiTaskSource';
+import { getNullPoiSource } from '@rollinggo-trip/integrations/nullPoiSource';
 
 const fixture: SourcedPoi = {
   name: '测试公园', type: '风景名胜;公园', address: '测试地址', rating: '', cost: '',

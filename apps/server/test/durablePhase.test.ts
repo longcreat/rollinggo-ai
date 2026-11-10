@@ -6,9 +6,9 @@ import { BACKGROUND_CONTEXT } from '@earendil-works/chord/context';
 import { createModels } from '@earendil-works/pi-ai/models';
 import { fauxAssistantMessage, fauxProvider, fauxToolCall } from '@earendil-works/pi-ai/providers/faux';
 import { Harness, MemoryStorage, createRegistry } from '@earendil-works/pi-durable';
-import { defineTool } from '@tripweaver/agent/generation/tools/defineTool';
-import { runDurablePhaseAgent } from '@tripweaver/agent/generation/agents/durablePhase';
-import { buildModel } from '@tripweaver/agent/generation/model';
+import { defineTool } from '@rollinggo-trip/agent/generation/tools/defineTool';
+import { runDurablePhaseAgent } from '@rollinggo-trip/agent/generation/agents/durablePhase';
+import { buildModel } from '@rollinggo-trip/agent/generation/model';
 
 test('durable 阶段：工具执行、terminate 结束、事件进入 sink', async () => {
   const faux = fauxProvider();

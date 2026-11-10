@@ -1,9 +1,9 @@
 // Agent 新增活动后补 overview 候选：详情弹窗的图/简介/预约都靠它。
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import type { Trip } from '@tripweaver/shared';
-import { createPlacePointCache } from '@tripweaver/agent/chat/agent/placePoints';
-import { syncOverviewWithActivities } from '@tripweaver/agent/chat/agent/overviewSync';
+import type { Trip } from '@rollinggo-trip/shared';
+import { createPlacePointCache } from '@rollinggo-trip/agent/chat/agent/placePoints';
+import { syncOverviewWithActivities } from '@rollinggo-trip/agent/chat/agent/overviewSync';
 
 function trip(): Trip {
   return {

@@ -2,7 +2,7 @@
 
 ## Applicability
 
-Fastify error handlers, HTTP status codes, and reply formats are N/A inside `@tripweaver/shared`. They belong to the server application. Shared code should expose contracts and pure operations without importing Fastify request, reply, or application error types.
+Fastify error handlers, HTTP status codes, and reply formats are N/A inside `@rollinggo-trip/shared`. They belong to the server application. Shared code should expose contracts and pure operations without importing Fastify request, reply, or application error types.
 
 The separation can be seen in `packages/shared/src/schemas.ts`, `apps/server/src/routes/trips.ts`, and `apps/server/src/index.ts`.
 

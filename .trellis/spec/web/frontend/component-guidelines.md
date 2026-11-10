@@ -14,7 +14,7 @@ Use the least ceremonial readable form:
 
 - Use a named `interface Props` when a component has several fields, domain comments, or the shape benefits from a reusable name.
 - Use an inline object type for a small, local prop surface.
-- Use shared domain types from `@tripweaver/shared`; do not recreate `Trip`, `TripDay`, `Activity`, or protocol unions locally.
+- Use shared domain types from `@rollinggo-trip/shared`; do not recreate `Trip`, `TripDay`, `Activity`, or protocol unions locally.
 - Model optional props with `?` and state variants with literal unions or discriminated unions.
 
 Both styles are established and valid. `ActivityCard` and `DaySection` use named interfaces, while `Modal`, `ExportMenu`, and `MapView` use compact inline prop types. Do not impose an inaccurate rule that every component must use `interface Props`.

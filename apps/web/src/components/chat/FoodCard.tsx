@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { foodAlreadyAdded, recommendedFoodPosition, MEAL_LABELS, uid, type FoodCandidate, type Trip, type TripOperationResult, type MealPosition, type AddFoodRequest } from '@tripweaver/shared';
+import { foodAlreadyAdded, recommendedFoodPosition, MEAL_LABELS, uid, type FoodCandidate, type Trip, type TripOperationResult, type MealPosition, type AddFoodRequest } from '@rollinggo-trip/shared';
 import { addFood } from '../../api/detailChat';
 import { Button } from '../ui/Button';
 import { FoodPositionChoices } from './FoodPositionChoices';

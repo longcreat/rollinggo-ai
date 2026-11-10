@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test, mock, afterEach } from 'node:test';
-import { makeSampleTrip, weatherForDate, WEATHER_FORECAST_DAYS, type TripWeather } from '@tripweaver/shared';
-import { chinaTimestamp, createQWeatherLookup, parseQWeatherCity, parseQWeatherDaily } from '@tripweaver/integrations/qweather/weather';
-import type { QWeatherAuth } from '@tripweaver/core/qweatherAuth';
-import type { qweatherRequest } from '@tripweaver/integrations/qweather/client';
-import { getTripWeather } from '@tripweaver/services/tripWeatherService';
+import { makeSampleTrip, weatherForDate, WEATHER_FORECAST_DAYS, type TripWeather } from '@rollinggo-trip/shared';
+import { chinaTimestamp, createQWeatherLookup, parseQWeatherCity, parseQWeatherDaily } from '@rollinggo-trip/integrations/qweather/weather';
+import type { QWeatherAuth } from '@rollinggo-trip/core/qweatherAuth';
+import type { qweatherRequest } from '@rollinggo-trip/integrations/qweather/client';
+import { getTripWeather } from '@rollinggo-trip/services/tripWeatherService';
 
 const now = Date.parse('2026-10-04T04:00:00Z');   // 中国时间 2026-10-04 12:00
 const auth: QWeatherAuth = { mode: 'api-key', apiKey: 'test-key' };

@@ -1,5 +1,5 @@
-import { LODGING_SENTINEL, type GenerateForm, type Trip } from '@tripweaver/shared';
-import { isFoodFocused, missingMeals } from '@tripweaver/agent/generation/mealPlanning';
+import { LODGING_SENTINEL, type GenerateForm, type Trip } from '@rollinggo-trip/shared';
+import { isFoodFocused, missingMeals } from '@rollinggo-trip/agent/generation/mealPlanning';
 import type { Execution, FlowCheck } from './contracts';
 
 /** 对齐当前编排器；增强阶段允许降级，但必须明确报告，不将尝试冒充成功。 */

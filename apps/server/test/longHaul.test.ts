@@ -2,7 +2,7 @@
 // 覆盖：中位中心（奇/偶/空/单点）。标级逻辑由 longHaulFixer / geoSanity 的测试覆盖。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { medianCenter } from '@tripweaver/agent/generation/longHaul';
+import { medianCenter } from '@rollinggo-trip/agent/generation/longHaul';
 
 // ---------- medianCenter：lat/lng 各自独立取中位数 ----------
 

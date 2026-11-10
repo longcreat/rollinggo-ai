@@ -1,9 +1,9 @@
-# 织程 TripWeaver
+# rollinggo 旅行 · RollingGo Trip
 
 <p>
   <a href="https://sakiiko.com"><img src="https://img.shields.io/badge/%E5%9C%A8%E7%BA%BF%E4%BD%93%E9%AA%8C-sakiiko.com-2f855a" alt="在线体验"></a>
-  <a href="https://github.com/aimer-rhythm/trip-weaver/actions/workflows/ci.yml"><img src="https://github.com/aimer-rhythm/trip-weaver/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/aimer-rhythm/trip-weaver/actions/workflows/docker.yml"><img src="https://github.com/aimer-rhythm/trip-weaver/actions/workflows/docker.yml/badge.svg" alt="Docker"></a>
+  <a href="https://github.com/longcreat/rollinggo-ai/actions/workflows/ci.yml"><img src="https://github.com/longcreat/rollinggo-ai/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/longcreat/rollinggo-ai/actions/workflows/docker.yml"><img src="https://github.com/longcreat/rollinggo-ai/actions/workflows/docker.yml/badge.svg" alt="Docker"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License"></a>
 </p>
 
@@ -11,9 +11,6 @@
 
 **一个 Agent，四段旅程**：生成时它派子代理查证、逐日把行程「直播」到地图上；编辑时你说的每一句它都能直接落到行程节点（增删改移、加天、改出行方式），改完自动落版本、可一键撤销；出发前它做一次确定性「体检」，把时空硬冲突变成决策卡让你逐项拍板。数字（距离、通勤、时刻）永远由代码计算，模型只负责决策与表达。
 
-<p align="center">
-  <img src="docs/screenshots/home.jpg" alt="首页选城" width="880">
-</p>
 
 ## 它能做什么
 
@@ -53,7 +50,7 @@ Agent 层（pi-agent-core / pi-ai / pi-durable 1.5）
 ## 快速开始
 
 ```bash
-git clone https://github.com/aimer-rhythm/trip-weaver.git && cd trip-weaver
+git clone https://github.com/longcreat/rollinggo-ai.git && cd rollinggo-ai
 cp .env.example .env               # 至少填 MASTER_KEY 与站点 LLM Key
 docker compose up -d
 ```
@@ -68,14 +65,6 @@ npm run dev:doppler                # Doppler 注入密钥；或 cp .env.example 
 PostgreSQL + pgvector 用 `docker compose up -d db` 起（或指向已有的本机 / Neon / Supabase 实例）。
 
 **配齐数据源、看成本与配额口径**（高德默认只计量不拦截）→ [部署与配置](docs/DEPLOYMENT.md)。
-
-## 截图
-
-| 智能生成（直播编辑器，逐日长出） | 行程详情（对话 Agent + 地图动线） |
-|---|---|
-| ![生成进度](docs/screenshots/generation.jpg) | ![行程详情](docs/screenshots/trip-detail.jpg) |
-| **我的行程**：一本本旅行手册 | **移动端**：随时翻看与改稿 |
-| ![我的行程](docs/screenshots/trips.jpg) | ![移动端](docs/screenshots/mobile.jpg) |
 
 ## 文档
 

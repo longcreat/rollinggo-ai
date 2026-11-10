@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { generateKeyPairSync, verify } from 'node:crypto';
 import { test, mock, afterEach } from 'node:test';
-import { looksLikeJwt, normalizePem, parseQWeatherPrivateKey, qweatherAuthHeader, signQWeatherJwt, type QWeatherAuth } from '@tripweaver/core/qweatherAuth';
-import { qweatherQuotaGate, qweatherRequest, setQWeatherLogger } from '@tripweaver/integrations/qweather/client';
-import { qweatherDay } from '@tripweaver/core/qweatherServices';
+import { looksLikeJwt, normalizePem, parseQWeatherPrivateKey, qweatherAuthHeader, signQWeatherJwt, type QWeatherAuth } from '@rollinggo-trip/core/qweatherAuth';
+import { qweatherQuotaGate, qweatherRequest, setQWeatherLogger } from '@rollinggo-trip/integrations/qweather/client';
+import { qweatherDay } from '@rollinggo-trip/core/qweatherServices';
 
 afterEach(() => { mock.restoreAll(); mock.timers.reset(); });
 const HOST = 'fixture.qweatherapi.com';

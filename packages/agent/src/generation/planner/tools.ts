@@ -4,12 +4,12 @@
 // 因此模型输出的行程不会出现「上午故宫下午八达岭」这类凭空距离。
 import { Type } from 'typebox';
 import type { AgentTool } from '@earendil-works/pi-agent-core';
-import type { GenerateForm, LegMode, PlanDayEventStop, PoiCategory } from '@tripweaver/shared';
-import { effectiveLegMode } from '@tripweaver/shared';
-import { DAILY_SIGHT_LIMITS, FEASIBILITY_THRESHOLDS } from '@tripweaver/shared';
+import type { GenerateForm, LegMode, PlanDayEventStop, PoiCategory } from '@rollinggo-trip/shared';
+import { effectiveLegMode } from '@rollinggo-trip/shared';
+import { DAILY_SIGHT_LIMITS, FEASIBILITY_THRESHOLDS } from '@rollinggo-trip/shared';
 import { defineTool } from '../tools/defineTool';
 import type { DraftTrip } from '../draft';
-import type { GeoPoint, SourcedPoi } from '@tripweaver/integrations/geoContracts';
+import type { GeoPoint, SourcedPoi } from '@rollinggo-trip/integrations/geoContracts';
 import { searchAreaPlacesCore, webSearchCore, type AreaAccess, type WebAccess } from '../../agent/tools/dataTools';
 import { estimateLeg } from '../legEstimator';
 import { optimizeRouteOrder } from '../scheduling/routeOrder';

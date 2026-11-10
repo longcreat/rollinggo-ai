@@ -32,7 +32,7 @@ const DataSchema = Type.Object({
   }, strict)),
 }, strict);
 export type FrozenData = Static<typeof DataSchema>;
-const FileSchema = Type.Object({ format: Type.Literal('tripweaver-knowledge'), version: Type.Literal(1),
+const FileSchema = Type.Object({ format: Type.Literal('rollinggo-trip-knowledge'), version: Type.Literal(1),
   name: Text, exportedAt: Text, sourceId: Text, contentHash: Text, data: DataSchema,
 }, strict);
 export type FrozenKnowledge = Static<typeof FileSchema>;
@@ -119,7 +119,7 @@ export async function seedFrozen(pool: Pool, snapshot: FrozenKnowledge, skipVect
   try {
     await client.query('BEGIN');
     const connection = await client.query<{ name: string }>('SELECT current_database() AS name');
-    if (!/^tripweaver_eval_[a-f0-9]{24}$/.test(connection.rows[0]?.name ?? '')) throw new Error('冻结副本只能导入本次评估专用数据库');
+    if (!/^rollinggo_trip_eval_[a-f0-9]{24}$/.test(connection.rows[0]?.name ?? '')) throw new Error('冻结副本只能导入本次评估专用数据库');
     const existing = await client.query<{ populated: boolean }>(`SELECT EXISTS(SELECT 1 FROM canonical_places)
       OR EXISTS(SELECT 1 FROM research_evidence) OR EXISTS(SELECT 1 FROM place_relation) AS populated`);
     if (existing.rows[0]?.populated) throw new Error('目标评估知识表非空，拒绝混入旧数据');

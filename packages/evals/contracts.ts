@@ -1,6 +1,6 @@
 import { Type, type Static } from '@sinclair/typebox';
 import { Value } from '@sinclair/typebox/value';
-import { GenerateFormSchema, ResearchPoiSchema, TripSchema } from '@tripweaver/shared';
+import { GenerateFormSchema, ResearchPoiSchema, TripSchema } from '@rollinggo-trip/shared';
 
 const Counter = Type.Number({ minimum: 0 });
 export const TimingSchema = Type.Object({

@@ -17,13 +17,13 @@ loadLiveCredentials();
 if (!process.env.SITE_LLM_BASE_URL || !process.env.SITE_LLM_API_KEY || !process.env.SITE_LLM_MODEL) throw new Error('需要 SITE_LLM_*');
 Object.assign(process.env, { MASTER_KEY: crypto.randomBytes(32).toString('hex'), DATABASE_URL: 'postgres://forbidden:forbidden@127.0.0.1:1/review_must_not_connect',
   DOTENV_CONFIG_PATH: path.join(ROOT, 'packages/evals/data/absent-review.env'), REGISTRATION_MODE: 'open' });
-await import('@tripweaver/core/lib/proxy');
-const { buildModel } = await import('@tripweaver/agent/generation/model');
-const { runDurablePhaseAgent } = await import('@tripweaver/agent/generation/agents/durablePhase');
-const { buildAgentModels, agentModelRef } = await import('@tripweaver/agent/chat/agent/models');
+await import('@rollinggo-trip/core/lib/proxy');
+const { buildModel } = await import('@rollinggo-trip/agent/generation/model');
+const { runDurablePhaseAgent } = await import('@rollinggo-trip/agent/generation/agents/durablePhase');
+const { buildAgentModels, agentModelRef } = await import('@rollinggo-trip/agent/chat/agent/models');
 const { Harness, MemoryStorage, createRegistry } = await import('@earendil-works/pi-durable');
 const { BACKGROUND_CONTEXT } = await import('@earendil-works/chord/context');
-const { defineTool } = await import('@tripweaver/agent/generation/tools/defineTool');
+const { defineTool } = await import('@rollinggo-trip/agent/generation/tools/defineTool');
 const model = await buildModel({ baseUrl: process.env.SITE_LLM_BASE_URL!, apiKey: process.env.SITE_LLM_API_KEY!, model: process.env.SITE_LLM_MODEL!, byok: false });
 // 审阅脚本同样走 durable 会话（无数据库依赖，内存存储即可）。
 const reviewModels = await buildAgentModels({ baseUrl: process.env.SITE_LLM_BASE_URL!, apiKey: process.env.SITE_LLM_API_KEY!, model: process.env.SITE_LLM_MODEL!, byok: false });

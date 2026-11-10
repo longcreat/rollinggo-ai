@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { makeSampleTrip, wgs84ToGcj02, type RouteOptionsRequest } from '@tripweaver/shared';
-import { queryRouteOptions } from '@tripweaver/services/routeOptions';
-import type { GeoProvider } from '@tripweaver/integrations/geoProvider';
+import { makeSampleTrip, wgs84ToGcj02, type RouteOptionsRequest } from '@rollinggo-trip/shared';
+import { queryRouteOptions } from '@rollinggo-trip/services/routeOptions';
+import type { GeoProvider } from '@rollinggo-trip/integrations/geoProvider';
 
 function input(): RouteOptionsRequest {
   const trip = makeSampleTrip();

@@ -3,7 +3,7 @@ import test from 'node:test';
 import Fastify from 'fastify';
 import rateLimit from '@fastify/rate-limit';
 import { Type } from '@sinclair/typebox';
-import { isApiResponse } from '@tripweaver/shared';
+import { isApiResponse } from '@rollinggo-trip/shared';
 import { installApiResponses } from '../src/http/apiResponse';
 
 test('统一 JSON 外层保留状态、Cookie、数组及 schema 字段过滤', async (t) => {

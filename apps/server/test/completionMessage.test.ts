@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 import { eq } from 'drizzle-orm';
-import { db, pool } from '@tripweaver/core/db/client';
-import { chatMessages, conversations, detailOperations, planningBriefs } from '@tripweaver/core/db/schema';
-import { createConversation, getConversationDetail } from '@tripweaver/services/conversationService';
-import { appendTaskCompletion } from '@tripweaver/agent/tasks/completionMessage';
+import { db, pool } from '@rollinggo-trip/core/db/client';
+import { chatMessages, conversations, detailOperations, planningBriefs } from '@rollinggo-trip/core/db/schema';
+import { createConversation, getConversationDetail } from '@rollinggo-trip/services/conversationService';
+import { appendTaskCompletion } from '@rollinggo-trip/agent/tasks/completionMessage';
 
 const userIds: string[] = [];
 after(async () => {

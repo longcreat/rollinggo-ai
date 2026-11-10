@@ -6,7 +6,7 @@ import {
   type ProjectionFrame,
   type ProjectionRowBase,
   type ProjectionSnapshot,
-} from '@tripweaver/shared';
+} from '@rollinggo-trip/shared';
 
 export type ProjectionResumeMessage<Row extends ProjectionRowBase, State> =
   | { kind: 'snapshot'; snapshot: ProjectionSnapshot<Row, State> }

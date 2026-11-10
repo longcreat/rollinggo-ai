@@ -1,7 +1,7 @@
 // 行程体检 Pass 1a（纯确定性审计）：feasibility 全量规则 + 远郊混排 → 结构化 Finding。
 // 本模块零依赖（只 import shared 纯函数）——单测不需要 DB 与环境变量。
-import { uid, type Trip, type HealthFinding } from '@tripweaver/shared';
-import { simulateTrip, suggestionFromViolation, estimateTransit, effectiveLegMode, LONG_HAUL_THRESHOLDS, LONG_HAUL_STOPOVER } from '@tripweaver/shared';
+import { uid, type Trip, type HealthFinding } from '@rollinggo-trip/shared';
+import { simulateTrip, suggestionFromViolation, estimateTransit, effectiveLegMode, LONG_HAUL_THRESHOLDS, LONG_HAUL_STOPOVER } from '@rollinggo-trip/shared';
 
 // ---------- 远郊混排检测（体检场景版） ----------
 // 生成链路的 classifyLongHaulPois 走 ResearchPoi 池；这里直接用行程活动坐标：

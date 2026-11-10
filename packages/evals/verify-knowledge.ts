@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { Pool } from 'pg';
-import { runMigrations } from '@tripweaver/core/db/migrate';
+import { runMigrations } from '@rollinggo-trip/core/db/migrate';
 import { EVAL_DIR, hash, writeJson } from './artifacts';
 import { createEvaluationDatabase } from './isolation';
 import { exportKnowledge } from './exportKnowledge';

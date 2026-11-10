@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import sharp from 'sharp';
-import { applyShareBrand, SHARE_BRAND_LINK } from '@tripweaver/core/lib/sharePosterBrand';
+import { applyShareBrand, SHARE_BRAND_LINK } from '@rollinggo-trip/core/lib/sharePosterBrand';
 
 const poster = (width = 1024, height = 1536, format: 'png' | 'jpeg' = 'png') =>
   sharp({ create: { width, height, channels: 3, background: '#336699' } }).toFormat(format).toBuffer();

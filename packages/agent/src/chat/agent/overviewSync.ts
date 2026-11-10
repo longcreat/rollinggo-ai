@@ -5,7 +5,7 @@
 // 于是 AI 新加的「都江堰景区」在详情里显示「暂无实景照片」，也没有概述与来源。
 //
 // 原则：只补缺，不覆盖。已有候选（调研产出的简介/预约/来源更可靠）原样保留。
-import { MAX_OVERVIEW_POIS, uid, type ResearchPoi, type Trip } from '@tripweaver/shared';
+import { MAX_OVERVIEW_POIS, uid, type ResearchPoi, type Trip } from '@rollinggo-trip/shared';
 import type { PlacePointCache } from './placePoints';
 
 /** 活动类目 → 候选池类目（只有美食/住宿有独立类目，其余按景点处理） */

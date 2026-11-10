@@ -14,7 +14,7 @@ export function validateAdminUrl(raw: string | undefined): URL {
 }
 export async function createEvaluationDatabase(raw: string | undefined) {
   const url = validateAdminUrl(raw);
-  const name = `tripweaver_eval_${crypto.randomBytes(12).toString('hex')}`;
+  const name = `rollinggo_trip_eval_${crypto.randomBytes(12).toString('hex')}`;
   const admin = new Client({ connectionString: url.toString(), connectionTimeoutMillis: 5000, statement_timeout: 10000 });
   let created = false;
   try {
@@ -31,7 +31,7 @@ export async function createEvaluationDatabase(raw: string | undefined) {
     async close() {
       try {
         // 名称来自本函数生成且创建成功，只清理本次拥有的库。
-        if (created && /^tripweaver_eval_[a-f0-9]{24}$/.test(name)) {
+        if (created && /^rollinggo_trip_eval_[a-f0-9]{24}$/.test(name)) {
           await admin.query(`DROP DATABASE "${name}" WITH (FORCE)`);
           created = false;
         }

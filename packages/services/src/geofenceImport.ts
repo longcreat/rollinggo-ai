@@ -4,8 +4,8 @@
 // 让路线看起来真实但没有可玩性（实测「花港码头售票亭」被排成一天的一站）。
 // 这里只做纯函数判定与行构造，DB 去重所需的历史键由调用方传入，便于单测。
 import { createHash } from 'node:crypto';
-import { haversineMeters } from '@tripweaver/shared';
-import type { GeoPoint, SourcedPoi } from '@tripweaver/integrations/geoContracts';
+import { haversineMeters } from '@rollinggo-trip/shared';
+import type { GeoPoint, SourcedPoi } from '@rollinggo-trip/integrations/geoContracts';
 
 export const SUB_POI_SOURCE = 'amap-area';
 

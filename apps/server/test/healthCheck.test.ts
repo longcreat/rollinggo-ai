@@ -2,9 +2,9 @@
 // 纯内存数据，不碰 DB 与网络。
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { simulateTrip, type Activity, type Trip, type HealthFinding } from '@tripweaver/shared';
-import { auditTrip } from '@tripweaver/services/healthAudit';
-import { applyHealthDecisions } from '@tripweaver/services/healthRepairService';
+import { simulateTrip, type Activity, type Trip, type HealthFinding } from '@rollinggo-trip/shared';
+import { auditTrip } from '@rollinggo-trip/services/healthAudit';
+import { applyHealthDecisions } from '@rollinggo-trip/services/healthRepairService';
 
 function activity(id: string, name: string, over: Partial<Activity> = {}) {
   return {

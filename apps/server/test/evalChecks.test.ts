@@ -1,8 +1,8 @@
 // eval 确定性检查单测（node:test，经 tsx 运行）：四类指标正/反例
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { makeSampleTrip, uid, type GenerateForm, type Trip } from '@tripweaver/shared';
-import { runChecks } from '@tripweaver/evals/checks';
+import { makeSampleTrip, uid, type GenerateForm, type Trip } from '@rollinggo-trip/shared';
+import { runChecks } from '@rollinggo-trip/evals/checks';
 
 const NOW = 1_700_000_000_000;
 

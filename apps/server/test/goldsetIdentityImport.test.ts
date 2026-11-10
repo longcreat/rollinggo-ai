@@ -7,10 +7,10 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { pool } from '@tripweaver/core/db/client';
-import { captureIdentityImport, rollbackIdentityImport } from '@tripweaver/services/placeIdentityAudit';
-import { relationDigest } from '@tripweaver/services/placeRelationIdentity';
-import { importGoldsetCity } from '@tripweaver/services/goldsetPlaceImport';
+import { pool } from '@rollinggo-trip/core/db/client';
+import { captureIdentityImport, rollbackIdentityImport } from '@rollinggo-trip/services/placeIdentityAudit';
+import { relationDigest } from '@rollinggo-trip/services/placeRelationIdentity';
+import { importGoldsetCity } from '@rollinggo-trip/services/goldsetPlaceImport';
 
 after(()=>pool.end());
 const derived=(city:string,name:string)=>createHash('sha256').update(city+name).digest('hex').slice(0,32);

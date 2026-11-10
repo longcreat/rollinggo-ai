@@ -1,4 +1,4 @@
-import { placeIdentity, type IdentityPlace } from '@tripweaver/core/lib/placeIdentity';
+import { placeIdentity, type IdentityPlace } from '@rollinggo-trip/core/lib/placeIdentity';
 
 /** 显式采用已归一提及的分数；不借用 mentionSources 的全文/媒体治理语义。 */
 export function validateRecommendationIdentity(place: IdentityPlace, previous?: IdentityPlace): void {

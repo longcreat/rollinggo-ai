@@ -4,8 +4,8 @@
 //   ① search_places 返回的高德 POI 坐标；
 //   ② 子代理 submit_places 提交、经 schema 校验的地点坐标。
 // 写工具只从这份缓存取点，取不到才走模糊解析（可能命中同城同名点，见 rename 闸门）。
-import type { GeoPoint } from '@tripweaver/integrations/geoContracts';
-import { placeNameContains } from '@tripweaver/shared';
+import type { GeoPoint } from '@rollinggo-trip/integrations/geoContracts';
+import { placeNameContains } from '@rollinggo-trip/shared';
 
 export interface PlacePointCache {
   remember(name: string, point: { lat: number; lng: number }): void;
@@ -21,7 +21,7 @@ function keyOf(name: string): string {
 }
 
 /**
- * 包含匹配护栏与 web 同源：见 `@tripweaver/shared` 的 `placeNameContains`
+ * 包含匹配护栏与 web 同源：见 `@rollinggo-trip/shared` 的 `placeNameContains`
  * （2 字名只认精确匹配，缺 3 字以上才做包含匹配）。
  */
 function containsMatch(a: string, b: string): boolean {

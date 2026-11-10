@@ -5,7 +5,7 @@
 // 语义：同一生成任务内连续失败（超时/网络错/无方案，适配层统一吞错回 null）达阈值
 // → 熔断开启：后续 estimate 直接回 null（调用方走启发式降级），不再发请求、不消耗 route 额度；
 // 任一次成功（含缓存命中）清零计数。状态为任务级会话内存，不跨任务不持久化 —— 下个任务重新给服务商机会。
-import type { LegMode } from '@tripweaver/shared';
+import type { LegMode } from '@rollinggo-trip/shared';
 import type { GeoPoint, RouteBreaker, RouteEstimate, RouteOpts } from './geoContracts';
 
 /** 连续失败阈值：5 次足以区分「服务真的不可用」与偶发抖动，同时把最坏等待封在 ~52s */

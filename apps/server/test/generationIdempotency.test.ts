@@ -2,12 +2,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { eq } from 'drizzle-orm';
-import { uid, type GenerateForm } from '@tripweaver/shared';
-import { db } from '@tripweaver/core/db/client';
-import { generationNotifications, generations } from '@tripweaver/core/db/schema';
-import { createLiveRun } from '@tripweaver/agent/generation/liveRun';
-import { runGeneration } from '@tripweaver/agent/generation/orchestrator';
-import type { LlmConfig } from '@tripweaver/core/settingsService';
+import { uid, type GenerateForm } from '@rollinggo-trip/shared';
+import { db } from '@rollinggo-trip/core/db/client';
+import { generationNotifications, generations } from '@rollinggo-trip/core/db/schema';
+import { createLiveRun } from '@rollinggo-trip/agent/generation/liveRun';
+import { runGeneration } from '@rollinggo-trip/agent/generation/orchestrator';
+import type { LlmConfig } from '@rollinggo-trip/core/settingsService';
 
 test('已提交过的任务重跑直接复用 tripId，不生成新版本', async () => {
   const userId = `dedupe-${Date.now()}`;

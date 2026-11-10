@@ -1,4 +1,4 @@
-import type { Trip } from '@tripweaver/shared';
+import type { Trip } from '@rollinggo-trip/shared';
 
 export const TRIP_SHARE_STYLES = ['journal', 'ink'] as const;
 export type TripShareStyle = (typeof TRIP_SHARE_STYLES)[number];

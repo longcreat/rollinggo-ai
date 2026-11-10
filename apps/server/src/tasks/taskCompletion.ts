@@ -45,6 +45,7 @@ export async function deliverTaskResult(input: TaskCompletionTurnInput): Promise
       tools: [],
       instructions: DELIVERY_INSTRUCTIONS,
       model: agentModelRef(input.cfg.model),
+      thinkingLevel: 'off',
       prompt,
       maxTurns: 1,
       ...(binding !== null ? { conversationId: binding as unknown as ConversationId } : {}),

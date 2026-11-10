@@ -62,7 +62,6 @@ export function resolveOpenAiCompat(input: { baseUrl: string; model: string }): 
         ...(thinking
           ? {
             thinkingFormat: 'qwen' as const,
-            requiresReasoningContentOnAssistantMessages: true,
           }
           : {}),
       },

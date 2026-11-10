@@ -9,7 +9,7 @@ describe('OpenAI 兼容端点差异', () => {
     const decision = resolveOpenAiCompat({ baseUrl: DASHSCOPE, model: 'deepseek-v3.2' });
     assert.equal(decision.compat?.maxTokensField, 'max_tokens');
     assert.equal(decision.compat?.thinkingFormat, 'qwen');
-    assert.equal(decision.compat?.requiresReasoningContentOnAssistantMessages, true);
+    assert.equal(decision.compat?.requiresReasoningContentOnAssistantMessages, undefined, '对齐官方规范：百炼端点不强设 requiresReasoningContent');
     assert.equal(decision.compat?.supportsDeveloperRole, false, '百炼不接受 developer 角色');
     assert.equal(decision.compat?.supportsStore, false, '百炼不接受 store 字段');
     assert.equal(decision.reasoning, true, 'pi-ai 只有 reasoning=true 才发思考开关');

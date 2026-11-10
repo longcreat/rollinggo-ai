@@ -21,6 +21,7 @@ import { openNodeSqliteStorage } from '@earendil-works/pi-durable/storage/sqlite
 import { createSubagentTool } from './subagent';
 import { assertSubagentToolNames, toolsForRole } from './toolPolicy';
 import { GenerationTask } from '../../generation/generationTask';
+import { createSanitizeContextExtension } from './sanitizeHook';
 
 export type AgentStreamEvent =
   // 当前 generation 的完整正文快照；HITL 后 generation 会重开，增量不可靠。
@@ -126,6 +127,8 @@ async function openRuntime(storagePath: string): Promise<Runtime> {
   const registry = createRegistry();
   // 生成任务与详情对话共用一份存储：任务定义必须在 Harness.open 前注册，resume 才能找到它。
   registry.install(defineExtension({ name: 'generation-task', tasks: [GenerationTask] }));
+  // 遵循 Pi 官方规范：挂载 beforeRequest 请求审计扩展，剥离 Compaction 截断后的断裂思维链
+  registry.install(createSanitizeContextExtension());
   const holder: Runtime['holder'] = { current: null };
   const harness = await Harness.open(await openNodeSqliteStorage(storagePath), {
     models: () => {

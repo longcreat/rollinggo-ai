@@ -86,4 +86,23 @@ test('坐标补齐后的草稿只重排无时刻天，清理旧legs并保留跨�
   orderUntimedDayRoutes(draft, '北京');
   const ordered = names(draft.mutableDays()[0]!.activities);
   assert.ok(ordered.indexOf('故宫博物院') < ordered.indexOf('景山公园'));
+
+  // 验证 forceReorderTimed: true 能够重排已有初排时刻的天，并保持餐次位置固定
+  const draftTimed = new DraftTrip(form);
+  draftTimed.setSkeleton('北京', ['已有时刻但顺序错乱']);
+  const meal = { name: '午餐｜北京烤鸭', lat: 39.93, lng: 116.4, category: '美食' as const, startTime: '12:00', endTime: '13:00' };
+  // 错乱输入: 什刹海 -> 雍和宫 -> 北海公园 -> 午餐 -> 颐和园
+  const chaotic = [
+    { ...beijing[0]!, startTime: '09:00', endTime: '10:00' },
+    { ...beijing[2]!, startTime: '10:20', endTime: '11:20' },
+    { ...beijing[1]!, startTime: '11:40', endTime: '12:00' },
+    meal,
+    { ...beijing[3]!, startTime: '13:30', endTime: '15:30' },
+  ];
+  chaotic.forEach((p) => draftTimed.addActivity(1, p));
+  assert.deepEqual(orderUntimedDayRoutes(draftTimed, '北京'), [], '默认不重排已有时刻的天');
+  assert.deepEqual(orderUntimedDayRoutes(draftTimed, '北京', { forceReorderTimed: true }), [1], 'forceReorderTimed=true 成功重排');
+  const fixedMeal = draftTimed.mutableDays()[0]!.activities[3]!;
+  assert.equal(fixedMeal.name, meal.name, '餐次槽位必须保持固定');
+  assert.ok(routeBacktracks(draftTimed.mutableDays()[0]!.activities) < routeBacktracks(chaotic), '重排后折返数显著下降');
 });

@@ -14,14 +14,18 @@ import { routeOrderConstraints } from '../data/routeOrderSeeds';
 
 type DraftDay = ReturnType<DraftTrip['mutableDays']>[number];
 
-/** 补齐坐标后、计算通勤腿前再排一次。固定已有时刻的天与餐次槽位，只调整日内访问顺序。 */
-export function orderUntimedDayRoutes(draft: DraftTrip, destination: string): number[] {
+/** 补齐坐标后、计算通勤腿前再排一次。固定已有时刻的天（若未开启 forceReorderTimed）与餐次槽位，只调整日内访问顺序。 */
+export function orderUntimedDayRoutes(
+  draft: DraftTrip,
+  destination: string,
+  options: { forceReorderTimed?: boolean } = {},
+): number[] {
   const changed: number[] = [];
   const lodging = draft.lodging;
   const origin = lodging && typeof lodging.lat === 'number' && typeof lodging.lng === 'number'
     ? { lat: lodging.lat, lng: lodging.lng } : undefined;
   draft.mutableDays().forEach((day, index) => {
-    if (day.activities.some((a) => a.startTime || a.endTime)) return;
+    if (!options.forceReorderTimed && day.activities.some((a) => a.startTime || a.endTime)) return;
     const ordered = optimizeRouteOrder(day.activities, {
       constraints: routeOrderConstraints(destination, day.activities.map((a) => a.name)),
       fixedIndexes: new Set(day.activities.flatMap((a, i) => isMealActivity(a) ? [i] : [])), origin,

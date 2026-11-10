@@ -124,4 +124,28 @@ describe('enrichMealAnchors', () => {
     assert.equal(result.replaced, 0);
     assert.equal(draft.mutableDays()[0]!.activities[1]!.name, '午餐｜成都');
   });
+
+  it('午餐与晚餐分别跟随紧邻的前置景点，杜绝跨城拉回早晨第1站', async () => {
+    const draft = new DraftTrip(form('2026-12-01'));
+    draft.setSkeleton('成都一日', ['市区']);
+    // 0: 杜甫草堂 (早晨西区)
+    draft.addActivity(1, { name: '杜甫草堂', description: '', category: '文化', lat: 30.66, lng: 104.028, coordSource: 'geocoded', coordSystem: 'gcj02' });
+    // 1: 宽窄巷子 (上午中区)
+    draft.addActivity(1, { name: '宽窄巷子', description: '', category: '文化', lat: 30.663, lng: 104.055, coordSource: 'geocoded', coordSystem: 'gcj02' });
+    // 2: 午餐锚点
+    draft.addActivity(1, { name: '午餐｜成都', description: ANCHOR_DESC, category: '美食' });
+    // 3: 武侯祠 (下午南区)
+    draft.addActivity(1, { name: '武侯祠', description: '', category: '文化', lat: 30.646, lng: 104.047, coordSource: 'geocoded', coordSystem: 'gcj02' });
+    // 4: 晚餐锚点
+    draft.addActivity(1, { name: '晚餐｜成都', description: ANCHOR_DESC, category: '美食' });
+
+    const poi = poiSource([restaurant({ location: { lat: 30.663, lng: 104.055 } })]);
+    await enrichMealAnchors({
+      draft, poi, destination: '成都', startDate: '2026-12-01', signal: AbortSignal.timeout(5_000),
+    });
+
+    assert.equal(poi.calls.length, 2);
+    assert.equal(poi.calls[0], '宽窄巷子 美食', '午餐应以宽窄巷子（紧邻前站）为中心，而不是杜甫草堂');
+    assert.equal(poi.calls[1], '武侯祠 美食', '晚餐应以武侯祠（紧邻前站）为中心，而不是杜甫草堂');
+  });
 });

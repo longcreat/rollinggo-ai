@@ -668,8 +668,8 @@ export async function runGeneration(
       if (signal.aborted) throw err;
     }
 
-    // 换天修复后的最终邻接关系再校验；只重算真正改变的天，不持久化旧顺序的 legs。
-    const reorderedDays = orderUntimedDayRoutes(draft, form.destination);
+    // 换天与餐次补齐后的最终邻接关系再校验：对已有初排时刻的天进行顺路拓扑重排（餐次固定，重排顺路景点）。
+    const reorderedDays = orderUntimedDayRoutes(draft, form.destination, { forceReorderTimed: true });
     if (reorderedDays.length) {
       try {
         await runSystemTask('review', 'route_recompute_ordered_days', '复核顺路通勤', () =>

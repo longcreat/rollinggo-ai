@@ -59,8 +59,16 @@ export async function enrichMealAnchors(input: {
       const synthetic = activity.description.startsWith(ANCHOR_DESC_PREFIX) || activity.id.startsWith(MEAL_ANCHOR_ID_PREFIX);
       if (!synthetic) { kept += 1; continue; }
       if (calls >= maxCalls) { kept += 1; continue; }
-      const neighbors = day.activities.filter((a, i) => i !== ai && !isMeal(a, 'lunch') && !isMeal(a, 'dinner') && hasCoord(a));
-      const center = neighbors[0];
+      // 顺路就近策略：优先以紧邻的前一个非就餐且有坐标的活动为中心；
+      // 若前置无活动（例如餐次排在当天首站），则取紧邻的后一个活动为中心。
+      const prevNeighbor = day.activities
+        .slice(0, ai)
+        .reverse()
+        .find((a) => !isMeal(a, 'lunch') && !isMeal(a, 'dinner') && hasCoord(a));
+      const nextNeighbor = day.activities
+        .slice(ai + 1)
+        .find((a) => !isMeal(a, 'lunch') && !isMeal(a, 'dinner') && hasCoord(a));
+      const center = prevNeighbor ?? nextNeighbor;
       if (!center) { kept += 1; continue; }   // 当天没有可定位的参照活动，锚点坐标也无从谈起
 
       calls += 1;
@@ -73,11 +81,20 @@ export async function enrichMealAnchors(input: {
         hits = [];   // 搜索失败 = 保留锚点（生成不失败原则）
       }
       signal.throwIfAborted();
-      const pick = hits.find((hit) =>
+      // 筛选有效命中并在 2km 范围内寻找最优顺路餐厅：
+      // 有前后两站时，优先选择最小化 (前站→餐厅 + 餐厅→后站) 总距离的店，避免折返跑。
+      const validHits = hits.filter((hit) =>
         hit.location !== null
         && haversineMeters(center, hit.location) <= MEAL_NEARBY_METERS
         && !isClosedOnDate(hit.opentime, date)
         && !day.activities.some((a) => a.name.includes(hit.name) || hit.name.includes(a.name)));
+      
+      const pick = validHits.sort((a, b) => {
+        const distA = haversineMeters(center, a.location!) + (nextNeighbor && hasCoord(nextNeighbor) ? haversineMeters(a.location!, nextNeighbor) : 0);
+        const distB = haversineMeters(center, b.location!) + (nextNeighbor && hasCoord(nextNeighbor) ? haversineMeters(b.location!, nextNeighbor) : 0);
+        return distA - distB;
+      })[0];
+
       if (!pick || !pick.location) { kept += 1; continue; }
 
       day.activities[ai] = {

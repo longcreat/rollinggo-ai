@@ -194,6 +194,7 @@ export type GenerationEventPayload =
   | { type: 'candidate'; poi: ResearchPoi }   // 调研 Agent 每写入一条候选即推送（概览卡片实时长出）
   // 规划 Agent 每排完一天即推送（直播页逐日长出行程与地图点位）；不替代最终落库的 Trip
   | { type: 'plan_day'; dayIndex: number; title?: string; stops: PlanDayEventStop[] }
+  | { type: 'highlight'; stage: string; text: string; kind?: 'poi' | 'tip' | 'route' | 'food' }
   // 每次 API 请求结束的轻量结果（不含 prompt 正文）；评测链路用它记录 turn / stopReason / httpStatus
   | { type: 'llm_response'; phase: GenerationPhase; turn: number; stopReason?: string; tokensIn?: number; tokensOut?: number; errorMessage?: string }
   | { type: 'usage'; tokensIn: number; tokensOut: number; xhsCalls: number; amapCalls: number; searchCalls: number }

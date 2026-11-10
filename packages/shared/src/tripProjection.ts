@@ -1,6 +1,7 @@
 // 行程投影的领域形状：row = 一天，state = 行程/控制/任务图/用量/交互/可用性（键集合封闭）。
 // 生成中与对话中共用同一形状 —— 「直播」与「对话」读的是同一份投影，不再各自从事件流合成。
 import type { Activity, ResearchPoi, TransitLeg, Trip } from './types';
+import type { PlannerHighlightTicker } from './agents';
 import type {
   ProjectionDelta,
   ProjectionFrame,
@@ -80,6 +81,7 @@ export interface TripProjectionState {
   trip: TripProjectionHeader | null;
   control: ProjectionControl;
   taskGraph: ProjectionTaskNode[];
+  highlights?: PlannerHighlightTicker[];
   usage: ProjectionUsage | null;
   pendingInteractions: ProjectionInteraction[];
   availability: { canSend: boolean; reason?: string };
@@ -90,6 +92,7 @@ export function emptyTripProjectionState(): TripProjectionState {
     trip: null,
     control: { phase: 'idle', status: 'idle' },
     taskGraph: [],
+    highlights: [],
     usage: null,
     pendingInteractions: [],
     availability: { canSend: true },

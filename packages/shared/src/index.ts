@@ -21,5 +21,6 @@ export * from './projection';
 export * from './projectionClient';
 export * from './tripProjection';
 export * from './tripAdvice';
+export * from './agents';
 export { placeNameKey, samePlaceReference, uniquePlaceReferences, type PlaceIdentityReference } from './placeIdentity';
 export { placeNameContains, placeNameContainsKey } from './placeNameMatch';
